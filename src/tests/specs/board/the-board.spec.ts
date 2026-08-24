@@ -23,15 +23,17 @@ test.describe('The Board - Watchlist Table & Data Filtering Suite', () => {
     // 1. Filter by ETFs
     await boardPage.filterByEtfs();
     let rows = await boardPage.getVisibleRowSymbols();
-    expect(rows).toContain('SPY');
-    expect(rows).toContain('QQQ');
+    expect(rows).toContain('VTI');
+    expect(rows).toContain('VOO');
+    expect(rows).toContain('QQQM');
     expect(rows).not.toContain('GOOGL');
 
     // 2. Filter by Stocks
     await boardPage.filterByStocks();
     rows = await boardPage.getVisibleRowSymbols();
     expect(rows).toContain('GOOGL');
-    expect(rows).not.toContain('SPY');
+    expect(rows).not.toContain('VTI');
+    expect(rows).not.toContain('VOO');
 
     // 3. Reset back to All
     await boardPage.filterByAll();
@@ -56,13 +58,13 @@ test.describe('The Board - Watchlist Table & Data Filtering Suite', () => {
     const boardPage = new TheBoardPage(page);
     await boardPage.open();
 
-    // Expand SPY row
-    await boardPage.expandRow('SPY');
-    const spyCard = boardPage.getStockDetailCard('SPY');
+    // Expand VTI row
+    await boardPage.expandRow('VTI');
+    const vtiCard = boardPage.getStockDetailCard('VTI');
 
-    await expect(spyCard.googleFinanceLink).toBeVisible();
-    const href = await spyCard.getGoogleFinanceUrl();
-    expect(href).toContain('google.com/finance/quote/SPY');
+    await expect(vtiCard.googleFinanceLink).toBeVisible();
+    const href = await vtiCard.getGoogleFinanceUrl();
+    expect(href).toContain('google.com/finance/quote/VTI');
   });
 
   test('should expand and collapse all rows simultaneously with the expand-all action', async ({ page }) => {
@@ -71,11 +73,11 @@ test.describe('The Board - Watchlist Table & Data Filtering Suite', () => {
 
     // Expand All
     await boardPage.toggleExpandAll();
-    const spyCard = boardPage.getStockDetailCard('SPY');
-    await expect(spyCard.googleFinanceLink).toBeVisible();
+    const vtiCard = boardPage.getStockDetailCard('VTI');
+    await expect(vtiCard.googleFinanceLink).toBeVisible();
 
     // Collapse All
     await boardPage.toggleExpandAll();
-    await expect(spyCard.googleFinanceLink).not.toBeVisible();
+    await expect(vtiCard.googleFinanceLink).not.toBeVisible();
   });
 });

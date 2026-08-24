@@ -11,9 +11,9 @@ export interface StockAssertionData {
 }
 
 export const KNOWN_ASSETS: StockAssertionData[] = [
-  { symbol: 'SPY', name: 'SPDR S&P 500 ETF Trust', type: 'ETF' },
-  { symbol: 'QQQ', name: 'Invesco QQQ Trust (Nasdaq-100)', type: 'ETF' },
   { symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', type: 'ETF' },
+  { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', type: 'ETF' },
+  { symbol: 'QQQM', name: 'Invesco NASDAQ 100 ETF', type: 'ETF' },
   { symbol: 'GOOGL', name: 'Alphabet Inc. (Class A)', type: 'STOCK' },
   { symbol: 'VXUS', name: 'Vanguard Total International Stock ETF', type: 'ETF' },
   { symbol: 'SCHD', name: 'Schwab U.S. Dividend Equity ETF', type: 'ETF' },

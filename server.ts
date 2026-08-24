@@ -32,10 +32,17 @@ function mapTimeframeToYahooParams(timeframe: string): { range: string; interval
   }
 }
 
+function getYahooSymbol(sym: string): string {
+  const upper = sym.toUpperCase();
+  if (upper === 'BTC') return 'BTC-USD';
+  return upper;
+}
+
 async function fetchYahooFinanceChart(symbol: string, range: string, interval: string) {
+  const yahooSym = getYahooSymbol(symbol);
   const urls = [
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includePrePost=false`,
-    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includePrePost=false`,
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=${range}&interval=${interval}&includePrePost=false`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=${range}&interval=${interval}&includePrePost=false`,
   ];
 
   const headers = {
@@ -88,45 +95,49 @@ async function startServer() {
         return res.json({ quotes: cached.data, cached: true, timestamp: cached.timestamp });
       }
 
-      // Fetch chart 1d meta for each symbol in parallel
-      const results = await Promise.allSettled(
-        symbols.map(async (sym) => {
-          const chart = await fetchYahooFinanceChart(sym, '1d', '15m');
-          const meta = chart.meta || {};
-          const quote = chart.indicators?.quote?.[0] || {};
-          const closes: (number | null)[] = (quote.close || []).filter((c: any) => typeof c === 'number' && c !== null);
-
-          const currentPrice = meta.regularMarketPrice || (closes.length > 0 ? closes[closes.length - 1] : 0);
-          const prevClose = meta.chartPreviousClose || meta.previousClose || (closes.length > 0 ? closes[0] : currentPrice);
-          const change = Number((currentPrice - prevClose).toFixed(2));
-          const changePercent = Number((((currentPrice - prevClose) / (prevClose || 1)) * 100).toFixed(2));
-
-          return {
-            symbol: sym,
-            price: currentPrice,
-            change,
-            changePercent,
-            prevClose,
-            open: meta.regularMarketOpen || prevClose,
-            dayHigh: meta.regularMarketDayHigh || currentPrice,
-            dayLow: meta.regularMarketDayLow || currentPrice,
-            volume: meta.regularMarketVolume || 0,
-            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
-            fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
-            marketCap: meta.marketCap,
-            currency: meta.currency || 'USD',
-            exchangeName: meta.exchangeName,
-            sparkline: closes.length >= 6 ? closes.slice(-24) : [prevClose, currentPrice],
-          };
-        })
-      );
-
+      // Fetch chart 1d meta for each symbol with concurrency chunking (10 at a time)
       const quotes: any[] = [];
-      results.forEach((res) => {
-        if (res.status === 'fulfilled' && res.value && res.value.price > 0) {
-          quotes.push(res.value);
-        }
-      });
+      const CHUNK_SIZE = 10;
+      for (let i = 0; i < symbols.length; i += CHUNK_SIZE) {
+        const chunk = symbols.slice(i, i + CHUNK_SIZE);
+        const chunkResults = await Promise.allSettled(
+          chunk.map(async (sym) => {
+            const chart = await fetchYahooFinanceChart(sym, '1d', '15m');
+            const meta = chart.meta || {};
+            const quote = chart.indicators?.quote?.[0] || {};
+            const closes: (number | null)[] = (quote.close || []).filter((c: any) => typeof c === 'number' && c !== null);
+
+            const currentPrice = meta.regularMarketPrice || (closes.length > 0 ? closes[closes.length - 1] : 0);
+            const prevClose = meta.chartPreviousClose || meta.previousClose || (closes.length > 0 ? closes[0] : currentPrice);
+            const change = Number((currentPrice - prevClose).toFixed(2));
+            const changePercent = Number((((currentPrice - prevClose) / (prevClose || 1)) * 100).toFixed(2));
+
+            return {
+              symbol: sym,
+              price: currentPrice,
+              change,
+              changePercent,
+              prevClose,
+              open: meta.regularMarketOpen || prevClose,
+              dayHigh: meta.regularMarketDayHigh || currentPrice,
+              dayLow: meta.regularMarketDayLow || currentPrice,
+              volume: meta.regularMarketVolume || 0,
+              fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+              fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+              marketCap: meta.marketCap,
+              currency: meta.currency || 'USD',
+              exchangeName: meta.exchangeName,
+              sparkline: closes.length >= 6 ? closes.slice(-24) : [prevClose, currentPrice],
+            };
+          })
+        );
+
+        chunkResults.forEach((res) => {
+          if (res.status === 'fulfilled' && res.value && res.value.price > 0) {
+            quotes.push(res.value);
+          }
+        });
+      }
 
       if (quotes.length > 0) {
         cache.set(cacheKey, { timestamp: Date.now(), data: quotes });

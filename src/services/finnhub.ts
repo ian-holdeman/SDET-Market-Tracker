@@ -264,6 +264,7 @@ export async function fetchFinnhubPeers(
 /**
  * Helper to compute authentic P/E ratio from Finnhub basic financials
  * Prioritizes price/epsTTM and peTTM over outdated historical annual numbers.
+ * Accurately returns undefined (N/A) for unprofitable / negative EPS companies.
  */
 export function extractFinnhubPERatio(
   currentPrice: number,
@@ -272,30 +273,46 @@ export function extractFinnhubPERatio(
 ): number | undefined {
   if (!metric) return fallbackPE;
 
-  // 1. Calculate live P/E directly from real-time price & TTM EPS if available
-  if (typeof metric.epsTTM === 'number' && metric.epsTTM > 0 && currentPrice > 0) {
-    return Number((currentPrice / metric.epsTTM).toFixed(2));
+  // 1. Explicitly check for negative or zero EPS (Unprofitable / Net Loss).
+  // In finance, P/E ratio is strictly undefined / N/A for loss-making companies.
+  if (typeof metric.epsTTM === 'number') {
+    if (metric.epsTTM <= 0) {
+      return undefined; // Company is unprofitable; P/E is strictly N/A
+    }
+    if (currentPrice > 0) {
+      return Number((currentPrice / metric.epsTTM).toFixed(1));
+    }
   }
 
   // 2. Trailing Twelve Months P/E
-  if (typeof metric.peTTM === 'number' && metric.peTTM > 0) {
-    return Number(metric.peTTM.toFixed(2));
+  if (typeof metric.peTTM === 'number') {
+    if (metric.peTTM <= 0) return undefined;
+    return Number(metric.peTTM.toFixed(1));
   }
 
   // 3. Basic TTM P/E excluding extra items
-  if (typeof metric.peBasicExclExtraTTM === 'number' && metric.peBasicExclExtraTTM > 0) {
-    return Number(metric.peBasicExclExtraTTM.toFixed(2));
+  if (typeof metric.peBasicExclExtraTTM === 'number') {
+    if (metric.peBasicExclExtraTTM <= 0) return undefined;
+    return Number(metric.peBasicExclExtraTTM.toFixed(1));
   }
 
   // 4. Normalized TTM P/E
-  if (typeof metric.peExclExtraTTM === 'number' && metric.peExclExtraTTM > 0) {
-    return Number(metric.peExclExtraTTM.toFixed(2));
+  if (typeof metric.peExclExtraTTM === 'number') {
+    if (metric.peExclExtraTTM <= 0) return undefined;
+    return Number(metric.peExclExtraTTM.toFixed(1));
   }
 
-  if (typeof metric.peInclExtraTTM === 'number' && metric.peInclExtraTTM > 0) {
-    return Number(metric.peInclExtraTTM.toFixed(2));
+  if (typeof metric.peInclExtraTTM === 'number') {
+    if (metric.peInclExtraTTM <= 0) return undefined;
+    return Number(metric.peInclExtraTTM.toFixed(1));
   }
 
+  if (typeof metric.peNormalizedAnnual === 'number') {
+    if (metric.peNormalizedAnnual <= 0) return undefined;
+    return Number(metric.peNormalizedAnnual.toFixed(1));
+  }
+
+  // For ETFs or crypto where metric is undefined, fallback to ETF aggregate or undefined
   return fallbackPE;
 }
 

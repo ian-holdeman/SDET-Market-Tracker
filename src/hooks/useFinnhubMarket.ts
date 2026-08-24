@@ -133,7 +133,12 @@ export function useFinnhubMarket() {
             setStocks((prev) =>
               prev.map((s) => {
                 if (s.symbol !== sym) return s;
-                const peRatio = extractFinnhubPERatio(s.price, metric, s.peRatio);
+                // Calculate authentic P/E (returns undefined if unprofitable / negative EPS)
+                const peRatio = extractFinnhubPERatio(
+                  s.price,
+                  metric,
+                  s.assetType === 'ETF' ? s.peRatio : undefined
+                );
                 const dividendYield =
                   metric.dividendYieldIndicatedAnnual ||
                   metric.dividendYield5Y ||
@@ -143,9 +148,9 @@ export function useFinnhubMarket() {
 
                 return {
                   ...s,
-                  peRatio: peRatio && peRatio > 0 ? Number(peRatio.toFixed(1)) : s.peRatio,
+                  peRatio: typeof peRatio === 'number' && peRatio > 0 ? Number(peRatio.toFixed(1)) : undefined,
                   dividendYield:
-                    dividendYield && dividendYield > 0
+                    typeof dividendYield === 'number' && dividendYield > 0
                       ? Number(dividendYield.toFixed(2))
                       : s.dividendYield,
                   marketCap: mCap || s.marketCap,

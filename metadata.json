@@ -1,6 +1,6 @@
 {
   "name": "Ian's Market Tracker",
-  "description": "A sleek fintech market tracker and SDET showcase platform featuring broad index surveillance, watchlist boards, and automated test telemetry.",
+  "description": "A sleek fintech market tracker and SDET showcase platform featuring broad index surveillance, interactive watchlist board, and live Playwright automated test telemetry matrix.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

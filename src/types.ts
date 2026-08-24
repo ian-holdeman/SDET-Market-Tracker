@@ -49,7 +49,15 @@ export interface TickerSummary {
   changePercent: number;
 }
 
-export type AssetCategory = 'Broad Index' | 'Tech & Growth' | 'Dividend' | 'International' | 'Mega-Cap Equity';
+export type AssetCategory = 
+  | 'Index & Broad ETFs'
+  | 'Sector ETFs'
+  | 'Tech'
+  | 'Consumer & Retail'
+  | 'Fintech'
+  | 'Healthcare & Biotech'
+  | 'Industrials & Aerospace'
+  | string;
 
 export interface TradeTick {
   price: number;
@@ -72,6 +80,7 @@ export interface BoardStock {
   name: string;
   assetType: 'ETF' | 'Stock';
   category: AssetCategory;
+  isFavorite?: boolean;
   price: number;
   change: number;
   changePercent: number;

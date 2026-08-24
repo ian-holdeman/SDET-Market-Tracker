@@ -121,13 +121,18 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
                 }`}>
                   {stock.symbol}
                 </span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold uppercase font-mono ${
+                <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono ${
                   stock.assetType === 'ETF' 
-                    ? 'bg-blue-950/90 text-blue-400 border border-blue-800/50' 
+                    ? 'bg-blue-950/90 text-blue-400 border border-blue-800/50 uppercase' 
                     : 'bg-slate-800 text-slate-300 border border-slate-700'
                 }`}>
-                  {stock.assetType}
+                  {stock.assetType === 'ETF' ? 'ETF' : 'Stock'}
                 </span>
+                {stock.isFavorite && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono bg-purple-950/90 text-purple-400 border border-purple-800/50">
+                    Favorite
+                  </span>
+                )}
               </div>
               <span className="text-xs text-slate-400 max-w-[140px] sm:max-w-xs truncate hidden sm:block">
                 {stock.name}
@@ -170,71 +175,54 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         </td>
 
         {/* 4. Today's Change / Mobile 2nd Column with Price & Change */}
-        <td className={`py-3.5 sm:py-4 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
-          <div className="inline-flex flex-col items-end">
-            {/* Mobile View: Price on top (bigger, colored to match direction), Change underneath */}
-            <div className="md:hidden flex flex-col items-end">
-              <span className={`font-mono text-base sm:text-lg font-bold sm:font-extrabold ${
-                isPositive ? 'text-emerald-400' : 'text-rose-400'
-              }`}>
-                ${stock.price.toFixed(2)}
-              </span>
-              <span className={`inline-flex items-center font-mono text-xs font-semibold mt-0.5 ${
-                isPositive ? 'text-emerald-400/90' : 'text-rose-400/90'
-              }`}>
-                {isPositive ? (
-                  <TrendingUp className="w-3 h-3 mr-0.5 shrink-0 inline" />
-                ) : (
-                  <TrendingDown className="w-3 h-3 mr-0.5 shrink-0 inline" />
-                )}
-                {isPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
-              </span>
-            </div>
+        <td className={`py-3.5 sm:py-4 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right md:text-center ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
+          {/* Mobile View: Price on top (bigger, colored to match direction), Change underneath */}
+          <div className="md:hidden flex flex-col items-end">
+            <span className={`font-mono text-base sm:text-lg font-bold sm:font-extrabold ${
+              isPositive ? 'text-emerald-400' : 'text-rose-400'
+            }`}>
+              ${stock.price.toFixed(2)}
+            </span>
+            <span className={`inline-flex items-center font-mono text-xs font-semibold mt-0.5 ${
+              isPositive ? 'text-emerald-400/90' : 'text-rose-400/90'
+            }`}>
+              {isPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
+            </span>
+          </div>
 
-            {/* Desktop View: Change pill on top, Dollar Change ($) underneath */}
-            <div className="hidden md:flex flex-col items-end">
+          {/* Desktop View: Center-aligned in column with $ change snapped to the right edge of % box */}
+          <div className="hidden md:flex flex-col items-center justify-center">
+            <div className="inline-flex flex-col items-end">
               <span
-                className={`inline-flex items-center font-mono text-xs font-bold px-2 py-0.5 rounded-lg border ${
+                className={`inline-flex items-center justify-center font-mono text-sm font-bold px-3 py-1 rounded border ${
                   isPositive
                     ? 'bg-emerald-950/70 text-emerald-300 border-emerald-800/50'
                     : 'bg-rose-950/70 text-rose-300 border-rose-800/50'
                 }`}
               >
-                {isPositive ? (
-                  <TrendingUp className="w-3 h-3 mr-1 shrink-0" />
-                ) : (
-                  <TrendingDown className="w-3 h-3 mr-1 shrink-0" />
-                )}
                 {isPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
               </span>
 
-              <div className="mt-0.5">
+              <div className="mt-1 w-full text-right pr-0.5">
                 <span
-                  className={`text-[11px] font-mono font-medium ${
+                  className={`text-[13px] font-mono font-semibold ${
                     isPositive ? 'text-emerald-400' : 'text-rose-400'
                   }`}
                 >
-                  {isPositive ? '+' : ''}${stock.change.toFixed(2)}
+                  {isPositive ? '+' : '-'}${Math.abs(stock.change).toFixed(2)}
                 </span>
               </div>
             </div>
           </div>
         </td>
 
-        {/* 5. P/E Ratio (Desktop Only - Centered Under Header) */}
+        {/* 5. 52W Range (Desktop Only) - Balanced 3-column grid for stable centering despite digit length variations */}
         <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-center ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
-          <span className="font-mono text-sm font-semibold text-slate-300 block text-center">
-            {stock.peRatio ? `${stock.peRatio.toFixed(1)}x` : '—'}
-          </span>
-        </td>
-
-        {/* 6. 52W Range (Desktop Only) */}
-        <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
-          <div className="flex flex-col items-center max-w-[170px] mx-auto">
-            <div className="w-full flex justify-between text-[11px] font-mono mb-1">
-              <span className="font-semibold text-slate-200">${fiftyTwoLow.toFixed(2)}</span>
-              <span className="text-[10px] text-slate-400 font-sans tracking-wide">52W</span>
-              <span className="font-semibold text-slate-200">${fiftyTwoHigh.toFixed(2)}</span>
+          <div className="flex flex-col items-center max-w-[175px] mx-auto">
+            <div className="w-full grid grid-cols-3 items-center text-[11px] font-mono mb-1">
+              <span className="font-semibold text-slate-200 text-left">${fiftyTwoLow.toFixed(2)}</span>
+              <span className="text-[10px] text-slate-400 text-center tracking-wide">52W</span>
+              <span className="font-semibold text-slate-200 text-right">${fiftyTwoHigh.toFixed(2)}</span>
             </div>
             {/* Range track */}
             <div className="w-full h-1.5 bg-slate-800/90 rounded-full overflow-hidden relative">
@@ -259,7 +247,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
             key={`expanded-${stock.symbol}`} 
             className={`bg-[#0B0F17] outline-none ${!isLastRow ? 'border-b border-slate-800/60' : ''}`}
           >
-            <td colSpan={6} className="p-0 border-none outline-none bg-[#0B0F17]">
+            <td colSpan={5} className="p-0 border-none outline-none bg-[#0B0F17]">
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ 
@@ -417,10 +405,15 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
   };
 
   // Filter & Sort stocks - O(N log N) with instant O(1) tab switching and O(N) filtering
+  // Assets marked as "Favorite" sit at the top of the board, but follow the active sort order,
+  // with remaining non-favorites partitioned below them following the same sort order.
   const processedStocks = useMemo(() => {
     return stocks
       .filter((stock) => {
-        if (assetFilter !== 'ALL' && stock.assetType.toLowerCase() !== assetFilter.toLowerCase()) {
+        if (assetFilter === 'ETF' && stock.assetType !== 'ETF') {
+          return false;
+        }
+        if (assetFilter === 'Stock' && stock.assetType !== 'Stock') {
           return false;
         }
         if (!searchQuery.trim()) return true;
@@ -432,6 +425,14 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
         );
       })
       .sort((a, b) => {
+        const isFavA = Boolean(a.isFavorite);
+        const isFavB = Boolean(b.isFavorite);
+
+        // Favorites partition to top
+        if (isFavA !== isFavB) {
+          return isFavA ? -1 : 1;
+        }
+
         if (sortField === 'name' || sortField === 'symbol') {
           const valA = a.name || a.symbol;
           const valB = b.name || b.symbol;
@@ -750,9 +751,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
                       handleSort('changePercent');
                     }
                   }}
-                  className="py-3 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right cursor-pointer hover:text-white transition-colors group w-[48%] sm:w-[44%] md:w-auto border-b border-slate-800"
+                  className="py-3.5 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right md:text-center cursor-pointer hover:text-white transition-colors group w-[48%] sm:w-[44%] md:w-auto border-b border-slate-800"
                 >
-                  <span className="flex items-center justify-end">
+                  <span className="flex items-center justify-end md:justify-center">
                     <span className="md:hidden">Price</span>
                     <span className="hidden md:inline">Today's Change</span>
                     <span className="md:hidden">{renderSortIcon('price')}</span>
@@ -760,20 +761,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
                   </span>
                 </th>
 
-                {/* 5. P/E Ratio (Sortable - Desktop Only) */}
-                <th 
-                  onClick={() => handleSort('peRatio')}
-                  className="hidden md:table-cell py-3.5 px-4 text-center cursor-pointer hover:text-white transition-colors group border-b border-slate-800"
-                >
-                  <span className="flex items-center justify-center">
-                    P/E Ratio
-                    {renderSortIcon('peRatio')}
-                  </span>
-                </th>
-
-                {/* 6. 52W Range (Not Sortable - Desktop Only) */}
+                {/* 5. 52W Range (Not Sortable - Desktop Only) */}
                 <th className="hidden md:table-cell py-3.5 px-4 text-center border-b border-slate-800">
-                  <span>52W Range</span>
+                  <span className="flex items-center justify-center">52W Range</span>
                 </th>
               </tr>
             </thead>
@@ -792,7 +782,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={5} className="py-12 text-center text-slate-500">
                     <p className="text-sm">No assets match your search "{searchQuery}"</p>
                     <button
                       onClick={() => setSearchQuery('')}

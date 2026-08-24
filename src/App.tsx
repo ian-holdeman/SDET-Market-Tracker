@@ -5,6 +5,7 @@ import { MarketTickerTape } from './components/MarketTickerTape';
 import { VtiSnapshotCard } from './components/VtiSnapshotCard';
 import { TestSnapshotCard } from './components/TestSnapshotCard';
 import { TheBoard } from './components/TheBoard';
+import { TheTests } from './components/TheTests';
 import { Footer } from './components/Footer';
 import { PagePlaceholder } from './components/PagePlaceholder';
 import { INITIAL_VTI_DATA, POPULAR_TICKERS, INITIAL_SDET_STATUS } from './data/marketData';
@@ -24,7 +25,7 @@ export default function App() {
     async function syncRealMarketHomeData() {
       try {
         // 1. Fetch real quotes for tickers & VTI
-        const symbols = ['VTI', 'SPY', 'QQQ', 'GOOGL', 'VXUS', 'SCHD'];
+        const symbols = ['VTI', 'VOO', 'QQQM', 'NVDA', 'GOOGL', 'BTC', 'SCHD', 'VXUS'];
         const quotes = await fetchProxyQuotes(symbols);
 
         if (isMounted && quotes && quotes.length > 0) {
@@ -179,6 +180,8 @@ export default function App() {
               </div>
             ) : currentPage === 'board' ? (
               <TheBoard />
+            ) : currentPage === 'tests' ? (
+              <TheTests />
             ) : (
               <PagePlaceholder
                 page={currentPage}

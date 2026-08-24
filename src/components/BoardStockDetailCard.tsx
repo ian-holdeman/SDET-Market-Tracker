@@ -480,13 +480,18 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               <h2 className="text-sm sm:text-base font-bold text-white font-mono tracking-tight truncate">
                 {stock.name}
               </h2>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-wider ${
+              <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider ${
                 stock.assetType === 'ETF'
-                  ? 'bg-blue-950/90 text-blue-400 border border-blue-800'
+                  ? 'bg-blue-950/90 text-blue-400 border border-blue-800 uppercase'
                   : 'bg-slate-800 text-slate-300 border border-slate-700'
               }`}>
-                {stock.assetType}
+                {stock.assetType === 'ETF' ? 'ETF' : 'Stock'}
               </span>
+              {stock.isFavorite && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider bg-purple-950/90 text-purple-400 border border-purple-800">
+                  Favorite
+                </span>
+              )}
               <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-medium bg-[#131926] text-slate-300 border border-slate-700/80">
                 {stock.category}
               </span>
@@ -512,7 +517,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               )}
               {isPeriodPositive ? '+' : ''}{activeChangePercent.toFixed(2)}%
               <span className="ml-1 text-[10px] sm:text-[11px] font-normal opacity-90">
-                ({isPeriodPositive ? '+' : ''}${activeChange.toFixed(2)})
+                ({isPeriodPositive ? '+' : '-'}${Math.abs(activeChange).toFixed(2)})
               </span>
             </span>
           </div>
@@ -820,10 +825,14 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
           </span>
           <div className="mt-1.5 flex items-baseline justify-between">
             <span className="text-sm sm:text-base font-mono font-black text-white">
-              {stock.peRatio ? `${stock.peRatio.toFixed(1)}x` : 'N/A'}
+              {typeof stock.peRatio === 'number' && stock.peRatio > 0 ? `${stock.peRatio.toFixed(1)}x` : 'N/A'}
             </span>
             <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-              {stock.peRatio ? 'TTM' : 'Index/ETF'}
+              {typeof stock.peRatio === 'number' && stock.peRatio > 0
+                ? 'TTM'
+                : stock.assetType === 'ETF'
+                ? 'ETF'
+                : 'Unprofitable'}
             </span>
           </div>
         </div>
