@@ -37,65 +37,13 @@ export class TheBoardPage extends BasePage {
   }
 
   async open(): Promise<void> {
-    await this.navigateTo();
-    await this.header.navigateToBoard();
+    await this.navigateTo('/');
+    await this.header.navBoardBtn.click();
     await this.pageHeading.waitFor({ state: 'visible' });
-  }
-
-  async search(query: string): Promise<void> {
-    const isDesktop = await this.desktopSearchInput.isVisible();
-    if (isDesktop) {
-      await this.desktopSearchInput.fill(query);
-    } else {
-      const isMobileInputVisible = await this.mobileSearchInput.isVisible();
-      if (!isMobileInputVisible) {
-        await this.mobileSearchToggleBtn.click();
-      }
-      await this.mobileSearchInput.fill(query);
-    }
-  }
-
-  async clearSearch(): Promise<void> {
-    const isDesktop = await this.desktopSearchInput.isVisible();
-    if (isDesktop) {
-      await this.desktopSearchInput.fill('');
-    } else if (await this.mobileSearchInput.isVisible()) {
-      await this.mobileSearchInput.fill('');
-    }
-  }
-
-  async filterByAll(): Promise<void> {
-    await this.filterAllBtn.click();
-  }
-
-  async filterByEtfs(): Promise<void> {
-    await this.filterEtfsBtn.click();
-  }
-
-  async filterByStocks(): Promise<void> {
-    await this.filterStocksBtn.click();
-  }
-
-  async toggleExpandAll(): Promise<void> {
-    await this.expandAllBtn.click();
-  }
-
-  async expandRow(symbol: string): Promise<void> {
-    const row = this.page.locator(`#board-row-${symbol}`);
-    await row.click();
   }
 
   getStockDetailCard(symbol: string): StockDetailCardComponent {
     return new StockDetailCardComponent(this.page, symbol);
   }
-
-  async getVisibleRowSymbols(): Promise<string[]> {
-    return await this.stockRows.evaluateAll(rows => 
-      rows.map(r => r.id.replace('board-row-', ''))
-    );
-  }
-
-  async getSummaryCountText(): Promise<string> {
-    return await this.summaryFooter.innerText();
-  }
 }
+

@@ -31,29 +31,8 @@ export class TheTestsPage extends BasePage {
 
   async open(): Promise<void> {
     await this.navigateTo('/');
-    await this.header.navigateToTests();
+    await this.header.navTestsBtn.click();
     await this.pageHeading.waitFor({ state: 'visible' });
   }
-
-  async triggerSuiteExecution(): Promise<void> {
-    if (await this.runAllTestsBtn.isVisible()) {
-      await this.runAllTestsBtn.click();
-    }
-  }
-
-  async filterByPassing(): Promise<void> {
-    if (await this.statusFilterPassingBtn.isVisible()) {
-      await this.statusFilterPassingBtn.click();
-    }
-  }
-
-  async filterByFailing(): Promise<void> {
-    if (await this.statusFilterFailingBtn.isVisible()) {
-      await this.statusFilterFailingBtn.click();
-    }
-  }
-
-  async getSuiteCount(): Promise<number> {
-    return await this.testSuiteCards.count();
-  }
 }
+

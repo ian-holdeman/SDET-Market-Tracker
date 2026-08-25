@@ -33,22 +33,5 @@ export class HomePage extends BasePage {
     await this.navigateTo('/');
     await this.heroHeading.waitFor({ state: 'visible' });
   }
-
-  async clickExploreTheBoard(): Promise<void> {
-    await this.vtiExploreBoardBtn.click();
-  }
-
-  async clickExploreTheTests(): Promise<void> {
-    await this.testExploreTestsBtn.click();
-  }
-
-  async selectVtiTimeframe(tf: '1D' | '1W' | '1M' | '1Y' | 'ALL'): Promise<void> {
-    const btn = this.page.locator(`div:has-text("Vanguard") button:has-text("${tf}")`).first();
-    await btn.click();
-  }
-
-  async selectTestSnapshotTimeframe(tf: '1D' | '1W' | '1M' | '1Y' | 'ALL'): Promise<void> {
-    const btn = this.page.locator(`div:has-text("Automated Test Suite") button:has-text("${tf}")`).first();
-    await btn.click();
-  }
 }
+

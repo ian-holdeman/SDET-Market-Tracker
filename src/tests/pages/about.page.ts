@@ -25,11 +25,8 @@ export class AboutPage extends BasePage {
 
   async open(): Promise<void> {
     await this.navigateTo('/');
-    await this.header.navigateToAbout();
+    await this.header.navAboutBtn.click();
     await this.pageHeading.waitFor({ state: 'visible' });
   }
-
-  async getTechStackList(): Promise<string[]> {
-    return await this.techStackBadges.allInnerTexts();
-  }
 }
+

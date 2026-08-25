@@ -12,12 +12,5 @@ export class FooterComponent {
     this.copyrightText = page.locator('footer p:has-text("Ian Holdeman")');
     this.marketDataDisclaimer = page.locator('footer p:has-text("Public Market Data")');
   }
-
-  async getCopyright(): Promise<string> {
-    return await this.copyrightText.innerText();
-  }
-
-  async getDisclaimer(): Promise<string> {
-    return await this.marketDataDisclaimer.innerText();
-  }
 }
+

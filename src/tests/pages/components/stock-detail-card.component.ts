@@ -18,18 +18,5 @@ export class StockDetailCardComponent {
     this.dayRangeBar = this.root.locator('span:has-text("Day\'s Range") + div');
     this.yearRangeBar = this.root.locator('span:has-text("52W Range") + div');
   }
-
-  async selectTimeframe(timeframe: '1D' | '1W' | '1M' | 'YTD' | '1Y' | '5Y' | 'MAX'): Promise<void> {
-    const btn = this.root.locator(`button:has-text("${timeframe}")`).first();
-    await btn.click();
-  }
-
-  async getGoogleFinanceUrl(): Promise<string | null> {
-    return await this.googleFinanceLink.getAttribute('href');
-  }
-
-  async getMetricValue(label: string): Promise<string> {
-    const metricCell = this.root.locator(`div:has-text("${label}")`).first();
-    return await metricCell.innerText();
-  }
 }
+

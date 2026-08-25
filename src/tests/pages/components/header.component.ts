@@ -22,29 +22,5 @@ export class HeaderComponent {
     this.ciCdStatusBadge = page.locator('#header-cicd-badge, header [class*="bg-emerald"]');
     this.mobileMenuToggleBtn = page.locator('#mobile-menu-toggle-btn');
   }
-
-  async clickBrandLogo(): Promise<void> {
-    await this.brandLogoBtn.click();
-  }
-
-  async navigateToHome(): Promise<void> {
-    await this.navHomeBtn.click();
-  }
-
-  async navigateToBoard(): Promise<void> {
-    await this.navBoardBtn.click();
-  }
-
-  async navigateToTests(): Promise<void> {
-    await this.navTestsBtn.click();
-  }
-
-  async navigateToAbout(): Promise<void> {
-    await this.navAboutBtn.click();
-  }
-
-  async isCiCdPassing(): Promise<boolean> {
-    const text = await this.ciCdStatusBadge.innerText();
-    return text.includes('PASS') || text.includes('100%');
-  }
 }
+
