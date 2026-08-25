@@ -25,7 +25,7 @@ export abstract class BasePage {
   /**
    * Navigates to a relative path from baseURL and waits for network idle state.
    */
-  async navigateTo(path: string = '/'): Promise<void> {
+  async navigateTo(path: string = 'http://localhost:3000'): Promise<void> {
     await this.page.goto(path);
     await this.waitForPageReady();
   }

@@ -37,7 +37,7 @@ export class TheBoardPage extends BasePage {
   }
 
   async open(): Promise<void> {
-    await this.navigateTo('/');
+    await this.navigateTo();
     await this.header.navigateToBoard();
     await this.pageHeading.waitFor({ state: 'visible' });
   }
