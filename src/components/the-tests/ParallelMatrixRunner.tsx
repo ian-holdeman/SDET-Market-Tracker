@@ -63,7 +63,7 @@ export const ParallelMatrixRunner: React.FC = () => {
             return {
               ...w,
               currentStepIndex: isDone ? totalSteps - 1 : computedStepIndex,
-              status: isDone ? 'passed' : 'running',
+              status: (isDone ? 'passed' : 'running') as 'passed' | 'running',
               elapsedMs: isDone ? suite.durationMs : Math.round(elapsed / 2.2),
             };
           });

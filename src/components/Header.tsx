@@ -1,12 +1,12 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { TrendingUp, CheckCircle2, Layers, Terminal, User } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { TrendingUp, Layers, Terminal, User, LogIn, LogOut, Star, ChevronDown } from 'lucide-react';
 import { PageView } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   currentPage: PageView;
   onNavigate: (page: PageView) => void;
-  sdetPassing: boolean;
 }
 
 interface NavItem {
@@ -18,7 +18,22 @@ interface NavItem {
   badge?: React.ReactNode;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, sdetPassing }) => {
+export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
+  const { user, openAuthModal, logout } = useAuth();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const navItems: NavItem[] = [
     {
       id: 'home',
@@ -96,14 +111,14 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, sdetPas
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  {/* Sliding Active Background Pill (Crisp, snappy, no overshoot/bounce) */}
+                  {/* Sliding Active Background Pill */}
                   {isActive && (
                     <motion.div
                       layoutId="activeDesktopNavTab"
                       className="absolute inset-0 bg-blue-600/20 border border-blue-500/40 rounded-lg shadow-sm pointer-events-none"
                       transition={{
                         duration: 0.18,
-                        ease: [0.25, 1, 0.5, 1], // Crisp cubic-bezier without bounce/overextension
+                        ease: [0.25, 1, 0.5, 1],
                       }}
                     />
                   )}
@@ -118,21 +133,73 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, sdetPas
             })}
           </nav>
 
-          {/* Real-time Status Badges */}
+          {/* User Account / Watchlist Auth Controls */}
           <div className="flex items-center space-x-3">
-            {/* Live Pipeline Badge */}
-            <div
-              id="header-cicd-badge"
-              className="flex items-center space-x-2 px-2.5 sm:px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-400 text-xs font-mono"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-              <span className="hidden sm:inline">CI/CD:</span>
-              <span className="font-semibold">{sdetPassing ? '100% PASS' : 'RUNNING'}</span>
-            </div>
+            {user ? (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  id="header-user-profile-btn"
+                  onClick={() => setIsDropdownOpen((prev) => !prev)}
+                  className="flex items-center space-x-2.5 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-700 hover:border-blue-500/50 text-slate-200 text-xs transition-colors cursor-pointer"
+                >
+                  <div className="w-5 h-5 rounded-full bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-300 font-bold text-[10px]">
+                    {user.username.charAt(0).toUpperCase()}
+                  </div>
+                  <span id="header-username-display" className="font-semibold max-w-[100px] truncate">
+                    {user.username}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-blue-950 text-blue-400 text-[10px] font-mono border border-blue-800/40 flex items-center space-x-0.5">
+                    <Star className="w-2.5 h-2.5 fill-blue-400" />
+                    <span>{user.watchlist?.length || 0}</span>
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Profile Dropdown Menu */}
+                <AnimatePresence>
+                  {isDropdownOpen && (
+                    <motion.div
+                      id="header-user-dropdown-menu"
+                      initial={{ opacity: 0, y: 5, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute right-0 mt-2 w-48 bg-[#0F141E] border border-slate-800 rounded-xl shadow-xl shadow-black/80 py-1.5 z-50"
+                    >
+                      <div className="px-3 py-2 border-b border-slate-800/80">
+                        <p className="text-[11px] text-slate-400">Signed in as</p>
+                        <p className="text-xs font-semibold text-slate-200 truncate">{user.username}</p>
+                      </div>
+
+                      <button
+                        id="header-logout-btn"
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          logout();
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs text-rose-300 hover:bg-rose-950/30 flex items-center space-x-2 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Sign Out</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <button
+                id="header-login-btn"
+                onClick={() => openAuthModal('login')}
+                className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-xs font-semibold transition-all hover:border-blue-400 cursor-pointer shadow-sm"
+              >
+                <LogIn className="w-3.5 h-3.5 text-blue-400" />
+                <span>Sign In</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Mobile Sub-Navigation Bar with Matching Clean Style & Optical Center Alignment */}
+        {/* Mobile Sub-Navigation Bar */}
         <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-800/60 text-xs font-medium relative bg-[#0B0E14]/95">
           {navItems.map((item) => {
             const isActive = currentPage === item.id;
@@ -154,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, sdetPas
                     className="absolute inset-0 bg-blue-600/20 border border-blue-500/40 rounded-lg shadow-sm pointer-events-none"
                     transition={{
                       duration: 0.18,
-                      ease: [0.25, 1, 0.5, 1], // Crisp cubic-bezier without bounce/overextension
+                      ease: [0.25, 1, 0.5, 1],
                     }}
                   />
                 )}

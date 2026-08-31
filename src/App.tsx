@@ -8,15 +8,16 @@ import { TheBoard } from './components/TheBoard';
 import { TheTests } from './components/TheTests';
 import { Footer } from './components/Footer';
 import { PagePlaceholder } from './components/PagePlaceholder';
-import { INITIAL_VTI_DATA, POPULAR_TICKERS, INITIAL_SDET_STATUS } from './data/marketData';
-import { PageView, MarketIndexData, TickerSummary, SdetTestQuickStatus } from './types';
+import { AuthModal } from './components/AuthModal';
+import { AuthProvider } from './context/AuthContext';
+import { INITIAL_VTI_DATA, POPULAR_TICKERS } from './data/marketData';
+import { PageView, MarketIndexData, TickerSummary } from './types';
 import { fetchProxyQuotes, fetchProxyCandles } from './services/yahooMarket';
 
-export default function App() {
+function AppContent() {
   const [currentPage, setCurrentPage] = useState<PageView>('home');
   const [vtiData, setVtiData] = useState<MarketIndexData>(INITIAL_VTI_DATA);
   const [tickers, setTickers] = useState<TickerSummary[]>(POPULAR_TICKERS);
-  const [sdetStatus] = useState<SdetTestQuickStatus>(INITIAL_SDET_STATUS);
 
   // Sync real-world broad market data & VTI candle timeline from server proxy
   useEffect(() => {
@@ -108,8 +109,10 @@ export default function App() {
           setCurrentPage(page);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        sdetPassing={sdetStatus.pipelineHealth === 'passing'}
       />
+
+      {/* Auth Modal for Pseudonymous Sign-in & Registration */}
+      <AuthModal />
 
       {/* Horizontal Market Ticker Ribbon (Only on The Board) */}
       <AnimatePresence>
@@ -198,6 +201,14 @@ export default function App() {
       {/* Footer */}
       <Footer />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

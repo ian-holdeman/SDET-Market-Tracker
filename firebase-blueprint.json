@@ -1,0 +1,33 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with username, hashed passcode, and saved watchlist",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Unique username alias"
+        },
+        "passcodeHash": {
+          "type": "string",
+          "description": "SHA-256 hashed passcode"
+        },
+        "watchlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of stock ticker symbols saved by user"
+        }
+      },
+      "required": ["username", "passcodeHash", "watchlist"]
+    }
+  },
+  "firestore": {
+    "/users/{username}": {
+      "entity": "User",
+      "description": "User account and watchlist documents"
+    }
+  }
+}
