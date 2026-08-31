@@ -3,12 +3,12 @@ import { getFirestore, Firestore } from 'firebase/firestore';
 import firebaseConfigData from '../../firebase-applet-config.json';
 
 const firebaseConfig = {
-  apiKey: firebaseConfigData.apiKey,
-  authDomain: firebaseConfigData.authDomain,
-  projectId: firebaseConfigData.projectId,
-  storageBucket: firebaseConfigData.storageBucket,
-  messagingSenderId: firebaseConfigData.messagingSenderId,
-  appId: firebaseConfigData.appId,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigData.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigData.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigData.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigData.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigData.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigData.appId,
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -16,7 +16,7 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 // Initialize Firestore targeting the specific provisioned database ID
 export const db: Firestore = getFirestore(
   app,
-  firebaseConfigData.firestoreDatabaseId || '(default)'
+  import.meta.env.VITE_FIREBASE_DATABASE_ID || firebaseConfigData.firestoreDatabaseId || '(default)'
 );
 
 export default app;
