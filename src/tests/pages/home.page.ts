@@ -30,7 +30,7 @@ export class HomePage extends BasePage {
   }
 
   async open(): Promise<void> {
-    await this.navigateTo('http://localhost:3000');
+    await this.navigateTo(process.env.APP_URL);
     await this.heroHeading.waitFor({ state: 'visible' });
   }
 }
