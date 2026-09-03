@@ -1,9 +1,22 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import type { UserProfile, UserRole } from '../types';
 
-export interface UserProfile {
-  username: string;
-  watchlist: string[];
+export type { UserProfile, UserRole };
+
+/**
+ * Hardcoded list of allowed Admin usernames.
+ * Per authorization rules: The only way to make a user an admin is directly in the code.
+ */
+export const ADMIN_USERNAMES: readonly string[] = ['ihadmin'] as const;
+
+/**
+ * Resolves the role for a given username based strictly on code configuration.
+ */
+export function getUserRole(username: string): UserRole {
+  if (!username) return 'user';
+  const clean = username.trim().toLowerCase();
+  return ADMIN_USERNAMES.some((admin) => admin.toLowerCase() === clean) ? 'admin' : 'user';
 }
 
 /**
@@ -69,13 +82,15 @@ export async function signUpUser(username: string, passcode: string): Promise<Us
   const passcodeHash = await hashPasscode(passcode);
   const profile: UserProfile = {
     username: username.trim(),
-    watchlist: ['VTI', 'VOO'], // Default starter watchlist
+    watchlist: [], // Default empty watchlist
+    role: getUserRole(username),
   };
 
   await setDoc(userRef, {
     username: profile.username,
     passcodeHash,
     watchlist: profile.watchlist,
+    role: profile.role,
   });
 
   return profile;
@@ -107,9 +122,12 @@ export async function loginUser(username: string, passcode: string): Promise<Use
     throw new Error('Incorrect passcode. Please try again.');
   }
 
+  const resolvedUsername = data.username || username.trim();
+
   return {
-    username: data.username || username.trim(),
+    username: resolvedUsername,
     watchlist: Array.isArray(data.watchlist) ? data.watchlist : [],
+    role: getUserRole(resolvedUsername),
   };
 }
 

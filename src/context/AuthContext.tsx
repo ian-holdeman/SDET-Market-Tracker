@@ -1,13 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { UserProfile, loginUser, signUpUser, saveUserWatchlist } from '../services/authService';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { UserProfile, loginUser, signUpUser, saveUserWatchlist, getUserRole } from '../services/authService';
 
 interface AuthContextType {
   user: UserProfile | null;
+  isAdmin: boolean;
   loading: boolean;
   error: string | null;
   isAuthModalOpen: boolean;
   authModalMode: 'login' | 'signup';
-  openAuthModal: (mode?: 'login' | 'signup') => void;
+  openAuthModal: (mode?: 'login' | 'signup', initialError?: string) => void;
   closeAuthModal: () => void;
   setAuthModalMode: (mode: 'login' | 'signup') => void;
   login: (username: string, passcode: string) => Promise<void>;
@@ -26,7 +27,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          role: getUserRole(parsed.username || ''),
+        };
+      }
+      return null;
     } catch {
       return null;
     }
@@ -50,9 +58,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
-  const openAuthModal = useCallback((mode: 'login' | 'signup' = 'login') => {
+  const openAuthModal = useCallback((mode: 'login' | 'signup' = 'login', initialError?: string) => {
     setAuthModalMode(mode);
-    setError(null);
+    setError(initialError || null);
     setIsAuthModalOpen(true);
   }, []);
 
@@ -134,10 +142,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return user.watchlist.includes(symbol);
   }, [user]);
 
+  const isAdmin = useMemo(() => {
+    if (!user) return false;
+    return user.role === 'admin' || getUserRole(user.username) === 'admin';
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
         user,
+        isAdmin,
         loading,
         error,
         isAuthModalOpen,

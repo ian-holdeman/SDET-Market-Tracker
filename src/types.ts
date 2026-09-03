@@ -7,6 +7,14 @@ export type PageView = 'home' | 'board' | 'tests' | 'about';
 
 export type Timeframe = '1D' | '1W' | '1M' | '1Y' | 'ALL';
 
+export type UserRole = 'admin' | 'user';
+
+export interface UserProfile {
+  username: string;
+  watchlist: string[];
+  role: UserRole;
+}
+
 export interface ChartDataPoint {
   timestamp: string;
   timeLabel: string;
@@ -80,6 +88,7 @@ export interface BoardStock {
   name: string;
   assetType: 'ETF' | 'Stock';
   category: AssetCategory;
+  exchange?: string;
   isFavorite?: boolean;
   price: number;
   change: number;

@@ -19,7 +19,7 @@ interface NavItem {
 }
 
 export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
-  const { user, openAuthModal, logout } = useAuth();
+  const { user, isAdmin, openAuthModal, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -148,10 +148,6 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                   <span id="header-username-display" className="font-semibold max-w-[100px] truncate">
                     {user.username}
                   </span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-blue-950 text-blue-400 text-[10px] font-mono border border-blue-800/40 flex items-center space-x-0.5">
-                    <Star className="w-2.5 h-2.5 fill-blue-400" />
-                    <span>{user.watchlist?.length || 0}</span>
-                  </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -167,8 +163,19 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                       className="absolute right-0 mt-2 w-48 bg-[#0F141E] border border-slate-800 rounded-xl shadow-xl shadow-black/80 py-1.5 z-50"
                     >
                       <div className="px-3 py-2 border-b border-slate-800/80">
-                        <p className="text-[11px] text-slate-400">Signed in as</p>
-                        <p className="text-xs font-semibold text-slate-200 truncate">{user.username}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] text-slate-400">Signed in as</p>
+                          {isAdmin ? (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-mono uppercase font-bold tracking-wider">
+                              Admin
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[9px] font-mono uppercase font-bold tracking-wider">
+                              User
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-semibold text-slate-200 truncate mt-0.5">{user.username}</p>
                       </div>
 
                       <button

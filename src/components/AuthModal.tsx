@@ -170,17 +170,6 @@ export const AuthModal: React.FC = () => {
             </button>
           </div>
 
-          {/* Error Message */}
-          {displayError && (
-            <div
-              id="auth-error-message"
-              className="mb-5 p-3 rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-start space-x-2"
-            >
-              <div className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
-              <span>{displayError}</span>
-            </div>
-          )}
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -254,7 +243,18 @@ export const AuthModal: React.FC = () => {
               )}
             </AnimatePresence>
 
-            <div className="pt-2">
+            {/* Error Message displayed directly above the submit button */}
+            {displayError && (
+              <div
+                id="auth-error-message"
+                className="p-3 rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-start space-x-2"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
+                <span>{displayError}</span>
+              </div>
+            )}
+
+            <div className="pt-1">
               <button
                 id="auth-submit-btn"
                 type="submit"

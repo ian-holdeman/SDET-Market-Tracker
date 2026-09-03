@@ -7,7 +7,8 @@ import {
   Loader2,
   AlertTriangle,
   RotateCw,
-  CheckCircle2
+  CheckCircle2,
+  Star
 } from 'lucide-react';
 import { BoardStock, BoardTimeframe } from '../types';
 import { buildConfirmedStockTimeframeData, ChartPoint, TimeframeSummary } from '../utils/timeframeData';
@@ -18,6 +19,8 @@ import {
 } from '../services/finnhub';
 import { fetchProxyCandles } from '../services/yahooMarket';
 import { TickerLogo } from './TickerLogo';
+import { useAuth } from '../context/AuthContext';
+import { getGoogleFinanceQuoteUrl } from '../utils/financeLinks';
 
 interface BoardStockDetailCardProps {
   stock: BoardStock;
@@ -192,13 +195,28 @@ function getEvenXAxisTicks(timeframe: BoardTimeframe, pointsCount: number): { la
   }));
 }
 
-export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stock }) => {
+export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stock, onClose }) => {
+  const { user, isSymbolInWatchlist, toggleWatchlistSymbol, openAuthModal } = useAuth();
+  const isWatching = isSymbolInWatchlist(stock.symbol);
+
   const [selectedTimeframe, setSelectedTimeframe] = useState<BoardTimeframe>('1D');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [liveCandleSummary, setLiveCandleSummary] = useState<TimeframeSummary | null>(null);
   const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(false);
   const [profile, setProfile] = useState<FinnhubCompanyProfile | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
+
+  const handleWatchToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      openAuthModal('login', 'You must be logged in to add items to your watchlist.');
+      return;
+    }
+    const added = await toggleWatchlistSymbol(stock.symbol);
+    if (!added && onClose) {
+      onClose();
+    }
+  };
 
   // Fetch Finnhub Company Profile
   useEffect(() => {
@@ -468,38 +486,57 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 pb-2.5 sm:pb-3.5 border-b border-slate-800/80">
         
         {/* Left: Ticker & Asset details */}
-        <div className="flex items-center space-x-2.5 sm:space-x-3">
+        <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0 flex-1">
           <TickerLogo 
             symbol={stock.symbol} 
             assetType={stock.assetType} 
             logoUrl={stock.logoUrl} 
             size="md" 
           />
-          <div className="min-w-0">
-            <div className="flex items-center space-x-1.5 sm:space-x-2.5 flex-wrap">
-              <h2 className="text-sm sm:text-base font-bold text-white font-mono tracking-tight truncate">
-                {stock.name}
+          <div className="min-w-0 flex-1 flex flex-col justify-center">
+            {/* Top row: Symbol, Watching Tag (if tracked), and Star Button in a fixed, consistent layout */}
+            <div className="flex items-center space-x-1.5 sm:space-x-2 flex-wrap gap-y-1">
+              <h2 className="text-base sm:text-lg font-bold text-white font-mono tracking-tight">
+                {stock.symbol}
               </h2>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider ${
-                stock.assetType === 'ETF'
-                  ? 'bg-blue-950/90 text-blue-400 border border-blue-800 uppercase'
-                  : 'bg-slate-800 text-slate-300 border border-slate-700'
-              }`}>
-                {stock.assetType === 'ETF' ? 'ETF' : 'Stock'}
-              </span>
-              {stock.isFavorite && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider bg-purple-950/90 text-purple-400 border border-purple-800">
-                  Favorite
+              {/* Watching Tag */}
+              {isWatching && (
+                <span 
+                  id={`watching-tag-${stock.symbol.toLowerCase()}`}
+                  className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider bg-purple-950/90 text-purple-400 border border-purple-800"
+                >
+                  Watching
                 </span>
               )}
-              <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-medium bg-[#131926] text-slate-300 border border-slate-700/80">
-                {stock.category}
-              </span>
+              {/* Star Button in consistent position next to symbol/badges for all tickers */}
+              <button
+                id={`watchlist-star-btn-${stock.symbol.toLowerCase()}`}
+                type="button"
+                onClick={handleWatchToggle}
+                aria-label={isWatching ? `Remove ${stock.symbol} from Watchlist` : `Add ${stock.symbol} to Watchlist`}
+                title={isWatching ? `Watching ${stock.symbol} - Click to remove from watchlist` : `Add ${stock.symbol} to Watchlist`}
+                className={`p-1.5 rounded-lg border transition-all duration-150 inline-flex items-center justify-center shrink-0 active:scale-90 cursor-pointer ${
+                  isWatching
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30 shadow-sm shadow-amber-950/40'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-amber-400 hover:border-slate-700'
+                }`}
+              >
+                <Star
+                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-150 ${
+                    isWatching ? 'fill-amber-400 text-amber-400' : 'text-slate-400'
+                  }`}
+                />
+              </button>
             </div>
+
+            {/* Bottom row: Full Company/ETF Name with clean multi-line wrapping */}
+            <p className="text-xs sm:text-sm text-slate-400 font-medium leading-normal mt-0.5 break-words">
+              {stock.name}
+            </p>
           </div>
         </div>
 
-        {/* Right: Selected Period Value & Return (Horizontal row on both mobile and desktop with calendar underneath) */}
+        {/* Right: Selected Period Value & Return */}
         <div className="flex flex-col items-start sm:items-end w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-800/60 space-y-1">
           <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap">
             <span className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
@@ -521,7 +558,8 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               </span>
             </span>
           </div>
-          <div className="text-[11px] sm:text-xs font-mono text-slate-300 font-medium flex items-center gap-1.5">
+          {/* Date and time icons under the price - hidden on mobile for minimalist view */}
+          <div className="hidden sm:flex text-[11px] sm:text-xs font-mono text-slate-300 font-medium items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <span className="text-white font-semibold">{timeframeLabel}</span>
             {activePoint && (
@@ -782,7 +820,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         {/* Chart Window Bottom Bar with Google Finance Link */}
         <div className="flex items-center justify-end pt-1 sm:pt-1.5 border-t border-slate-800/60">
           <a
-            href={`https://www.google.com/finance/quote/${stock.symbol}:NASDAQ`}
+            href={getGoogleFinanceQuoteUrl(stock, profile)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-mono text-slate-400 hover:text-blue-400 inline-flex items-center gap-1.5 transition-colors font-medium hover:underline underline-offset-2 py-0.5 px-1.5 rounded hover:bg-slate-800/40"

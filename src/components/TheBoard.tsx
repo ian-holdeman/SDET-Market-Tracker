@@ -24,6 +24,7 @@ import { BoardStock, BoardSortField, SortDirection } from '../types';
 import { useFinnhubMarket } from '../hooks/useFinnhubMarket';
 import { BoardStockDetailCard } from './BoardStockDetailCard';
 import { TickerLogo } from './TickerLogo';
+import { useAuth } from '../context/AuthContext';
 
 interface TheBoardProps {
   onSelectStock?: (symbol: string) => void;
@@ -33,6 +34,7 @@ interface BoardTableRowProps {
   stock: BoardStock;
   isExpanded: boolean;
   isLastRow: boolean;
+  isWatching?: boolean;
   onToggleExpand: (symbol: string) => void;
 }
 
@@ -41,6 +43,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
   stock,
   isExpanded,
   isLastRow,
+  isWatching = false,
   onToggleExpand,
 }) => {
   const isPositive = stock.change >= 0;
@@ -128,9 +131,9 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
                 }`}>
                   {stock.assetType === 'ETF' ? 'ETF' : 'Stock'}
                 </span>
-                {stock.isFavorite && (
+                {isWatching && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono bg-purple-950/90 text-purple-400 border border-purple-800/50">
-                    Favorite
+                    Watching
                   </span>
                 )}
               </div>
@@ -302,6 +305,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
     refreshQuotes 
   } = useFinnhubMarket();
 
+  const { isSymbolInWatchlist, isAdmin } = useAuth();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [assetFilter, setAssetFilter] = useState<'ALL' | 'ETF' | 'Stock'>('ALL');
@@ -405,8 +410,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
   };
 
   // Filter & Sort stocks - O(N log N) with instant O(1) tab switching and O(N) filtering
-  // Assets marked as "Favorite" sit at the top of the board, but follow the active sort order,
-  // with remaining non-favorites partitioned below them following the same sort order.
+  // Assets marked as "Watching" in the user's watchlist sit at the top of the board, but follow the active sort order,
+  // with remaining assets partitioned below them following the same sort order.
   const processedStocks = useMemo(() => {
     return stocks
       .filter((stock) => {
@@ -425,12 +430,12 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
         );
       })
       .sort((a, b) => {
-        const isFavA = Boolean(a.isFavorite);
-        const isFavB = Boolean(b.isFavorite);
+        const isWatchA = isSymbolInWatchlist(a.symbol);
+        const isWatchB = isSymbolInWatchlist(b.symbol);
 
-        // Favorites partition to top
-        if (isFavA !== isFavB) {
-          return isFavA ? -1 : 1;
+        // Watching partition to top
+        if (isWatchA !== isWatchB) {
+          return isWatchA ? -1 : 1;
         }
 
         if (sortField === 'name' || sortField === 'symbol') {
@@ -456,7 +461,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
 
         return 0;
       });
-  }, [stocks, searchQuery, assetFilter, sortField, sortDirection]);
+  }, [stocks, searchQuery, assetFilter, sortField, sortDirection, isSymbolInWatchlist]);
 
   // Render sort icon for table headers
   const renderSortIcon = (field: BoardSortField) => {
@@ -486,65 +491,84 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
 
         {/* Live Stream Telemetry Pill & Refresh Action */}
         <div className="flex items-center space-x-2.5 self-start md:self-auto flex-wrap">
-          {/* Clickable Live Status Badge */}
-          <button
-            onClick={() => {
-              setKeyInputValue(apiKey);
-              setShowSettingsModal(true);
-            }}
-            title="Click to view feed diagnostics or configure custom Finnhub API Key"
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#0F141E] hover:bg-[#161F2E] border border-slate-800 hover:border-slate-700 font-mono text-xs shadow-inner transition-all group"
-          >
-            {isOffline ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-rose-500" />
-                <span className="text-rose-400 font-semibold">Feed Offline</span>
-                <span className="text-slate-600">|</span>
-                <span className="text-slate-400 text-[11px]">Last Known Data</span>
-              </>
-            ) : feedMode === 'websocket' ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-emerald-400 font-semibold">WebSocket Live</span>
-                <span className="text-slate-600">|</span>
-                <span className="text-slate-400 text-[11px]">
-                  {totalTicks > 0 ? `${totalTicks} ticks` : 'Active'}
-                </span>
-              </>
-            ) : feedMode === 'synced_rest' ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span className="text-emerald-400 font-semibold">Live Synced</span>
-                {lastSyncTime && (
-                  <>
-                    <span className="text-slate-600">|</span>
-                    <span className="text-slate-400 text-[11px]">{lastSyncTime}</span>
-                  </>
-                )}
-              </>
-            ) : socketStatus === 'connecting' || isLoadingLiveMetrics ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-amber-400">Syncing Quotes...</span>
-              </>
-            ) : (
-              <>
-                <WifiOff className="w-3.5 h-3.5 text-slate-500" />
-                <span className="text-slate-400 underline text-[11px]">Reconnect</span>
-              </>
-            )}
-            <SlidersHorizontal className="w-3 h-3 text-slate-500 group-hover:text-blue-400 ml-1 transition-colors" />
-          </button>
+          {/* Feed Status Display: Admin gets clickable diagnostic button with slider icon; non-admin gets plain status text with no box */}
+          {isAdmin ? (
+            <button
+              id="board-feed-status-btn"
+              onClick={() => {
+                setKeyInputValue(apiKey);
+                setShowSettingsModal(true);
+              }}
+              title="Click to view feed diagnostics or configure custom Finnhub API Key"
+              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#0F141E] hover:bg-[#161F2E] border border-slate-800 hover:border-slate-700 font-mono text-xs shadow-inner transition-all group cursor-pointer"
+            >
+              {isOffline ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span className="text-rose-400 font-semibold">Feed Offline</span>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-slate-400 text-[11px]">Last Known Data</span>
+                </>
+              ) : feedMode === 'websocket' ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-emerald-400 font-semibold">WebSocket Live</span>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-slate-400 text-[11px]">
+                    {totalTicks > 0 ? `${totalTicks} ticks` : 'Active'}
+                  </span>
+                </>
+              ) : feedMode === 'synced_rest' ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="text-emerald-400 font-semibold">Live Synced</span>
+                  {lastSyncTime && (
+                    <>
+                      <span className="text-slate-600">|</span>
+                      <span className="text-slate-400 text-[11px]">{lastSyncTime}</span>
+                    </>
+                  )}
+                </>
+              ) : socketStatus === 'connecting' || isLoadingLiveMetrics ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-amber-400">Syncing Quotes...</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="text-slate-400 underline text-[11px]">Reconnect</span>
+                </>
+              )}
+              <SlidersHorizontal className="w-3 h-3 text-slate-500 group-hover:text-blue-400 ml-1 transition-colors" />
+            </button>
+          ) : (
+            <div
+              id="board-feed-status-text"
+              className="flex items-center space-x-2 px-1 py-1.5 font-mono text-xs text-slate-300 select-none"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+              <span className="text-emerald-400 font-semibold">Live Synced</span>
+              {lastSyncTime && (
+                <>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-slate-400 text-[11px]">{lastSyncTime}</span>
+                </>
+              )}
+            </div>
+          )}
 
-          {/* Quick Refresh Button */}
-          <button
-            id="board-refresh-btn"
-            onClick={handleRefresh}
-            title="Refresh latest quotes from server proxy"
-            className="p-2 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all shadow-sm active:scale-95"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing || isLoadingLiveMetrics ? 'animate-spin text-blue-400' : ''}`} />
-          </button>
+          {/* Quick Refresh Button - Only visible and accessible to Admin users to protect token limits */}
+          {isAdmin && (
+            <button
+              id="board-refresh-btn"
+              onClick={handleRefresh}
+              title="Refresh latest quotes from server proxy"
+              className="p-2 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing || isLoadingLiveMetrics ? 'animate-spin text-blue-400' : ''}`} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -777,6 +801,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
                     stock={stock}
                     isExpanded={expandedSymbols.has(stock.symbol)}
                     isLastRow={index === processedStocks.length - 1}
+                    isWatching={isSymbolInWatchlist(stock.symbol)}
                     onToggleExpand={toggleExpand}
                   />
                 ))
@@ -803,20 +828,20 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
         </div>
       </div>
 
-      {/* Feed Diagnostics & API Key Configuration Modal */}
+      {/* Feed Diagnostics & API Key Configuration Modal - Admin Access Only */}
       <AnimatePresence>
-        {showSettingsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        {showSettingsModal && isAdmin && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-lg bg-[#0F141E] border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+              className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] sm:max-h-[88vh] bg-[#0F141E] border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             >
               {/* Modal Header */}
-              <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-[#131926]/70">
+              <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-[#131926]/70 shrink-0">
                 <div className="flex items-center space-x-2.5">
-                  <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                  <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0">
                     <Radio className="w-4 h-4" />
                   </div>
                   <div>
@@ -826,14 +851,14 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
                 </div>
                 <button
                   onClick={() => setShowSettingsModal(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Modal Body */}
-              <div className="p-4 sm:p-6 space-y-5 text-xs text-slate-300">
+              {/* Modal Body with seamless vertical scrolling */}
+              <div className="p-4 sm:p-6 space-y-5 text-xs text-slate-300 overflow-y-auto flex-1 overscroll-contain">
                 
                 {/* Live Stream Telemetry Overview */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -865,7 +890,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
                     </span>
                     <button
                       onClick={() => setKeyInputValue('da49de9r01qo2j87gpg0da49de9r01qo2j87gpgg')}
-                      className="text-[11px] text-blue-400 hover:text-blue-300 underline font-normal"
+                      className="text-[11px] text-blue-400 hover:text-blue-300 underline font-normal cursor-pointer"
                     >
                       Use Default Key
                     </button>
@@ -921,11 +946,11 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
               </div>
 
               {/* Modal Actions */}
-              <div className="p-4 sm:p-5 border-t border-slate-800 bg-[#131926]/70 flex items-center justify-between gap-3">
+              <div className="p-4 sm:p-5 border-t border-slate-800 bg-[#131926]/70 flex items-center justify-between gap-3 shrink-0">
                 <button
                   onClick={handleTestKey}
                   disabled={isTestingKey}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-mono text-xs transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-mono text-xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isTestingKey ? 'animate-spin' : ''}`} />
                   <span>{isTestingKey ? 'Testing...' : 'Test Connection'}</span>
@@ -934,13 +959,13 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setShowSettingsModal(false)}
-                    className="px-3.5 py-2 rounded-xl bg-transparent hover:bg-slate-800 text-slate-300 font-mono text-xs transition-colors"
+                    className="px-3.5 py-2 rounded-xl bg-transparent hover:bg-slate-800 text-slate-300 font-mono text-xs transition-colors cursor-pointer"
                   >
                     Close
                   </button>
                   <button
                     onClick={handleSaveKey}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-all shadow-lg shadow-blue-900/30"
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-all shadow-lg shadow-blue-900/30 cursor-pointer"
                   >
                     Save & Connect
                   </button>
