@@ -174,6 +174,52 @@ async function startServer() {
       const rawCloses: (number | null)[] = quote.close || [];
       const rawVolumes: (number | null)[] = quote.volume || [];
 
+      // Helper to format timestamps strictly in American Eastern Time (America/New_York)
+      const formatTimeET = (unixTime: number, tf: string): string => {
+        const dateObj = new Date(unixTime);
+        if (tf === '1D') {
+          return dateObj.toLocaleTimeString('en-US', {
+            timeZone: 'America/New_York',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          });
+        }
+        if (tf === '1W') {
+          const weekday = dateObj.toLocaleDateString('en-US', {
+            timeZone: 'America/New_York',
+            weekday: 'short',
+          });
+          const timeStr = dateObj.toLocaleTimeString('en-US', {
+            timeZone: 'America/New_York',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          });
+          return `${weekday} ${timeStr}`;
+        }
+        if (tf === '1M') {
+          return dateObj.toLocaleDateString('en-US', {
+            timeZone: 'America/New_York',
+            month: 'short',
+            day: 'numeric',
+          });
+        }
+        if (tf === 'YTD' || tf === '1Y') {
+          return dateObj.toLocaleDateString('en-US', {
+            timeZone: 'America/New_York',
+            month: 'short',
+            day: 'numeric',
+            year: '2-digit',
+          });
+        }
+        return dateObj.toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+          month: 'short',
+          year: 'numeric',
+        });
+      };
+
       // Filter and format clean points
       const points: Array<{
         date: string;
@@ -187,30 +233,7 @@ async function startServer() {
         const closePrice = rawCloses[i];
         if (closePrice !== null && closePrice !== undefined && !isNaN(closePrice)) {
           const unixTime = timestamps[i] * 1000;
-          const dateObj = new Date(unixTime);
-
-          let label = '';
-          if (timeframe === '1D') {
-            const hours = dateObj.getHours();
-            const mins = dateObj.getMinutes();
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            const h = hours % 12 === 0 ? 12 : hours % 12;
-            const m = mins < 10 ? `0${mins}` : mins;
-            label = `${h}:${m} ${ampm}`;
-          } else if (timeframe === '1W') {
-            const day = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-            const hours = dateObj.getHours();
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            const h = hours % 12 === 0 ? 12 : hours % 12;
-            const m = minsToString(dateObj.getMinutes());
-            label = `${day} ${h}:${m} ${ampm}`;
-          } else if (timeframe === '1M') {
-            label = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          } else if (timeframe === 'YTD' || timeframe === '1Y') {
-            label = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
-          } else {
-            label = dateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-          }
+          const label = formatTimeET(unixTime, timeframe);
 
           points.push({
             date: label,
@@ -220,10 +243,6 @@ async function startServer() {
             timestamp: unixTime,
           });
         }
-      }
-
-      function minsToString(m: number) {
-        return m < 10 ? `0${m}` : `${m}`;
       }
 
       if (points.length === 0) {

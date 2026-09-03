@@ -115,6 +115,26 @@ function computeEvenYAxis(prices: number[]): {
 }
 
 /**
+ * Dynamically determines whether Eastern Time is currently in EST (Standard Time) or EDT (Daylight Saving Time).
+ */
+export function getEasternTimezoneAbbr(date: Date = new Date()): 'EST' | 'EDT' {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      timeZoneName: 'short',
+    }).formatToParts(date);
+    const tzPart = parts.find((p) => p.type === 'timeZoneName');
+    if (tzPart && (tzPart.value === 'EST' || tzPart.value === 'EDT')) {
+      return tzPart.value;
+    }
+  } catch {
+    // fallback based on daylight savings approximate months
+  }
+  const month = date.getMonth(); // 0-indexed: March (2) to Nov (10) is EDT
+  return month >= 2 && month <= 10 ? 'EDT' : 'EST';
+}
+
+/**
  * Returns clean, evenly spaced X-axis interval labels and their relative positions (0 to 1)
  * tailored to each specific timeframe.
  */
@@ -122,13 +142,14 @@ function getEvenXAxisTicks(timeframe: BoardTimeframe, pointsCount: number): { la
   if (pointsCount <= 1) return [];
 
   if (timeframe === '1D') {
-    // 5 even trading day time intervals: 9:30 AM, 11:00 AM, 12:30 PM, 2:00 PM, 4:00 PM
+    const tz = getEasternTimezoneAbbr();
+    // 5 even trading day time intervals with dynamic Eastern Timezone (EST/EDT) on the axis:
     const intervals = [
       { label: '9:30 AM', frac: 0 },
       { label: '11:00 AM', frac: 0.23 },
       { label: '12:30 PM', frac: 0.46 },
       { label: '2:00 PM', frac: 0.69 },
-      { label: '4:00 PM', frac: 1.0 }
+      { label: `4:00 PM ${tz}`, frac: 1.0 }
     ];
     return intervals.map(item => ({
       label: item.label,
@@ -273,24 +294,22 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
           
           let label = '';
           if (selectedTimeframe === '1D') {
-            const hours = dateObj.getHours();
-            const mins = dateObj.getMinutes();
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            const h = hours % 12 === 0 ? 12 : hours % 12;
-            const m = mins < 10 ? `0${mins}` : mins;
-            label = `${h}:${m} ${ampm}`;
+            label = dateObj.toLocaleTimeString('en-US', {
+              timeZone: 'America/New_York',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            });
           } else if (selectedTimeframe === '1W') {
-            const day = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-            const hours = dateObj.getHours();
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            const h = hours % 12 === 0 ? 12 : hours % 12;
-            label = `${day} ${h} ${ampm}`;
+            const day = dateObj.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+            const timeStr = dateObj.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+            label = `${day} ${timeStr}`;
           } else if (selectedTimeframe === '1M') {
-            label = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            label = dateObj.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
           } else if (selectedTimeframe === 'YTD' || selectedTimeframe === '1Y') {
-            label = dateObj.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            label = dateObj.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: '2-digit' });
           } else {
-            label = dateObj.toLocaleDateString('en-US', { year: 'numeric' });
+            label = dateObj.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', year: 'numeric' });
           }
 
           return {

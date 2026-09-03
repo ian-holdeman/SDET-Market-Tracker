@@ -5,5 +5,9 @@ service cloud.firestore {
     match /users/{username} {
       allow read, write: if true;
     }
+
+    match /test_runs/{runId} {
+      allow read, write: if true;
+    }
   }
 }
