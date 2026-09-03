@@ -25,10 +25,10 @@ export class HeaderComponent {
     this.page = page;
     this.brandLogoBtn = page.locator('#brand-logo-btn');
     this.brandTitle = page.locator('header span:has-text("Ian\'s Market Tracker")');
-    this.navHomeBtn = page.locator('#nav-home-btn');
-    this.navBoardBtn = page.locator('#nav-board-btn');
-    this.navTestsBtn = page.locator('#nav-tests-btn');
-    this.navAboutBtn = page.locator('#nav-about-btn');
+    this.navHomeBtn = page.locator('#nav-home-btn:visible, #mobile-nav-home-btn:visible');
+    this.navBoardBtn = page.locator('#nav-board-btn:visible, #mobile-nav-board-btn:visible');
+    this.navTestsBtn = page.locator('#nav-tests-btn:visible, #mobile-nav-tests-btn:visible');
+    this.navAboutBtn = page.locator('#nav-about-btn:visible, #mobile-nav-about-btn:visible');
     this.loginBtn = page.locator('#header-login-btn');
     this.userProfileBtn = page.locator('#header-user-profile-btn');
     this.usernameDisplay = page.locator('#header-username-display');
