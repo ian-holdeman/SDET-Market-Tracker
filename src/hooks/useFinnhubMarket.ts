@@ -52,7 +52,8 @@ export function useFinnhubMarket() {
       const proxyQuotes: ProxyQuoteItem[] | null = await fetchProxyQuotes(symbols);
 
       if (!proxyQuotes || proxyQuotes.length === 0) {
-        throw new Error('No quote data returned from market data proxy');
+        // If quotes are temporarily unavailable, retain existing data and continue
+        return;
       }
 
       const quoteMap = new Map<string, ProxyQuoteItem>();
@@ -292,9 +293,9 @@ export function useFinnhubMarket() {
         }
       };
 
-      ws.onerror = (error) => {
-        console.warn('Finnhub WebSocket error:', error);
-        setSocketStatus('error');
+      ws.onerror = () => {
+        // Finnhub public token doesn't always support WebSocket; gracefully fallback to synced REST
+        setSocketStatus('disconnected');
       };
 
       ws.onclose = () => {

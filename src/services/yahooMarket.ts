@@ -62,8 +62,9 @@ export async function fetchProxyCandles(
 
   try {
     const res = await fetch(`/api/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}`);
-    if (!res.ok) {
-      throw new Error(`HTTP error ${res.status}`);
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok || !contentType.includes('application/json')) {
+      return null;
     }
 
     const data: ProxyCandlesResponse = await res.json();
@@ -104,8 +105,9 @@ export async function fetchProxyQuotes(symbols: string[]): Promise<ProxyQuoteIte
   try {
     const symParam = encodeURIComponent(symbols.join(','));
     const res = await fetch(`/api/quotes?symbols=${symParam}`);
-    if (!res.ok) {
-      throw new Error(`HTTP error ${res.status}`);
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok || !contentType.includes('application/json')) {
+      return null;
     }
     const data = await res.json();
     if (data && Array.isArray(data.quotes) && data.quotes.length > 0) {

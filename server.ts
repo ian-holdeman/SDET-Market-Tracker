@@ -357,6 +357,11 @@ async function startServer() {
     }
   });
 
+  // Explicit JSON 404 for any unmatched /api/* route so it never falls through to HTML SPA
+  app.all('/api/*', (_req, res) => {
+    res.status(404).json({ error: 'API route not found' });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
