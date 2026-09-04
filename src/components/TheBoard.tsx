@@ -60,9 +60,15 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
   // Visual stability: Anchor vertical bounds using dayLow, dayHigh, prevClose/open, and a minimum percentage buffer
   // so individual penny ticks do not cause the SVG curve to jump drastically.
   const todayTrendData = useMemo(() => {
-    const points = stock.sparkline && stock.sparkline.length > 0 ? stock.sparkline : [stock.price];
-    const refLow = Math.min(...points, stock.dayLow, stock.prevClose || stock.price);
-    const refHigh = Math.max(...points, stock.dayHigh, stock.prevClose || stock.price);
+    const rawPoints = stock.sparkline && stock.sparkline.length > 0 ? stock.sparkline : [stock.price];
+    // Anchor point: if prevClose is available and distinct from rawPoints[0], ensure prevClose is at the start of points
+    const points = stock.prevClose && stock.prevClose > 0 && Math.abs(rawPoints[0] - stock.prevClose) > 0.001
+      ? [stock.prevClose, ...rawPoints]
+      : rawPoints;
+
+    const allValues = [...points, stock.dayLow, stock.dayHigh, stock.price].filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+    const refLow = Math.min(...allValues);
+    const refHigh = Math.max(...allValues);
     
     // Guarantee a stable minimum vertical range (at least 0.75% of price) so micro-ticks don't bounce drastically
     const naturalSpan = refHigh - refLow;

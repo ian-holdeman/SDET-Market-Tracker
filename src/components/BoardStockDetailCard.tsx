@@ -135,85 +135,66 @@ export function getEasternTimezoneAbbr(date: Date = new Date()): 'EST' | 'EDT' {
 }
 
 /**
- * Returns clean, evenly spaced X-axis interval labels and their relative positions (0 to 1)
- * tailored to each specific timeframe.
+ * Returns clean, evenly spaced X-axis interval labels and their relative coordinates
+ * dynamically derived from the real dataset points and their authentic Eastern Time timestamps.
  */
-function getEvenXAxisTicks(timeframe: BoardTimeframe, pointsCount: number): { label: string; index: number }[] {
-  if (pointsCount <= 1) return [];
+function getEvenXAxisTicks(timeframe: BoardTimeframe, points: ChartPoint[]): { label: string; index: number }[] {
+  if (!points || points.length <= 1) return [];
 
-  if (timeframe === '1D') {
-    const tz = getEasternTimezoneAbbr();
-    // 5 even trading day time intervals with dynamic Eastern Timezone (EST/EDT) on the axis:
-    const intervals = [
-      { label: '9:30 AM', frac: 0 },
-      { label: '11:00 AM', frac: 0.23 },
-      { label: '12:30 PM', frac: 0.46 },
-      { label: '2:00 PM', frac: 0.69 },
-      { label: `4:00 PM ${tz}`, frac: 1.0 }
-    ];
-    return intervals.map(item => ({
-      label: item.label,
-      index: Math.min(pointsCount - 1, Math.round(item.frac * (pointsCount - 1)))
-    }));
-  }
+  const count = points.length;
+  const tz = getEasternTimezoneAbbr();
+  const tickCount = Math.min(5, count);
+  const result: { label: string; index: number }[] = [];
+  const chosenIndices: number[] = [];
 
-  if (timeframe === '1W') {
-    // 5 trading days: Mon, Tue, Wed, Thu, Fri
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-    return days.map((d, i) => ({
-      label: d,
-      index: Math.min(pointsCount - 1, Math.round((i / (days.length - 1)) * (pointsCount - 1)))
-    }));
-  }
-
-  if (timeframe === '1M') {
-    // 5 evenly spaced weekly points
-    const count = 5;
-    const result = [];
-    const now = new Date();
-    for (let i = 0; i < count; i++) {
-      const frac = i / (count - 1);
-      const idx = Math.min(pointsCount - 1, Math.round(frac * (pointsCount - 1)));
-      const daysAgo = Math.round((1 - frac) * 28);
-      const d = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
-      result.push({
-        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        index: idx
-      });
+  for (let i = 0; i < tickCount; i++) {
+    const frac = i / (tickCount - 1);
+    const idx = Math.min(count - 1, Math.round(frac * (count - 1)));
+    if (!chosenIndices.includes(idx)) {
+      chosenIndices.push(idx);
     }
-    return result;
   }
 
-  if (timeframe === 'YTD') {
-    const months = ['Jan', 'Mar', 'May', 'Jul', 'Aug'];
-    return months.map((m, i) => ({
-      label: m,
-      index: Math.min(pointsCount - 1, Math.round((i / (months.length - 1)) * (pointsCount - 1)))
-    }));
-  }
+  chosenIndices.forEach((idx, i) => {
+    const pt = points[idx];
+    const isLast = i === chosenIndices.length - 1;
+    let label = pt.label || pt.date;
 
-  if (timeframe === '1Y') {
-    const intervals = ['Aug \'25', 'Nov \'25', 'Feb \'26', 'May \'26', 'Aug \'26'];
-    return intervals.map((lbl, i) => ({
-      label: lbl,
-      index: Math.min(pointsCount - 1, Math.round((i / (intervals.length - 1)) * (pointsCount - 1)))
-    }));
-  }
+    if (pt.timeUnix) {
+      const normalizedTime = (timeframe === '1D' || timeframe === '1W')
+        ? Math.round(pt.timeUnix / (5 * 60 * 1000)) * (5 * 60 * 1000)
+        : pt.timeUnix;
+      const d = new Date(normalizedTime);
+      if (timeframe === '1D') {
+        const timeStr = d.toLocaleTimeString('en-US', {
+          timeZone: 'America/New_York',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
+        label = isLast ? `${timeStr} ${tz}` : timeStr;
+      } else if (timeframe === '1W') {
+        const day = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+        const timeStr = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: true });
+        label = `${day} ${timeStr}`;
+      } else if (timeframe === '1M') {
+        label = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
+      } else if (timeframe === 'YTD' || timeframe === '1Y') {
+        label = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', year: '2-digit' });
+      } else if (timeframe === '5Y' || timeframe === 'MAX') {
+        label = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', year: 'numeric' });
+      }
+    } else if (timeframe === '1D' && isLast && !label.includes(tz)) {
+      label = `${label} ${tz}`;
+    }
 
-  if (timeframe === '5Y') {
-    const years = ['2021', '2022', '2023', '2024', '2025', '2026'];
-    return years.map((y, i) => ({
-      label: y,
-      index: Math.min(pointsCount - 1, Math.round((i / (years.length - 1)) * (pointsCount - 1)))
-    }));
-  }
+    result.push({
+      label,
+      index: idx,
+    });
+  });
 
-  // MAX
-  const maxYears = ['2016', '2018', '2020', '2022', '2024', '2026'];
-  return maxYears.map((y, i) => ({
-    label: y,
-    index: Math.min(pointsCount - 1, Math.round((i / (maxYears.length - 1)) * (pointsCount - 1)))
-  }));
+  return result;
 }
 
 export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stock, onClose }) => {
@@ -423,12 +404,12 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   // Compute clean, even X-axis ticks
   const xTicks = useMemo(() => {
     if (coords.length === 0) return [];
-    const ticksDef = getEvenXAxisTicks(selectedTimeframe, coords.length);
+    const ticksDef = getEvenXAxisTicks(selectedTimeframe, points);
     return ticksDef.map(td => ({
       label: td.label,
       coord: coords[td.index] || coords[0]
     }));
-  }, [coords, selectedTimeframe]);
+  }, [coords, points, selectedTimeframe]);
 
   // Handle mouse/touch movement over the SVG chart
   const updateHoverFromClientX = (clientX: number) => {

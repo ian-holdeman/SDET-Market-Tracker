@@ -10,14 +10,13 @@ import { Footer } from './components/Footer';
 import { PagePlaceholder } from './components/PagePlaceholder';
 import { AuthModal } from './components/AuthModal';
 import { AuthProvider } from './context/AuthContext';
-import { INITIAL_VTI_DATA, POPULAR_TICKERS } from './data/marketData';
-import { PageView, MarketIndexData, TickerSummary } from './types';
+import { INITIAL_VTI_DATA } from './data/marketData';
+import { PageView, MarketIndexData } from './types';
 import { fetchProxyQuotes, fetchProxyCandles } from './services/yahooMarket';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState<PageView>('home');
   const [vtiData, setVtiData] = useState<MarketIndexData>(INITIAL_VTI_DATA);
-  const [tickers, setTickers] = useState<TickerSummary[]>(POPULAR_TICKERS);
 
   // Sync real-world broad market data & VTI candle timeline from server proxy
   useEffect(() => {
@@ -25,25 +24,10 @@ function AppContent() {
 
     async function syncRealMarketHomeData() {
       try {
-        // 1. Fetch real quotes for tickers & VTI
-        const symbols = ['VTI', 'VOO', 'QQQM', 'NVDA', 'GOOGL', 'BTC', 'SCHD', 'VXUS'];
-        const quotes = await fetchProxyQuotes(symbols);
+        // 1. Fetch real quote for VTI
+        const quotes = await fetchProxyQuotes(['VTI']);
 
         if (isMounted && quotes && quotes.length > 0) {
-          // Update ticker tape
-          setTickers((prev) =>
-            prev.map((t) => {
-              const match = quotes.find((q) => q.symbol === t.symbol);
-              if (!match) return t;
-              return {
-                ...t,
-                price: match.price,
-                change: match.change,
-                changePercent: match.changePercent,
-              };
-            })
-          );
-
           // Update VTI live quote
           const vtiQuote = quotes.find((q) => q.symbol === 'VTI');
           if (vtiQuote) {
@@ -125,7 +109,7 @@ function AppContent() {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <MarketTickerTape tickers={tickers} />
+            <MarketTickerTape />
           </motion.div>
         )}
       </AnimatePresence>

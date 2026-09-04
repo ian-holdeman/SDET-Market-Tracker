@@ -38,11 +38,12 @@ function getYahooSymbol(sym: string): string {
   return upper;
 }
 
-async function fetchYahooFinanceChart(symbol: string, range: string, interval: string) {
+async function fetchYahooFinanceChart(symbol: string, range: string, interval: string, includePrePost: boolean = true) {
   const yahooSym = getYahooSymbol(symbol);
+  const prePostParam = includePrePost ? 'true' : 'false';
   const urls = [
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=${range}&interval=${interval}&includePrePost=false`,
-    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=${range}&interval=${interval}&includePrePost=false`,
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=${range}&interval=${interval}&includePrePost=${prePostParam}`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=${range}&interval=${interval}&includePrePost=${prePostParam}`,
   ];
 
   const headers = {
@@ -102,15 +103,20 @@ async function startServer() {
         const chunk = symbols.slice(i, i + CHUNK_SIZE);
         const chunkResults = await Promise.allSettled(
           chunk.map(async (sym) => {
-            const chart = await fetchYahooFinanceChart(sym, '1d', '15m');
+            const chart = await fetchYahooFinanceChart(sym, '1d', '15m', true);
             const meta = chart.meta || {};
             const quote = chart.indicators?.quote?.[0] || {};
             const closes: (number | null)[] = (quote.close || []).filter((c: any) => typeof c === 'number' && c !== null);
 
-            const currentPrice = meta.regularMarketPrice || (closes.length > 0 ? closes[closes.length - 1] : 0);
-            const prevClose = meta.chartPreviousClose || meta.previousClose || (closes.length > 0 ? closes[0] : currentPrice);
+            const prevClose = meta.chartPreviousClose || meta.previousClose || (closes.length > 0 ? closes[0] : 0);
+            const latestClose = closes.length > 0 ? closes[closes.length - 1] : prevClose;
+            const currentPrice = meta.postMarketPrice || meta.preMarketPrice || meta.regularMarketPrice || latestClose || prevClose;
             const change = Number((currentPrice - prevClose).toFixed(2));
             const changePercent = Number((((currentPrice - prevClose) / (prevClose || 1)) * 100).toFixed(2));
+
+            // Prepend prevClose to the beginning of the sparkline so it always has the baseline anchor
+            const rawSparkline = closes.length >= 6 ? closes.slice(-28) : closes;
+            const sparkline = prevClose > 0 ? [prevClose, ...rawSparkline] : (rawSparkline.length > 0 ? rawSparkline : [currentPrice]);
 
             return {
               symbol: sym,
@@ -119,15 +125,15 @@ async function startServer() {
               changePercent,
               prevClose,
               open: meta.regularMarketOpen || prevClose,
-              dayHigh: meta.regularMarketDayHigh || currentPrice,
-              dayLow: meta.regularMarketDayLow || currentPrice,
+              dayHigh: Math.max(meta.regularMarketDayHigh || currentPrice, currentPrice, ...closes),
+              dayLow: Math.min(meta.regularMarketDayLow || currentPrice, currentPrice, ...(closes.length > 0 ? closes : [currentPrice])),
               volume: meta.regularMarketVolume || 0,
               fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
               fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
               marketCap: meta.marketCap,
               currency: meta.currency || 'USD',
               exchangeName: meta.exchangeName,
-              sparkline: closes.length >= 6 ? closes.slice(-24) : [prevClose, currentPrice],
+              sparkline,
             };
           })
         );
@@ -176,7 +182,12 @@ async function startServer() {
 
       // Helper to format timestamps strictly in American Eastern Time (America/New_York)
       const formatTimeET = (unixTime: number, tf: string): string => {
-        const dateObj = new Date(unixTime);
+        // Round to the nearest 5-minute candle interval for 1D/1W so session closing ticks like 7:59 PM display cleanly as 8:00 PM and 3:59 PM as 4:00 PM
+        const normalizedUnixTime = (tf === '1D' || tf === '1W')
+          ? Math.round(unixTime / (5 * 60 * 1000)) * (5 * 60 * 1000)
+          : unixTime;
+
+        const dateObj = new Date(normalizedUnixTime);
         if (tf === '1D') {
           return dateObj.toLocaleTimeString('en-US', {
             timeZone: 'America/New_York',
@@ -221,9 +232,7 @@ async function startServer() {
       };
 
       // Filter and format clean points
-      const points: Array<{
-        date: string;
-        label: string;
+      const rawPoints: Array<{
         price: number;
         volume?: number;
         timestamp: number;
@@ -233,11 +242,7 @@ async function startServer() {
         const closePrice = rawCloses[i];
         if (closePrice !== null && closePrice !== undefined && !isNaN(closePrice)) {
           const unixTime = timestamps[i] * 1000;
-          const label = formatTimeET(unixTime, timeframe);
-
-          points.push({
-            date: label,
-            label,
+          rawPoints.push({
             price: Number(closePrice.toFixed(2)),
             volume: rawVolumes[i] || undefined,
             timestamp: unixTime,
@@ -245,15 +250,80 @@ async function startServer() {
         }
       }
 
-      if (points.length === 0) {
+      if (rawPoints.length === 0) {
         return res.status(404).json({ error: `No candle data points parsed for ${symbol}` });
       }
 
-      const currentPrice = meta.regularMarketPrice || points[points.length - 1].price;
+      let points: Array<{
+        date: string;
+        label: string;
+        price: number;
+        volume?: number;
+        timestamp: number;
+      }> = [];
+
+      const baselinePrevClose = meta.chartPreviousClose || meta.previousClose || rawPoints[0].price;
+
+      if (timeframe === '1D' && rawPoints.length > 0) {
+        // Map available points to 5-minute buckets (300 seconds)
+        const bucketMap = new Map<number, { price: number; volume?: number }>();
+        rawPoints.forEach((pt) => {
+          const bucketSec = Math.round(pt.timestamp / (300 * 1000)) * 300;
+          bucketMap.set(bucketSec, { price: pt.price, volume: pt.volume });
+        });
+
+        // Determine session boundary in Eastern Time (America/New_York)
+        // Standard full trading day spans 4:00 AM ET (pre-market start) to 8:00 PM ET (after-hours close)
+        const sessionDate = new Date(rawPoints[0].timestamp).toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+        });
+
+        const preStartSec = meta.tradingPeriods?.pre?.[0]?.[0]?.start
+          || meta.tradingPeriods?.regular?.[0]?.[0]?.start
+          || Math.floor(new Date(`${sessionDate} 04:00:00 GMT-0400`).getTime() / 1000);
+
+        const postEndSec = meta.tradingPeriods?.post?.[0]?.[0]?.end
+          || meta.tradingPeriods?.regular?.[0]?.[0]?.end
+          || Math.floor(new Date(`${sessionDate} 20:00:00 GMT-0400`).getTime() / 1000);
+
+        const startSec = preStartSec;
+        const endSec = postEndSec;
+
+        let runningPrice = baselinePrevClose;
+        for (let sec = startSec; sec <= endSec; sec += 300) {
+          const bucketData = bucketMap.get(sec);
+          if (bucketData) {
+            runningPrice = bucketData.price;
+          }
+          const unixTime = sec * 1000;
+          const label = formatTimeET(unixTime, '1D');
+          points.push({
+            date: label,
+            label,
+            price: Number(runningPrice.toFixed(2)),
+            volume: bucketData?.volume,
+            timestamp: unixTime,
+          });
+        }
+      } else {
+        points = rawPoints.map((pt) => {
+          const label = formatTimeET(pt.timestamp, timeframe);
+          return {
+            date: label,
+            label,
+            price: pt.price,
+            volume: pt.volume,
+            timestamp: pt.timestamp,
+          };
+        });
+      }
+
+      const latestPointPrice = points[points.length - 1].price;
+      const currentPrice = meta.postMarketPrice || meta.preMarketPrice || meta.regularMarketPrice || latestPointPrice;
       const startPrice = meta.chartPreviousClose || meta.previousClose || points[0].price;
       const prices = points.map(p => p.price);
-      const high = meta.regularMarketDayHigh || Math.max(...prices);
-      const low = meta.regularMarketDayLow || Math.min(...prices);
+      const high = Math.max(meta.regularMarketDayHigh || 0, ...prices, currentPrice);
+      const low = Math.min(meta.regularMarketDayLow || Infinity, ...prices, currentPrice);
       const change = Number((currentPrice - startPrice).toFixed(2));
       const changePercent = Number((((currentPrice - startPrice) / (startPrice || 1)) * 100).toFixed(2));
 

@@ -23,7 +23,7 @@
   .animate-ticker-crawl {
     display: flex;
     width: max-content;
-    animation: tickerCrawl 42s linear infinite;
+    animation: tickerCrawl 55s linear infinite;
   }
 
   .animate-ticker-crawl:hover {

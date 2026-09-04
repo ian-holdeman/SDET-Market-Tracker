@@ -93,12 +93,17 @@ export function useFinnhubMarket() {
             }
           }
 
-          const sparkline =
-            live.sparkline && live.sparkline.length >= 4
+          const rawSparkline =
+            live.sparkline && live.sparkline.length >= 2
               ? live.sparkline
               : stock.sparkline && stock.sparkline.length > 0
               ? stock.sparkline
               : [prevClose, currentPrice];
+
+          const sparkline =
+            prevClose > 0 && Math.abs(rawSparkline[0] - prevClose) > 0.001
+              ? [prevClose, ...rawSparkline]
+              : rawSparkline;
 
           return {
             ...stock,
