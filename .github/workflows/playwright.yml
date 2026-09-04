@@ -25,7 +25,7 @@ jobs:
 
       - name: Install dependencies
         id: install_deps
-        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+        run: npm ci || npm install
 
       - name: Install Playwright Browsers & OS Dependencies
         if: steps.install_deps.outcome == 'success'
