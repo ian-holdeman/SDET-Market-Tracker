@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowUpDown, 
@@ -27,6 +27,7 @@ import { TickerLogo } from './TickerLogo';
 import { useAuth } from '../context/AuthContext';
 
 interface TheBoardProps {
+  initialExpandedSymbol?: string;
   onSelectStock?: (symbol: string) => void;
 }
 
@@ -277,7 +278,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
                 }}
                 className="overflow-hidden m-0 p-0 bg-[#0B0F17]"
               >
-                <div className="px-2.5 sm:px-5 pt-2 pb-3.5 sm:pb-5 bg-[#0B0F17]">
+                <div className="px-1.5 sm:px-5 pt-1 pb-3 sm:pb-5 bg-[#0B0F17]">
                   <BoardStockDetailCard 
                     stock={stock} 
                     onClose={() => onToggleExpand(stock.symbol)}
@@ -294,7 +295,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
 
 BoardTableRow.displayName = 'BoardTableRow';
 
-export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
+export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSelectStock }) => {
   const { 
     stocks, 
     socketStatus, 
@@ -319,7 +320,31 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
   const [sortField, setSortField] = useState<BoardSortField>('price');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
+  const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(() => {
+    return initialExpandedSymbol ? new Set([initialExpandedSymbol.toUpperCase()]) : new Set();
+  });
+
+  // Automatically expand and smoothly scroll to initial expanded symbol if requested via deep-linking
+  useEffect(() => {
+    if (initialExpandedSymbol) {
+      const upper = initialExpandedSymbol.toUpperCase();
+      setExpandedSymbols(prev => {
+        const next = new Set(prev);
+        next.add(upper);
+        return next;
+      });
+
+      // Scroll after table and animations render
+      const timer = setTimeout(() => {
+        const rowElem = document.getElementById(`board-row-${upper.toLowerCase()}`);
+        if (rowElem) {
+          rowElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 150);
+
+      return () => clearTimeout(timer);
+    }
+  }, [initialExpandedSymbol]);
   
   // Feed settings modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -344,9 +369,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
     }
   }, [onSelectStock]);
 
-  // Toggle all stocks expansion
+  // Toggle all stocks expansion (Collapse All if any card is currently open; Expand All if none are open)
   const toggleExpandAll = () => {
-    if (expandedSymbols.size === processedStocks.length) {
+    if (expandedSymbols.size > 0) {
       setExpandedSymbols(new Set());
     } else {
       setExpandedSymbols(new Set(processedStocks.map(s => s.symbol)));
@@ -721,10 +746,10 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
             <button
               id="board-expand-all-btn"
               onClick={toggleExpandAll}
-              title={expandedSymbols.size === processedStocks.length && processedStocks.length > 0 ? 'Collapse All' : 'Expand All'}
-              className="p-1.5 sm:p-2 lg:px-3 lg:py-1.5 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95 text-xs font-mono font-medium"
+              title={expandedSymbols.size > 0 ? 'Collapse All' : 'Expand All'}
+              className="p-1.5 sm:p-2 lg:px-3 lg:py-1.5 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95 text-xs font-mono font-medium cursor-pointer"
             >
-              {expandedSymbols.size === processedStocks.length && processedStocks.length > 0 ? (
+              {expandedSymbols.size > 0 ? (
                 <>
                   <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" />
                   <span className="hidden lg:inline text-blue-400">Collapse all</span>
@@ -772,23 +797,65 @@ export const TheBoard: React.FC<TheBoardProps> = ({ onSelectStock }) => {
                   </span>
                 </th>
 
-                {/* 4. Today's Change (Desktop) / Price (Mobile) (Sortable) */}
+                {/* 4. Today's Change (Desktop) / Price & Change Sort Switcher (Mobile) */}
                 <th 
                   onClick={() => {
-                    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                      handleSort('price');
-                    } else {
+                    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
                       handleSort('changePercent');
                     }
                   }}
-                  className="py-3.5 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right md:text-center cursor-pointer hover:text-white transition-colors group w-[48%] sm:w-[44%] md:w-auto border-b border-slate-800"
+                  className="py-2.5 sm:py-3.5 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right md:text-center md:cursor-pointer hover:text-white transition-colors group w-[48%] sm:w-[44%] md:w-auto border-b border-slate-800"
                 >
-                  <span className="flex items-center justify-end md:justify-center">
-                    <span className="md:hidden">Price</span>
-                    <span className="hidden md:inline">Today's Change</span>
-                    <span className="md:hidden">{renderSortIcon('price')}</span>
-                    <span className="hidden md:inline">{renderSortIcon('changePercent')}</span>
+                  {/* Desktop: Centered "Today's Change" */}
+                  <span className="hidden md:flex items-center justify-center">
+                    <span>Today's Change</span>
+                    {renderSortIcon('changePercent')}
                   </span>
+
+                  {/* Mobile View: Minimalist animated segmented toggle for Price vs % */}
+                  <div className="md:hidden flex items-center justify-end">
+                    <div 
+                      id="mobile-board-sort-toggle"
+                      className="relative inline-flex items-center p-0.5 rounded-xl bg-[#0B0F17] border border-slate-800 shadow-inner select-none"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {[
+                        { id: 'price' as BoardSortField, label: 'Price' },
+                        { id: 'changePercent' as BoardSortField, label: '%' },
+                      ].map((item) => {
+                        const isActive = sortField === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            id={`mobile-sort-${item.id.toLowerCase()}-btn`}
+                            onClick={() => handleSort(item.id)}
+                            className={`relative z-10 px-2.5 py-1 text-xs font-mono font-semibold rounded-lg transition-colors duration-200 flex items-center gap-1 cursor-pointer antialiased ${
+                              isActive
+                                ? 'text-blue-400 font-bold'
+                                : 'text-slate-400 hover:text-slate-200 font-medium'
+                            }`}
+                          >
+                            {isActive && (
+                              <motion.div
+                                layoutId="mobileBoardSortPill"
+                                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                                className="absolute inset-0 bg-slate-800 border border-slate-700/80 rounded-lg shadow-sm -z-10"
+                              />
+                            )}
+                            <span className="leading-none">{item.label}</span>
+                            {isActive && (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="w-3 h-3 text-blue-400 stroke-[2.5]" />
+                              ) : (
+                                <ArrowDown className="w-3 h-3 text-blue-400 stroke-[2.5]" />
+                              )
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </th>
 
                 {/* 5. 52W Range (Not Sortable - Desktop Only) */}

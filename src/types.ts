@@ -103,6 +103,7 @@ export interface BoardStock {
   peRatio?: number;
   marketCap?: string;
   dividendYield?: number;
+  expenseRatio?: number;
   logoUrl?: string;
   sparkline: number[];
   lastUpdated: string;

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Header } from './components/Header';
 import { MarketTickerTape } from './components/MarketTickerTape';
-import { VtiSnapshotCard } from './components/VtiSnapshotCard';
+import { BoardSnapshotCard } from './components/BoardSnapshotCard';
 import { TestSnapshotCard } from './components/TestSnapshotCard';
 import { TheBoard } from './components/TheBoard';
 import { TheTests } from './components/TheTests';
@@ -10,78 +10,36 @@ import { Footer } from './components/Footer';
 import { PagePlaceholder } from './components/PagePlaceholder';
 import { AuthModal } from './components/AuthModal';
 import { AuthProvider } from './context/AuthContext';
-import { INITIAL_VTI_DATA } from './data/marketData';
-import { PageView, MarketIndexData } from './types';
-import { fetchProxyQuotes, fetchProxyCandles } from './services/yahooMarket';
+import { PageView } from './types';
+import { parseRouteFromLocation, syncRouteUrl } from './utils/navigation';
 
 function AppContent() {
-  const [currentPage, setCurrentPage] = useState<PageView>('home');
-  const [vtiData, setVtiData] = useState<MarketIndexData>(INITIAL_VTI_DATA);
+  const [currentPage, setCurrentPage] = useState<PageView>(() => {
+    return parseRouteFromLocation().page;
+  });
 
-  // Sync real-world broad market data & VTI candle timeline from server proxy
+  const [selectedStockSymbol, setSelectedStockSymbol] = useState<string | undefined>(() => {
+    return parseRouteFromLocation().symbol;
+  });
+
+  // Keep state in sync with browser back / forward buttons
   useEffect(() => {
-    let isMounted = true;
-
-    async function syncRealMarketHomeData() {
-      try {
-        // 1. Fetch real quote for VTI
-        const quotes = await fetchProxyQuotes(['VTI']);
-
-        if (isMounted && quotes && quotes.length > 0) {
-          // Update VTI live quote
-          const vtiQuote = quotes.find((q) => q.symbol === 'VTI');
-          if (vtiQuote) {
-            setVtiData((prev) => ({
-              ...prev,
-              currentPrice: vtiQuote.price,
-              change: vtiQuote.change,
-              changePercent: vtiQuote.changePercent,
-              stats: {
-                ...prev.stats,
-                previousClose: vtiQuote.prevClose || prev.stats.previousClose,
-                openPrice: vtiQuote.open || prev.stats.openPrice,
-                daysRange: {
-                  low: vtiQuote.dayLow || prev.stats.daysRange.low,
-                  high: vtiQuote.dayHigh || prev.stats.daysRange.high,
-                },
-                fiftyTwoWeekRange: {
-                  low: vtiQuote.fiftyTwoWeekLow || prev.stats.fiftyTwoWeekRange.low,
-                  high: vtiQuote.fiftyTwoWeekHigh || prev.stats.fiftyTwoWeekRange.high,
-                },
-              },
-            }));
-          }
-        }
-
-        // 2. Fetch real 1D candle series for VTI
-        const vti1DCandles = await fetchProxyCandles('VTI', '1D');
-        if (isMounted && vti1DCandles && vti1DCandles.points.length > 3) {
-          const formattedPoints = vti1DCandles.points.map((p) => ({
-            timestamp: p.timeUnix ? new Date(p.timeUnix).toISOString() : new Date().toISOString(),
-            timeLabel: p.label,
-            price: p.price,
-          }));
-
-          setVtiData((prev) => ({
-            ...prev,
-            timeframeData: {
-              ...prev.timeframeData,
-              '1D': formattedPoints,
-            },
-          }));
-        }
-      } catch (err) {
-        console.warn('Unable to sync home VTI market data:', err);
-      }
-    }
-
-    syncRealMarketHomeData();
-    const interval = setInterval(syncRealMarketHomeData, 30000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
+    const handlePopState = () => {
+      const route = parseRouteFromLocation();
+      setCurrentPage(route.page);
+      setSelectedStockSymbol(route.symbol);
     };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Central navigation handler
+  const handleNavigate = useCallback((page: PageView, symbol?: string) => {
+    setCurrentPage(page);
+    setSelectedStockSymbol(symbol);
+    syncRouteUrl(page, symbol);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   return (
@@ -89,10 +47,7 @@ function AppContent() {
       {/* Top Header Navigation */}
       <Header
         currentPage={currentPage}
-        onNavigate={(page) => {
-          setCurrentPage(page);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
+        onNavigate={(page) => handleNavigate(page)}
       />
 
       {/* Auth Modal for Pseudonymous Sign-in & Registration */}
@@ -141,15 +96,13 @@ function AppContent() {
                   </p>
                 </div>
 
-                {/* Dual Cards Grid: Market Tracking (VTI) & SDET Testing */}
+                {/* Dual Cards Grid: Market Tracking (The Board Movers) & SDET Testing */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch max-w-6xl mx-auto">
-                  {/* Left Card: VTI Market Surveillance */}
+                  {/* Left Card: The Board - Top 5 Risers & Fallers with Deep-Linking */}
                   <div className="w-full flex justify-center">
-                    <VtiSnapshotCard
-                      data={vtiData}
-                      onExploreBoard={() => {
-                        setCurrentPage('board');
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    <BoardSnapshotCard
+                      onExploreBoard={(symbol?: string) => {
+                        handleNavigate('board', symbol);
                       }}
                     />
                   </div>
@@ -158,23 +111,28 @@ function AppContent() {
                   <div className="w-full flex justify-center">
                     <TestSnapshotCard
                       onExploreTests={() => {
-                        setCurrentPage('tests');
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        handleNavigate('tests');
                       }}
                     />
                   </div>
                 </div>
               </div>
             ) : currentPage === 'board' ? (
-              <TheBoard />
+              <TheBoard
+                initialExpandedSymbol={selectedStockSymbol}
+                onSelectStock={(symbol) => {
+                  // Keep the active selected stock in URL parameters
+                  setSelectedStockSymbol(symbol);
+                  syncRouteUrl('board', symbol, true);
+                }}
+              />
             ) : currentPage === 'tests' ? (
               <TheTests />
             ) : (
               <PagePlaceholder
                 page={currentPage}
                 onBackToHome={() => {
-                  setCurrentPage('home');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  handleNavigate('home');
                 }}
               />
             )}
@@ -195,4 +153,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

@@ -11,6 +11,8 @@ export interface ProxyCandlesResponse {
     volume?: number;
     timestamp: number;
   }>;
+  sessionStartUnix?: number;
+  sessionEndUnix?: number;
   startPrice: number;
   currentPrice: number;
   change: number;
@@ -87,6 +89,8 @@ export async function fetchProxyCandles(
       changePercent: data.changePercent,
       high: data.high,
       low: data.low,
+      sessionStartUnix: data.sessionStartUnix,
+      sessionEndUnix: data.sessionEndUnix,
     };
 
     candleMemoryCache.set(cacheKey, { timestamp: Date.now(), data: summary });

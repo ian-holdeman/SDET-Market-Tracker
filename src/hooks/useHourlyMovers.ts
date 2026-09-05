@@ -129,11 +129,15 @@ export function useHourlyMovers() {
       lastCheckedHourRef.current = currentHourET;
 
       const lastUpdatedLabel = formatEasternHour(now);
-      const nextHourDate = new Date(now);
-      nextHourDate.setHours(nextHourDate.getHours() + 1);
-      nextHourDate.setMinutes(0);
-      nextHourDate.setSeconds(0);
-      const nextUpdateLabel = formatEasternHour(nextHourDate);
+      const nextSyncDate = new Date(now);
+      if (now.getMinutes() < 30) {
+        nextSyncDate.setMinutes(30);
+      } else {
+        nextSyncDate.setHours(nextSyncDate.getHours() + 1);
+        nextSyncDate.setMinutes(0);
+      }
+      nextSyncDate.setSeconds(0);
+      const nextUpdateLabel = formatEasternHour(nextSyncDate);
 
       setState({
         gainers,
@@ -144,7 +148,7 @@ export function useHourlyMovers() {
         isLoading: false,
       });
     } catch (err) {
-      console.warn('[Hourly Movers] Failed to calculate hourly movers:', err);
+      console.warn('[Hourly Movers] Failed to calculate movers:', err);
       setState((prev) => ({ ...prev, isLoading: false }));
     }
   }, []);
@@ -153,33 +157,37 @@ export function useHourlyMovers() {
     // 1. Initial snapshot fetch on mount
     calculateAndApplyMovers();
 
-    // 2. Schedule top-of-the-hour updates
-    function scheduleNextHourlySync() {
+    // 2. Schedule half-hourly updates (:00 and :30)
+    function scheduleNextHalfHourlySync() {
       const now = new Date();
-      const nextHour = new Date(now);
-      nextHour.setHours(nextHour.getHours() + 1);
-      nextHour.setMinutes(0);
-      nextHour.setSeconds(1); // 1 sec past top of the hour
-      nextHour.setMilliseconds(0);
+      const nextSync = new Date(now);
+      const minutes = now.getMinutes();
+      if (minutes < 30) {
+        nextSync.setMinutes(30);
+      } else {
+        nextSync.setHours(nextSync.getHours() + 1);
+        nextSync.setMinutes(0);
+      }
+      nextSync.setSeconds(1); // 1 sec past mark
+      nextSync.setMilliseconds(0);
 
-      const msUntilNextHour = Math.max(2000, nextHour.getTime() - now.getTime());
+      const msUntilNext = Math.max(2000, nextSync.getTime() - now.getTime());
 
       timerRef.current = setTimeout(() => {
         calculateAndApplyMovers();
-        scheduleNextHourlySync();
-      }, msUntilNextHour);
+        scheduleNextHalfHourlySync();
+      }, msUntilNext);
     }
 
-    scheduleNextHourlySync();
+    scheduleNextHalfHourlySync();
 
     // 3. Interval check every 30s as safety guard for backgrounded tabs / waking laptop
     const guardInterval = setInterval(() => {
       const now = new Date();
-      const currentHourET = getEasternHourNumber(now);
       const minutes = now.getMinutes();
 
-      // If minutes are 0-2 and we haven't synced this hour yet
-      if (minutes <= 2 && lastCheckedHourRef.current !== currentHourET) {
+      // If minutes are 0-1 or 30-31
+      if (minutes === 0 || minutes === 30) {
         calculateAndApplyMovers();
       }
     }, 30000);

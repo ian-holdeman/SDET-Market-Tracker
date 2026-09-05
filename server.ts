@@ -263,17 +263,12 @@ async function startServer() {
       }> = [];
 
       const baselinePrevClose = meta.chartPreviousClose || meta.previousClose || rawPoints[0].price;
+      let sessionStartUnix: number | undefined;
+      let sessionEndUnix: number | undefined;
 
       if (timeframe === '1D' && rawPoints.length > 0) {
-        // Map available points to 5-minute buckets (300 seconds)
-        const bucketMap = new Map<number, { price: number; volume?: number }>();
-        rawPoints.forEach((pt) => {
-          const bucketSec = Math.round(pt.timestamp / (300 * 1000)) * 300;
-          bucketMap.set(bucketSec, { price: pt.price, volume: pt.volume });
-        });
-
-        // Determine session boundary in Eastern Time (America/New_York)
-        // Standard full trading day spans 4:00 AM ET (pre-market start) to 8:00 PM ET (after-hours close)
+        // Determine full trading day session boundary in Eastern Time (America/New_York)
+        // Standard full extended trading day spans 4:00 AM ET (pre-market) to 8:00 PM ET (after-hours close)
         const sessionDate = new Date(rawPoints[0].timestamp).toLocaleDateString('en-US', {
           timeZone: 'America/New_York',
         });
@@ -286,25 +281,20 @@ async function startServer() {
           || meta.tradingPeriods?.regular?.[0]?.[0]?.end
           || Math.floor(new Date(`${sessionDate} 20:00:00 GMT-0400`).getTime() / 1000);
 
-        const startSec = preStartSec;
-        const endSec = postEndSec;
+        sessionStartUnix = preStartSec * 1000;
+        sessionEndUnix = postEndSec * 1000;
 
-        let runningPrice = baselinePrevClose;
-        for (let sec = startSec; sec <= endSec; sec += 300) {
-          const bucketData = bucketMap.get(sec);
-          if (bucketData) {
-            runningPrice = bucketData.price;
-          }
-          const unixTime = sec * 1000;
-          const label = formatTimeET(unixTime, '1D');
-          points.push({
+        // Map authentic points that have actually occurred so far (no filling flat fake data into future hours)
+        points = rawPoints.map((pt) => {
+          const label = formatTimeET(pt.timestamp, '1D');
+          return {
             date: label,
             label,
-            price: Number(runningPrice.toFixed(2)),
-            volume: bucketData?.volume,
-            timestamp: unixTime,
-          });
-        }
+            price: pt.price,
+            volume: pt.volume,
+            timestamp: pt.timestamp,
+          };
+        });
       } else {
         points = rawPoints.map((pt) => {
           const label = formatTimeET(pt.timestamp, timeframe);
@@ -331,6 +321,8 @@ async function startServer() {
         symbol,
         timeframe,
         points,
+        sessionStartUnix,
+        sessionEndUnix,
         startPrice,
         currentPrice,
         change,

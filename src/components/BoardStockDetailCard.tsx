@@ -3,7 +3,6 @@ import {
   TrendingUp, 
   TrendingDown, 
   ExternalLink,
-  Calendar,
   Loader2,
   AlertTriangle,
   RotateCw,
@@ -11,11 +10,15 @@ import {
   Star
 } from 'lucide-react';
 import { BoardStock, BoardTimeframe } from '../types';
-import { buildConfirmedStockTimeframeData, ChartPoint, TimeframeSummary } from '../utils/timeframeData';
 import { 
-  fetchFinnhubTimeframeCandles,
-  fetchFinnhubCompanyProfile,
-  FinnhubCompanyProfile
+  buildConfirmedStockTimeframeData, 
+  ChartPoint, 
+  TimeframeSummary, 
+  isMarketTradingActive,
+  isAssetActivelyTrading
+} from '../utils/timeframeData';
+import { 
+  fetchFinnhubTimeframeCandles
 } from '../services/finnhub';
 import { fetchProxyCandles } from '../services/yahooMarket';
 import { TickerLogo } from './TickerLogo';
@@ -52,11 +55,11 @@ function computeEvenYAxis(prices: number[]): {
 
   const rawMin = Math.min(...prices);
   const rawMax = Math.max(...prices);
-  const rawSpan = Math.max(0.02, rawMax - rawMin);
+  const rawSpan = Math.max(0.04, rawMax - rawMin);
 
-  // Add 4% vertical padding to prevent curve from clipping top/bottom borders
-  const paddedMinCandidate = Math.max(0, rawMin - rawSpan * 0.04);
-  const paddedMaxCandidate = rawMax + rawSpan * 0.04;
+  // Add 16% vertical padding to provide a zoomed-out, breathing view like SoFi
+  const paddedMinCandidate = Math.max(0, rawMin - rawSpan * 0.16);
+  const paddedMaxCandidate = rawMax + rawSpan * 0.16;
   const targetSpan = paddedMaxCandidate - paddedMinCandidate;
 
   // Find optimal nice step
@@ -138,17 +141,57 @@ export function getEasternTimezoneAbbr(date: Date = new Date()): 'EST' | 'EDT' {
  * Returns clean, evenly spaced X-axis interval labels and their relative coordinates
  * dynamically derived from the real dataset points and their authentic Eastern Time timestamps.
  */
-function getEvenXAxisTicks(timeframe: BoardTimeframe, points: ChartPoint[]): { label: string; index: number }[] {
-  if (!points || points.length <= 1) return [];
+function getEvenXAxisTicks(
+  timeframe: BoardTimeframe, 
+  points: ChartPoint[],
+  sessionStartUnix?: number,
+  sessionEndUnix?: number,
+  paddingLeft = 56,
+  effectiveWidth = 648
+): { label: string; x: number }[] {
+  if (!points || points.length === 0) return [];
+
+  const tz = getEasternTimezoneAbbr();
+
+  if (timeframe === '1D') {
+    const firstTime = points[0]?.timeUnix || Date.now();
+    const lastTime = points[points.length - 1]?.timeUnix || firstTime;
+
+    let sStart = sessionStartUnix;
+    let sEnd = sessionEndUnix;
+
+    if (!sStart || !sEnd || sEnd <= sStart) {
+      const sessionDate = new Date(firstTime).toLocaleDateString('en-US', {
+        timeZone: 'America/New_York',
+      });
+      sStart = new Date(`${sessionDate} 04:00:00 GMT-0400`).getTime();
+      sEnd = new Date(`${sessionDate} 20:00:00 GMT-0400`).getTime();
+    }
+
+    if (firstTime < sStart) sStart = firstTime;
+    if (lastTime > sEnd) sEnd = lastTime;
+
+    const milestones = [
+      { frac: 0.0, label: '4:00 AM' },
+      { frac: 0.25, label: '8:00 AM' },
+      { frac: 0.50, label: '12:00 PM' },
+      { frac: 0.75, label: '4:00 PM' },
+      { frac: 1.0, label: `8:00 PM ${tz}` },
+    ];
+
+    return milestones.map((m) => ({
+      label: m.label,
+      x: paddingLeft + m.frac * effectiveWidth,
+    }));
+  }
 
   const count = points.length;
-  const tz = getEasternTimezoneAbbr();
   const tickCount = Math.min(5, count);
-  const result: { label: string; index: number }[] = [];
+  const result: { label: string; x: number }[] = [];
   const chosenIndices: number[] = [];
 
   for (let i = 0; i < tickCount; i++) {
-    const frac = i / (tickCount - 1);
+    const frac = i / (tickCount - 1 || 1);
     const idx = Math.min(count - 1, Math.round(frac * (count - 1)));
     if (!chosenIndices.includes(idx)) {
       chosenIndices.push(idx);
@@ -157,23 +200,11 @@ function getEvenXAxisTicks(timeframe: BoardTimeframe, points: ChartPoint[]): { l
 
   chosenIndices.forEach((idx, i) => {
     const pt = points[idx];
-    const isLast = i === chosenIndices.length - 1;
     let label = pt.label || pt.date;
 
     if (pt.timeUnix) {
-      const normalizedTime = (timeframe === '1D' || timeframe === '1W')
-        ? Math.round(pt.timeUnix / (5 * 60 * 1000)) * (5 * 60 * 1000)
-        : pt.timeUnix;
-      const d = new Date(normalizedTime);
-      if (timeframe === '1D') {
-        const timeStr = d.toLocaleTimeString('en-US', {
-          timeZone: 'America/New_York',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        });
-        label = isLast ? `${timeStr} ${tz}` : timeStr;
-      } else if (timeframe === '1W') {
+      const d = new Date(pt.timeUnix);
+      if (timeframe === '1W') {
         const day = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' });
         const timeStr = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: true });
         label = `${day} ${timeStr}`;
@@ -184,13 +215,12 @@ function getEvenXAxisTicks(timeframe: BoardTimeframe, points: ChartPoint[]): { l
       } else if (timeframe === '5Y' || timeframe === 'MAX') {
         label = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', year: 'numeric' });
       }
-    } else if (timeframe === '1D' && isLast && !label.includes(tz)) {
-      label = `${label} ${tz}`;
     }
 
+    const frac = idx / (count - 1 || 1);
     result.push({
       label,
-      index: idx,
+      x: paddingLeft + frac * effectiveWidth,
     });
   });
 
@@ -201,11 +231,26 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const { user, isSymbolInWatchlist, toggleWatchlistSymbol, openAuthModal } = useAuth();
   const isWatching = isSymbolInWatchlist(stock.symbol);
 
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 640;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [selectedTimeframe, setSelectedTimeframe] = useState<BoardTimeframe>('1D');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [liveCandleSummary, setLiveCandleSummary] = useState<TimeframeSummary | null>(null);
   const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(false);
-  const [profile, setProfile] = useState<FinnhubCompanyProfile | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const handleWatchToggle = async (e: React.MouseEvent) => {
@@ -220,19 +265,6 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
     }
   };
 
-  // Fetch Finnhub Company Profile
-  useEffect(() => {
-    let isMounted = true;
-    if (stock.assetType !== 'ETF') {
-      fetchFinnhubCompanyProfile(stock.symbol).then((prof) => {
-        if (isMounted && prof) setProfile(prof);
-      });
-    }
-    return () => {
-      isMounted = false;
-    };
-  }, [stock.symbol, stock.assetType]);
-
   // Format volume helper
   const formatVolume = (vol: number) => {
     if (!vol) return '—';
@@ -240,6 +272,54 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
     if (vol >= 1_000_000) return `${(vol / 1_000_000).toFixed(2)}M`;
     if (vol >= 1_000) return `${(vol / 1_000).toFixed(1)}K`;
     return vol.toLocaleString();
+  };
+
+  // Format expense ratio helper for ETFs
+  const formatExpenseRatio = (expRatio?: number, symbol?: string) => {
+    if (typeof expRatio === 'number') {
+      const decimals = expRatio < 0.1 && (expRatio * 100) % 1 !== 0 ? 3 : 2;
+      return `${expRatio.toFixed(decimals)}%`;
+    }
+    const knownRatios: Record<string, number> = {
+      VTI: 0.03,
+      VOO: 0.03,
+      QQQM: 0.15,
+      SPMO: 0.13,
+      SCHD: 0.06,
+      VXUS: 0.08,
+      FCOM: 0.084,
+      FDIS: 0.084,
+      FSTA: 0.084,
+      FENY: 0.084,
+      FNCL: 0.084,
+      FHLC: 0.084,
+      FIDU: 0.084,
+      FMAT: 0.084,
+      FTEC: 0.084,
+      FUTY: 0.084,
+      IWM: 0.19,
+      DIA: 0.16,
+      SPY: 0.09,
+      QQQ: 0.20,
+      IVV: 0.03,
+      VT: 0.07,
+      VEA: 0.06,
+      VWO: 0.08,
+      BND: 0.03,
+      AGG: 0.03,
+      SMH: 0.35,
+      XBI: 0.35,
+      IBIT: 0.25,
+      VNQ: 0.13,
+      GLD: 0.40,
+      IAU: 0.25,
+    };
+    if (symbol && knownRatios[symbol.toUpperCase()] !== undefined) {
+      const val = knownRatios[symbol.toUpperCase()];
+      const decimals = val < 0.1 && (val * 100) % 1 !== 0 ? 3 : 2;
+      return `${val.toFixed(decimals)}%`;
+    }
+    return '0.03%';
   };
 
   const [candleError, setCandleError] = useState<string | null>(null);
@@ -351,40 +431,114 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const { points, startPrice, currentPrice } = timeframeData;
 
   // Selected or hovered point
-  const activePoint = hoverIndex !== null && points[hoverIndex] ? points[hoverIndex] : points[points.length - 1];
-  const activePrice = activePoint ? activePoint.price : currentPrice;
+  const isHovering = hoverIndex !== null && hoverIndex >= 0 && hoverIndex < points.length;
+  const displayedPoint = isHovering ? points[hoverIndex] : (points[points.length - 1] || null);
+  const activePrice = displayedPoint ? displayedPoint.price : currentPrice;
   const activeChange = activePrice - startPrice;
   const activeChangePercent = startPrice > 0 ? (activeChange / startPrice) * 100 : 0;
   const isPeriodPositive = activeChange >= 0;
 
-  // Compute Even Y-Axis Ticks
+  // Compute Even Y-Axis Ticks with startPrice included for balanced baseline framing
   const yAxisConfig = useMemo(() => {
     const prices = points.map((p) => p.price);
+    if (startPrice && startPrice > 0) {
+      prices.push(startPrice);
+    }
     return computeEvenYAxis(prices);
-  }, [points]);
+  }, [points, startPrice]);
 
   const { ticks, paddedMin, paddedMax, formatTick } = yAxisConfig;
   const totalRange = paddedMax - paddedMin || 1;
 
-  // SVG dimensions
-  const chartHeight = 220;
+  // SVG dimensions with responsive edge-to-edge margins for mobile
+  const chartHeight = 240;
   const chartWidth = 720;
-  const paddingLeft = 56; // Clean left margin for Y-axis dollar numbers
-  const paddingRight = 16;
-  const paddingTop = 18;
-  const paddingBottom = 26; // Space for X-axis time intervals
+  const paddingLeft = isMobile ? 8 : 20; // Edge-to-edge on mobile
+  const paddingRight = isMobile ? 8 : 20;
+  const paddingTop = 36;
+  const paddingBottom = 36;
 
   const effectiveHeight = chartHeight - paddingTop - paddingBottom;
   const effectiveWidth = chartWidth - paddingLeft - paddingRight;
 
-  // Calculate coordinates aligned with even Y-axis bounds
+  // Single Dotted Horizontal Baseline Y calculation (Day's Open / Previous Close / Period Start)
+  const baselinePrice = startPrice > 0 ? startPrice : (points[0]?.price || 0);
+  const baselineY = baselinePrice > 0 && totalRange > 0
+    ? paddingTop + effectiveHeight - ((baselinePrice - paddedMin) / totalRange) * effectiveHeight
+    : null;
+
+  // Period High, Open/Start, and Low metrics for SoFi-style interactive reference lines
+  const periodHigh = useMemo(() => {
+    if (timeframeData.high && timeframeData.high > 0) return timeframeData.high;
+    const prices = points.map(p => p.price);
+    if (selectedTimeframe === '1D' && stock.dayHigh && stock.dayHigh > 0) prices.push(stock.dayHigh);
+    return prices.length > 0 ? Math.max(...prices) : stock.price;
+  }, [timeframeData.high, points, selectedTimeframe, stock.dayHigh, stock.price]);
+
+  const periodLow = useMemo(() => {
+    if (timeframeData.low && timeframeData.low > 0) return timeframeData.low;
+    const prices = points.map(p => p.price);
+    if (selectedTimeframe === '1D' && stock.dayLow && stock.dayLow > 0) prices.push(stock.dayLow);
+    const valid = prices.filter(p => p > 0);
+    return valid.length > 0 ? Math.min(...valid) : stock.price;
+  }, [timeframeData.low, points, selectedTimeframe, stock.dayLow, stock.price]);
+
+  const periodOpen = baselinePrice;
+
+  const highY = periodHigh > 0 && totalRange > 0
+    ? paddingTop + effectiveHeight - ((periodHigh - paddedMin) / totalRange) * effectiveHeight
+    : null;
+
+  const openY = baselineY;
+
+  const lowY = periodLow > 0 && totalRange > 0
+    ? paddingTop + effectiveHeight - ((periodLow - paddedMin) / totalRange) * effectiveHeight
+    : null;
+
+  const is1D = selectedTimeframe === '1D';
+  // Only draw the Open line/label if it sits strictly between Day's Low and Day's High
+  const isOpenBetweenBounds = is1D && periodOpen > periodLow && periodOpen < periodHigh;
+
+  // Calculate coordinates aligned with even Y-axis bounds and authentic intraday time progression
   const coords = useMemo(() => {
+    if (points.length === 0) return [];
+
+    if (is1D) {
+      // Intraday session boundaries (4:00 AM ET pre-market to 8:00 PM ET after-hours close)
+      const firstTime = points[0]?.timeUnix || Date.now();
+      const lastTime = points[points.length - 1]?.timeUnix || firstTime;
+
+      let sStart = timeframeData.sessionStartUnix;
+      let sEnd = timeframeData.sessionEndUnix;
+
+      if (!sStart || !sEnd || sEnd <= sStart) {
+        const sessionDate = new Date(firstTime).toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+        });
+        sStart = new Date(`${sessionDate} 04:00:00 GMT-0400`).getTime();
+        sEnd = new Date(`${sessionDate} 20:00:00 GMT-0400`).getTime();
+      }
+
+      if (firstTime < sStart) sStart = firstTime;
+      if (lastTime > sEnd) sEnd = lastTime;
+
+      const span = sEnd - sStart || 1;
+
+      return points.map((p, i) => {
+        const ptTime = p.timeUnix || firstTime;
+        const progress = Math.max(0, Math.min(1, (ptTime - sStart) / span));
+        const x = paddingLeft + progress * effectiveWidth;
+        const y = paddingTop + effectiveHeight - ((p.price - paddedMin) / totalRange) * effectiveHeight;
+        return { x, y, point: p, index: i };
+      });
+    }
+
     return points.map((p, i) => {
       const x = paddingLeft + (i / Math.max(1, points.length - 1)) * effectiveWidth;
       const y = paddingTop + effectiveHeight - ((p.price - paddedMin) / totalRange) * effectiveHeight;
       return { x, y, point: p, index: i };
     });
-  }, [points, paddedMin, totalRange, effectiveHeight, effectiveWidth, paddingLeft, paddingTop]);
+  }, [points, is1D, timeframeData.sessionStartUnix, timeframeData.sessionEndUnix, paddedMin, totalRange, effectiveHeight, effectiveWidth, paddingLeft, paddingTop]);
 
   const pathD = useMemo(() => {
     if (coords.length === 0) return '';
@@ -404,12 +558,15 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   // Compute clean, even X-axis ticks
   const xTicks = useMemo(() => {
     if (coords.length === 0) return [];
-    const ticksDef = getEvenXAxisTicks(selectedTimeframe, points);
-    return ticksDef.map(td => ({
-      label: td.label,
-      coord: coords[td.index] || coords[0]
-    }));
-  }, [coords, points, selectedTimeframe]);
+    return getEvenXAxisTicks(
+      selectedTimeframe, 
+      points, 
+      timeframeData.sessionStartUnix, 
+      timeframeData.sessionEndUnix, 
+      paddingLeft, 
+      effectiveWidth
+    );
+  }, [coords, points, selectedTimeframe, timeframeData.sessionStartUnix, timeframeData.sessionEndUnix, paddingLeft, effectiveWidth]);
 
   // Handle mouse/touch movement over the SVG chart
   const updateHoverFromClientX = (clientX: number) => {
@@ -451,7 +608,66 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
     setHoverIndex(null);
   };
 
-  const activeCoord = hoverIndex !== null && coords[hoverIndex] ? coords[hoverIndex] : coords[coords.length - 1];
+  const isHoveringCoord = hoverIndex !== null && hoverIndex >= 0 && hoverIndex < coords.length;
+  const activeCoord = isHoveringCoord ? coords[hoverIndex] : null;
+
+  // Non-overlapping Y-Axis Hover Price Badges (Collision-avoidance relaxation algorithm)
+  const resolvedYAxisBadges = useMemo(() => {
+    if (!activeCoord) return [];
+
+    const rawBadges: Array<{ id: string; y: number; price: number }> = [];
+
+    if (highY !== null) {
+      rawBadges.push({ id: 'high', y: highY, price: periodHigh });
+    }
+
+    if (selectedTimeframe === '1D' && !isMobile && openY !== null) {
+      rawBadges.push({ id: 'open', y: openY, price: periodOpen });
+    }
+
+    if (lowY !== null) {
+      rawBadges.push({ id: 'low', y: lowY, price: periodLow });
+    }
+
+    if (rawBadges.length === 0) return [];
+
+    // Sort top-to-bottom (smaller y values are physically higher up on the screen)
+    rawBadges.sort((a, b) => a.y - b.y);
+
+    // Remove duplicates if price and position are effectively identical
+    const uniqueBadges = rawBadges.filter((item, index, self) =>
+      index === self.findIndex((t) => t.id === item.id || (Math.abs(t.price - item.price) < 0.005 && Math.abs(t.y - item.y) < 2))
+    );
+
+    const minGap = 26; // Minimum vertical pixel clearance between centerpoints
+    const minY = 14;
+    const maxY = chartHeight - 14;
+
+    const adjusted = uniqueBadges.map((b) => ({ ...b }));
+
+    // Forward pass: push downstream items downward if they violate minGap
+    for (let i = 0; i < adjusted.length; i++) {
+      if (i === 0) {
+        if (adjusted[i].y < minY) adjusted[i].y = minY;
+      } else {
+        if (adjusted[i].y < adjusted[i - 1].y + minGap) {
+          adjusted[i].y = adjusted[i - 1].y + minGap;
+        }
+      }
+    }
+
+    // Backward pass: if bottom-most exceeded maxY bounds, push upstream items upward
+    if (adjusted[adjusted.length - 1].y > maxY) {
+      adjusted[adjusted.length - 1].y = maxY;
+      for (let i = adjusted.length - 2; i >= 0; i--) {
+        if (adjusted[i].y > adjusted[i + 1].y - minGap) {
+          adjusted[i].y = adjusted[i + 1].y - minGap;
+        }
+      }
+    }
+
+    return adjusted;
+  }, [activeCoord, highY, openY, lowY, periodHigh, periodOpen, periodLow, selectedTimeframe, isMobile, chartHeight]);
 
   // Wall Street 1Y Price Target for the first metric card
   const targetData = stock.targetPrice1Y;
@@ -463,89 +679,136 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const fiftyTwoLow = stock.fiftyTwoWeekLow || (stock.dayLow * 0.82);
   const fiftyTwoHigh = stock.fiftyTwoWeekHigh || (stock.dayHigh * 1.18);
 
-  // Format elegant timeframe label next to calendar icon
-  const timeframeLabel = useMemo(() => {
-    switch (selectedTimeframe) {
-      case '1D': return 'Today';
-      case '1W': return '1W';
-      case '1M': return '1M';
-      case 'YTD': return 'YTD';
-      case '1Y': return '1Y';
-      case '5Y': return '5Y';
-      case 'MAX': return 'MAX';
-      default: return selectedTimeframe;
+  // Format floating timestamp badge with explicit EST/EDT clarity for intraday and weekly views
+  const formatFloatingTimestamp = (point: ChartPoint, tf: BoardTimeframe): string => {
+    if (!point) return '';
+    if (point.timeUnix) {
+      const dateObj = new Date(point.timeUnix);
+      if (tf === '1D') {
+        return dateObj.toLocaleTimeString('en-US', {
+          timeZone: 'America/New_York',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+          timeZoneName: 'short',
+        });
+      }
+      if (tf === '1W') {
+        const day = dateObj.toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+          weekday: 'short',
+          month: 'numeric',
+          day: 'numeric',
+        });
+        const time = dateObj.toLocaleTimeString('en-US', {
+          timeZone: 'America/New_York',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+          timeZoneName: 'short',
+        });
+        return `${day} · ${time}`;
+      }
+      if (tf === '1M') {
+        return dateObj.toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      }
+      if (tf === 'YTD' || tf === '1Y') {
+        return dateObj.toLocaleDateString('en-US', {
+          timeZone: 'America/New_York',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      }
+      return dateObj.toLocaleDateString('en-US', {
+        timeZone: 'America/New_York',
+        month: 'short',
+        year: 'numeric',
+      });
     }
-  }, [selectedTimeframe]);
+
+    // Fallback if point only has label string
+    if (tf === '1D') {
+      if (/E[DS]T|ET/i.test(point.label)) return point.label;
+      return `${point.label} EDT`;
+    }
+    if (tf === '1W' && !/E[DS]T|ET/i.test(point.label)) {
+      return `${point.label} EDT`;
+    }
+    return point.label;
+  };
 
   return (
     <div 
       id={`drilldown-card-${stock.symbol.toLowerCase()}`}
-      className="p-3 sm:p-5 bg-[#0B0F17] rounded-xl sm:rounded-2xl border border-slate-800 shadow-2xl space-y-3 sm:space-y-4 max-w-full overflow-hidden"
+      className="p-1.5 sm:p-3.5 bg-[#0B0F17] space-y-1.5 sm:space-y-2.5 max-w-full overflow-hidden"
     >
-      {/* Top Identity Header & Live Price / Period Return */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 pb-2.5 sm:pb-3.5 border-b border-slate-800/80">
+      {/* Top Header & Controls: Left (Identity + Live Price/Return), Right (Timeframe Tabs & Sync) */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 sm:gap-4 pb-0.5">
         
-        {/* Left: Ticker & Asset details */}
-        <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0 flex-1">
-          <TickerLogo 
-            symbol={stock.symbol} 
-            assetType={stock.assetType} 
-            logoUrl={stock.logoUrl} 
-            size="md" 
-          />
-          <div className="min-w-0 flex-1 flex flex-col justify-center">
-            {/* Top row: Symbol, Watching Tag (if tracked), and Star Button in a fixed, consistent layout */}
-            <div className="flex items-center space-x-1.5 sm:space-x-2 flex-wrap gap-y-1">
-              <h2 className="text-base sm:text-lg font-bold text-white font-mono tracking-tight">
-                {stock.symbol}
-              </h2>
-              {/* Watching Tag */}
-              {isWatching && (
-                <span 
-                  id={`watching-tag-${stock.symbol.toLowerCase()}`}
-                  className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider bg-purple-950/90 text-purple-400 border border-purple-800"
-                >
-                  Watching
-                </span>
-              )}
-              {/* Star Button in consistent position next to symbol/badges for all tickers */}
-              <button
-                id={`watchlist-star-btn-${stock.symbol.toLowerCase()}`}
-                type="button"
-                onClick={handleWatchToggle}
-                aria-label={isWatching ? `Remove ${stock.symbol} from Watchlist` : `Add ${stock.symbol} to Watchlist`}
-                title={isWatching ? `Watching ${stock.symbol} - Click to remove from watchlist` : `Add ${stock.symbol} to Watchlist`}
-                className={`p-1.5 rounded-lg border transition-all duration-150 inline-flex items-center justify-center shrink-0 active:scale-90 cursor-pointer ${
-                  isWatching
-                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30 shadow-sm shadow-amber-950/40'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-amber-400 hover:border-slate-700'
-                }`}
-              >
-                <Star
-                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-150 ${
-                    isWatching ? 'fill-amber-400 text-amber-400' : 'text-slate-400'
+        {/* Left: Ticker & Asset details + Price / Return */}
+        <div className="flex flex-col space-y-1 min-w-0">
+          {/* Top row: Logo + Ticker + Watch Tag + Star */}
+          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+            <TickerLogo 
+              symbol={stock.symbol} 
+              assetType={stock.assetType} 
+              logoUrl={stock.logoUrl} 
+              size="md" 
+            />
+            <div className="min-w-0 flex-1 flex flex-col justify-center">
+              <div className="flex items-center space-x-1.5 sm:space-x-2 flex-wrap gap-y-1">
+                <h2 className="text-base sm:text-lg font-bold text-white font-mono tracking-tight">
+                  {stock.symbol}
+                </h2>
+                {isWatching && (
+                  <span 
+                    id={`watching-tag-${stock.symbol.toLowerCase()}`}
+                    className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider bg-purple-950/90 text-purple-400 border border-purple-800/60"
+                  >
+                    Watching
+                  </span>
+                )}
+                <button
+                  id={`watchlist-star-btn-${stock.symbol.toLowerCase()}`}
+                  type="button"
+                  onClick={handleWatchToggle}
+                  aria-label={isWatching ? `Remove ${stock.symbol} from Watchlist` : `Add ${stock.symbol} to Watchlist`}
+                  title={isWatching ? `Watching ${stock.symbol} - Click to remove from watchlist` : `Add ${stock.symbol} to Watchlist`}
+                  className={`p-1.5 rounded-lg transition-all duration-150 inline-flex items-center justify-center shrink-0 active:scale-90 cursor-pointer ${
+                    isWatching
+                      ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-amber-400 hover:bg-slate-800'
                   }`}
-                />
-              </button>
+                >
+                  <Star
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-150 ${
+                      isWatching ? 'fill-amber-400 text-amber-400' : 'text-slate-400'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <p className="text-xs sm:text-sm text-slate-400 font-medium leading-normal mt-0.5 break-words">
+                {stock.name}
+              </p>
             </div>
-
-            {/* Bottom row: Full Company/ETF Name with clean multi-line wrapping */}
-            <p className="text-xs sm:text-sm text-slate-400 font-medium leading-normal mt-0.5 break-words">
-              {stock.name}
-            </p>
           </div>
-        </div>
 
-        {/* Right: Selected Period Value & Return */}
-        <div className="flex flex-col items-start sm:items-end w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-800/60 space-y-1">
-          <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap">
+          {/* Selected Period Value & Return (Stacked directly under asset details on the left) */}
+          <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap pt-0.5">
             <span className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
               ${activePrice.toFixed(2)}
             </span>
-            <span className={`inline-flex items-center font-mono text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-lg border ${
+            <span className={`inline-flex items-center font-mono text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-lg ${
               isPeriodPositive
-                ? 'bg-emerald-950/70 text-emerald-300 border-emerald-800/50'
-                : 'bg-rose-950/70 text-rose-300 border-rose-800/50'
+                ? 'bg-emerald-950/70 text-emerald-300'
+                : 'bg-rose-950/70 text-rose-300'
             }`}>
               {isPeriodPositive ? (
                 <TrendingUp className="w-3.5 h-3.5 mr-1 shrink-0" />
@@ -558,57 +821,30 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               </span>
             </span>
           </div>
-          {/* Date and time icons under the price - hidden on mobile for minimalist view */}
-          <div className="hidden sm:flex text-[11px] sm:text-xs font-mono text-slate-300 font-medium items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-white font-semibold">{timeframeLabel}</span>
-            {activePoint && (
-              <>
-                <span className="text-slate-500">•</span>
-                <span className="text-slate-300">{activePoint.label}</span>
-              </>
-            )}
-          </div>
         </div>
-      </div>
 
-      {/* Main Focus: Big Multi-Timeframe Interactive Trendline with Even Left Y-Axis & Even Bottom X-Axis */}
-      <div className="p-2 sm:p-4 rounded-lg sm:rounded-xl bg-[#0e131e]/90 border border-slate-800 space-y-2 sm:space-y-3">
-        
-        {/* Trendline Controls & Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-800/70">
-          <div className="flex items-center space-x-1.5 sm:space-x-2 flex-wrap">
-            <span className="text-xs sm:text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
-              Performance
+        {/* Right: Timeframe Selector & Sync Status (Aligned horizontally on desktop) */}
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0 pt-1 sm:pt-0">
+          {/* Status Indicator */}
+          {isLoadingCandles ? (
+            <span className="inline-flex items-center text-[10px] sm:text-xs text-blue-400 font-mono bg-blue-950/60 px-2 py-0.5 rounded font-medium">
+              <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" />
+              Syncing...
             </span>
-            <span className="text-[10px] sm:text-xs font-mono text-slate-400 font-medium">
-              ({selectedTimeframe})
-            </span>
-            {isLoadingCandles ? (
-              <span className="inline-flex items-center text-[10px] sm:text-xs text-blue-400 font-mono ml-1 bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800/40 font-medium">
-                <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" />
-                Syncing Real Data...
-              </span>
-            ) : candleError ? (
-              <button
-                onClick={loadCandleData}
-                title="Click to retry loading live market candles"
-                className="inline-flex items-center text-[10px] sm:text-xs text-amber-400 hover:text-amber-300 font-mono ml-1 bg-amber-950/60 hover:bg-amber-900/60 px-2 py-0.5 rounded border border-amber-800/50 transition-colors font-medium"
-              >
-                <AlertTriangle className="w-2.5 h-2.5 mr-1 text-amber-400" />
-                <span>Chart Offline (Showing Quote)</span>
-                <RotateCw className="w-2.5 h-2.5 ml-1" />
-              </button>
-            ) : (
-              <span className="inline-flex items-center text-[10px] sm:text-xs text-emerald-400 font-mono ml-1 bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-800/40 font-medium">
-                <CheckCircle2 className="w-2.5 h-2.5 mr-1 text-emerald-400" />
-                Live Data
-              </span>
-            )}
-          </div>
+          ) : candleError ? (
+            <button
+              onClick={loadCandleData}
+              title="Click to retry loading live market candles"
+              className="inline-flex items-center text-[10px] sm:text-xs text-amber-400 hover:text-amber-300 font-mono bg-amber-950/60 hover:bg-amber-900/60 px-2 py-0.5 rounded transition-colors font-medium cursor-pointer"
+            >
+              <AlertTriangle className="w-2.5 h-2.5 mr-1 text-amber-400" />
+              <span>Retry</span>
+              <RotateCw className="w-2.5 h-2.5 ml-1" />
+            </button>
+          ) : null}
 
           {/* Timeframe Selector: 1D, 1W, 1M, YTD, 1Y, 5Y, MAX */}
-          <div className="flex items-center space-x-0.5 sm:space-x-1 p-0.5 bg-[#080B10] rounded-lg border border-slate-800/90 overflow-x-auto scrollbar-none w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center space-x-0.5 sm:space-x-1 p-1 bg-[#101520] rounded-xl overflow-x-auto scrollbar-none w-full sm:w-auto justify-between sm:justify-start">
             {TIMEFRAMES.map((tf) => {
               const isSelected = selectedTimeframe === tf;
               return (
@@ -619,10 +855,10 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                     setSelectedTimeframe(tf);
                     setHoverIndex(null);
                   }}
-                  className={`px-2 sm:px-3 py-1 text-[11px] sm:text-xs font-mono font-bold rounded transition-all duration-150 whitespace-nowrap text-center flex-1 sm:flex-initial ${
+                  className={`px-2.5 sm:px-3 py-1 text-xs font-mono font-bold rounded-lg transition-all duration-150 whitespace-nowrap text-center flex-1 sm:flex-initial cursor-pointer ${
                     isSelected
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
                   {tf}
@@ -631,9 +867,76 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
             })}
           </div>
         </div>
+      </div>
 
-        {/* Big Trendline SVG Canvas with Even Left Y-Axis & Even Bottom X-Axis */}
-        <div className="relative w-full h-[160px] sm:h-[230px] select-none touch-pan-x">
+      {/* Main Focus: Big Multi-Timeframe Interactive Trendline */}
+      <div className="space-y-1 relative">
+        
+        {/* Dedicated Timestamp Track above graph (Ensures 0 overlap with High Y-axis price badge) */}
+        <div className="h-5 sm:h-6 relative w-full flex items-center select-none">
+          {activeCoord && (
+            <div 
+              className="absolute top-1/2 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-30 px-3 py-0.5 rounded-full bg-slate-800 text-xs sm:text-sm font-mono font-bold text-slate-100 shadow-md whitespace-nowrap border border-slate-700/60"
+              style={{
+                left: `${Math.max(14, Math.min(86, (activeCoord.x / chartWidth) * 100))}%`
+              }}
+            >
+              {formatFloatingTimestamp(activeCoord.point || displayedPoint!, selectedTimeframe)}
+            </div>
+          )}
+        </div>
+
+        {/* Big Trendline SVG Canvas with Expanded Vertical Room & Clean Open Backdrop */}
+        <div className="relative w-full h-[240px] sm:h-[240px] select-none touch-pan-x">
+          
+          {/* Crisp HTML Y-Axis Hover Price Labels (Right-aligned, no boxes, slate-300, bold & legible) */}
+          {activeCoord && (
+            <div className="pointer-events-none absolute inset-0 z-20 overflow-visible">
+              {/* High: Sits clearly ABOVE the high line */}
+              {highY !== null && (
+                <div
+                  id={`price-badge-high-${stock.symbol.toLowerCase()}`}
+                  className="absolute right-2 sm:right-4 transform -translate-y-full -mt-1 text-sm font-mono font-bold text-slate-300 select-none whitespace-nowrap leading-none"
+                  style={{ top: `${(highY / chartHeight) * 100}%` }}
+                >
+                  ${periodHigh.toFixed(2)}
+                </div>
+              )}
+
+              {/* Open (Desktop 1D only): Only rendered if Open is strictly between High and Low */}
+              {isOpenBetweenBounds && !isMobile && openY !== null && (() => {
+                const distToHigh = Math.abs(periodOpen - periodHigh);
+                const distToLow = Math.abs(periodOpen - periodLow);
+                const isCloserToHigh = distToHigh <= distToLow;
+
+                return (
+                  <div
+                    id={`price-badge-open-${stock.symbol.toLowerCase()}`}
+                    className={`absolute right-2 sm:right-4 font-mono font-bold text-slate-300 select-none whitespace-nowrap text-sm leading-none ${
+                      isCloserToHigh
+                        ? 'transform translate-y-0 mt-1.5'
+                        : 'transform -translate-y-full -mt-1.5'
+                    }`}
+                    style={{ top: `${(openY / chartHeight) * 100}%` }}
+                  >
+                    ${periodOpen.toFixed(2)}
+                  </div>
+                );
+              })()}
+
+              {/* Low: Sits clearly BELOW the low line */}
+              {lowY !== null && (
+                <div
+                  id={`price-badge-low-${stock.symbol.toLowerCase()}`}
+                  className="absolute right-2 sm:right-4 transform translate-y-0 mt-1.5 text-sm font-mono font-bold text-slate-300 select-none whitespace-nowrap leading-none"
+                  style={{ top: `${(lowY / chartHeight) * 100}%` }}
+                >
+                  ${periodLow.toFixed(2)}
+                </div>
+              )}
+            </div>
+          )}
+
           <svg
             ref={svgRef}
             className="w-full h-full cursor-crosshair overflow-visible"
@@ -646,87 +949,59 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
           >
             <defs>
               <linearGradient id={`trend-grad-${stock.symbol}-${selectedTimeframe}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor={strokeColor} stopOpacity="0.22" />
+                <stop offset="0%" stopColor={strokeColor} stopOpacity="0.18" />
                 <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
               </linearGradient>
             </defs>
 
-            {/* Even Y-Axis Dollar Increments: Grid Lines & Left Dollar Numbers (numbers hidden on mobile) */}
-            {ticks.map((tickVal) => {
-              const yPos = paddingTop + effectiveHeight - ((tickVal - paddedMin) / totalRange) * effectiveHeight;
-              return (
-                <g key={`y-tick-${tickVal}`}>
-                  {/* Dashed Horizontal Gridline */}
-                  <line 
-                    x1={paddingLeft} 
-                    y1={yPos} 
-                    x2={chartWidth - paddingRight} 
-                    y2={yPos} 
-                    stroke="#1e293b" 
-                    strokeDasharray="3 3" 
-                    strokeWidth="1"
-                  />
-                  {/* Left-Aligned Y-Axis Dollar Number (Hidden on mobile for clean clutter-free view) */}
-                  <text
-                    x={paddingLeft - 8}
-                    y={yPos + 3.5}
-                    fill="#94a3b8"
-                    fontSize="10"
-                    fontFamily="ui-monospace, monospace"
-                    fontWeight="500"
-                    textAnchor="end"
-                    className="hidden sm:inline"
-                  >
-                    {formatTick(tickVal)}
-                  </text>
-                </g>
-              );
-            })}
+            {/* 1D Open Line (Only drawn if Open sits strictly between Low and High) */}
+            {isOpenBetweenBounds && openY !== null && openY >= paddingTop - 10 && openY <= chartHeight - paddingBottom + 10 && (
+              <g id={`open-reference-line-${stock.symbol.toLowerCase()}`}>
+                <line 
+                  x1={paddingLeft} 
+                  y1={openY} 
+                  x2={chartWidth - paddingRight} 
+                  y2={openY} 
+                  stroke="#475569" 
+                  strokeDasharray="4 4" 
+                  strokeWidth="1.25" 
+                  strokeOpacity="0.75" 
+                />
+              </g>
+            )}
 
-            {/* X-Axis Baseline */}
-            <line
-              x1={paddingLeft}
-              y1={chartHeight - paddingBottom}
-              x2={chartWidth - paddingRight}
-              y2={chartHeight - paddingBottom}
-              stroke="#334155"
-              strokeWidth="1"
-            />
-
-            {/* Even X-Axis Days/Times Interval Labels (ticks and text hidden on mobile) */}
-            {xTicks.map((xtick, i) => {
-              let anchor: 'start' | 'middle' | 'end' = 'middle';
-              if (i === 0) anchor = 'start';
-              if (i === xTicks.length - 1) anchor = 'end';
-
-              return (
-                <g key={`x-tick-${i}-${xtick.label}`}>
-                  {/* Small Tick Mark */}
+            {/* High & Low Reference Lines (Shown strictly on hover) */}
+            {activeCoord && (
+              <g id={`sofi-reference-lines-${stock.symbol.toLowerCase()}`} className="pointer-events-none">
+                {/* Period High Line */}
+                {highY !== null && highY >= paddingTop - 10 && highY <= chartHeight - paddingBottom + 10 && (
                   <line
-                    x1={xtick.coord.x}
-                    y1={chartHeight - paddingBottom}
-                    x2={xtick.coord.x}
-                    y2={chartHeight - paddingBottom + 4}
-                    stroke="#475569"
-                    strokeWidth="1"
-                    className="hidden sm:inline"
+                    x1={paddingLeft}
+                    y1={highY}
+                    x2={chartWidth - paddingRight}
+                    y2={highY}
+                    stroke="#64748b"
+                    strokeDasharray="3 3"
+                    strokeWidth="1.25"
+                    strokeOpacity="0.85"
                   />
-                  {/* Interval Text Label (Hidden on mobile for clean clutter-free view) */}
-                  <text
-                    x={xtick.coord.x}
-                    y={chartHeight - paddingBottom + 16}
-                    fill="#94a3b8"
-                    fontSize="9.5"
-                    fontFamily="ui-monospace, monospace"
-                    fontWeight="500"
-                    textAnchor={anchor}
-                    className="hidden sm:inline"
-                  >
-                    {xtick.label}
-                  </text>
-                </g>
-              );
-            })}
+                )}
+
+                {/* Period Low Line */}
+                {lowY !== null && lowY >= paddingTop - 10 && lowY <= chartHeight - paddingBottom + 10 && (
+                  <line
+                    x1={paddingLeft}
+                    y1={lowY}
+                    x2={chartWidth - paddingRight}
+                    y2={lowY}
+                    stroke="#64748b"
+                    strokeDasharray="3 3"
+                    strokeWidth="1.25"
+                    strokeOpacity="0.85"
+                  />
+                )}
+              </g>
+            )}
 
             {/* Area Fill */}
             <path 
@@ -734,93 +1009,91 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               fill={`url(#trend-grad-${stock.symbol}-${selectedTimeframe})`} 
             />
 
-            {/* High-Resolution 5-Minute Trendline Path */}
+            {/* High-Resolution Bold Trendline Path (Crisp, High-Resolution SoFi Style) */}
             <path 
               d={pathD} 
               fill="none" 
               stroke={strokeColor} 
-              strokeWidth="2.25" 
+              strokeWidth="3.4" 
               strokeLinecap="round" 
               strokeLinejoin="round" 
             />
 
-            {/* Crosshair & Active Hover Point (SoFi-inspired) */}
+            {/* Pulsing Beacon at Current Price Tip only when this specific asset is actively trading */}
+            {isAssetActivelyTrading(
+              selectedTimeframe,
+              points[points.length - 1]?.timeUnix,
+              stock.assetType,
+              stock.symbol
+            ) && coords.length > 0 && (
+              <g 
+                id={`live-trading-beacon-${stock.symbol.toLowerCase()}`}
+                className="pointer-events-none"
+              >
+                {/* Expanding, fading radar ripple ring */}
+                <circle
+                  cx={coords[coords.length - 1].x}
+                  cy={coords[coords.length - 1].y}
+                  r="5"
+                  fill={strokeColor}
+                >
+                  <animate
+                    attributeName="r"
+                    values="4;15;20"
+                    keyTimes="0;0.7;1"
+                    dur="1.8s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0.75;0.2;0"
+                    keyTimes="0;0.7;1"
+                    dur="1.8s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                {/* Solid red or green indicator dot */}
+                <circle
+                  cx={coords[coords.length - 1].x}
+                  cy={coords[coords.length - 1].y}
+                  r="4"
+                  fill={strokeColor}
+                />
+              </g>
+            )}
+
+            {/* Active Hover Point Circle on Trendline */}
             {activeCoord && (
               <>
                 {/* Vertical Crosshair Line */}
                 <line
                   x1={activeCoord.x}
-                  y1={paddingTop}
+                  y1={paddingTop - 4}
                   x2={activeCoord.x}
                   y2={chartHeight - paddingBottom}
                   stroke="#64748b"
-                  strokeWidth="1.25"
+                  strokeWidth="1.5"
                   strokeDasharray="3 3"
                 />
 
-                {/* Floating Timestamp directly at top of vertical crosshair */}
-                <text
-                  x={activeCoord.x}
-                  y={Math.max(12, paddingTop - 4)}
-                  fill="#94a3b8"
-                  fontSize="9.5"
-                  fontFamily="ui-monospace, monospace"
-                  fontWeight="600"
-                  textAnchor={
-                    activeCoord.x < paddingLeft + 40 ? 'start' : activeCoord.x > chartWidth - 50 ? 'end' : 'middle'
-                  }
-                  className="hidden sm:inline"
-                >
-                  {activePoint.label}
-                </text>
-
-                {/* Horizontal Crosshair Line */}
-                <line
-                  x1={paddingLeft}
-                  y1={activeCoord.y}
-                  x2={chartWidth - paddingRight}
-                  y2={activeCoord.y}
-                  stroke="#475569"
-                  strokeWidth="1"
-                  strokeDasharray="2 2"
-                />
-
-                {/* Point Circle */}
+                {/* Point Circle on Line */}
                 <circle
                   cx={activeCoord.x}
                   cy={activeCoord.y}
-                  r="4"
+                  r="5"
                   fill="#0B0F17"
                   stroke={strokeColor}
-                  strokeWidth="2.5"
+                  strokeWidth="3"
                 />
               </>
             )}
           </svg>
-
-          {/* Floating Hover Label */}
-          {hoverIndex !== null && activePoint && activeCoord && (
-            <div 
-              className="absolute pointer-events-none transform -translate-x-1/2 -translate-y-full mb-2.5 bg-[#0c1017] border border-slate-700 px-2.5 py-1.5 rounded-lg shadow-xl text-center z-20"
-              style={{
-                left: `${(activeCoord.x / chartWidth) * 100}%`,
-                top: `${(activeCoord.y / chartHeight) * 100}%`
-              }}
-            >
-              <div className="text-xs sm:text-xs font-mono font-bold text-white">
-                ${activePoint.price.toFixed(2)}
-              </div>
-              <div className="text-[10px] sm:text-[10px] font-mono text-slate-300 font-medium">
-                {activePoint.label}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Chart Window Bottom Bar with Google Finance Link */}
-        <div className="flex items-center justify-end pt-1 sm:pt-1.5 border-t border-slate-800/60">
+        <div className="flex items-center justify-end pt-1">
           <a
-            href={getGoogleFinanceQuoteUrl(stock, profile)}
+            href={getGoogleFinanceQuoteUrl(stock)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-mono text-slate-400 hover:text-blue-400 inline-flex items-center gap-1.5 transition-colors font-medium hover:underline underline-offset-2 py-0.5 px-1.5 rounded hover:bg-slate-800/40"
@@ -831,12 +1104,12 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         </div>
       </div>
 
-      {/* Core Statistics Grid: 1Y Target, P/E Ratio, 52W Range, Day's Range, Dividend Yield, Volume (Mobile-friendly, no subtext clutter) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 pt-1.5">
+      {/* Core Statistics Grid: 1Y Target, P/E Ratio, 52W Range, Day's Range, Dividend Yield, Volume (Smooth borderless panels) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 pt-1">
         {/* 1. Wall Street 1Y Price Target */}
         <div 
           id={`card-wallst-target-${stock.symbol.toLowerCase()}`}
-          className="p-2.5 sm:p-3 rounded-xl bg-[#131926]/90 border border-slate-800/90 flex flex-col justify-between"
+          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
         >
           <span className="text-[11px] sm:text-xs font-mono text-blue-400 font-bold uppercase tracking-wider">
             1Y Target
@@ -856,7 +1129,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         {/* 2. P/E Ratio */}
         <div 
           id={`card-pe-ratio-${stock.symbol.toLowerCase()}`}
-          className="p-2.5 sm:p-3 rounded-xl bg-[#131926]/90 border border-slate-800/90 flex flex-col justify-between"
+          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
         >
           <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
             P/E Ratio
@@ -878,7 +1151,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         {/* 3. 52W Range */}
         <div 
           id={`card-52w-range-${stock.symbol.toLowerCase()}`}
-          className="p-2.5 sm:p-3 rounded-xl bg-[#131926]/90 border border-slate-800/90 flex flex-col justify-between"
+          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
         >
           <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
             52W Range
@@ -893,7 +1166,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         {/* 4. Day's Range */}
         <div 
           id={`card-day-range-${stock.symbol.toLowerCase()}`}
-          className="p-2.5 sm:p-3 rounded-xl bg-[#131926]/90 border border-slate-800/90 flex flex-col justify-between"
+          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
         >
           <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
             Day's Range
@@ -908,7 +1181,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         {/* 5. Dividend Yield */}
         <div 
           id={`card-dividend-yield-${stock.symbol.toLowerCase()}`}
-          className="p-2.5 sm:p-3 rounded-xl bg-[#131926]/90 border border-slate-800/90 flex flex-col justify-between"
+          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
         >
           <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
             Dividend Yield
@@ -925,23 +1198,42 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
           </div>
         </div>
 
-        {/* 6. Today's Volume */}
-        <div 
-          id={`card-today-volume-${stock.symbol.toLowerCase()}`}
-          className="p-2.5 sm:p-3 rounded-xl bg-[#131926]/90 border border-slate-800/90 flex flex-col justify-between"
-        >
-          <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-            Today's Volume
-          </span>
-          <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-sm sm:text-base font-mono font-black text-slate-100">
-              {formatVolume(stock.volume)}
+        {/* 6. Market Cap (for Stocks) / Expense Ratio (for ETFs) */}
+        {stock.assetType === 'ETF' ? (
+          <div 
+            id={`card-expense-ratio-${stock.symbol.toLowerCase()}`}
+            className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
+          >
+            <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
+              Expense Ratio
             </span>
-            <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-              Shares
-            </span>
+            <div className="mt-1.5 flex items-baseline justify-between">
+              <span className="text-sm sm:text-base font-mono font-black text-slate-100">
+                {formatExpenseRatio(stock.expenseRatio, stock.symbol)}
+              </span>
+              <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
+                Annual
+              </span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div 
+            id={`card-market-cap-${stock.symbol.toLowerCase()}`}
+            className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
+          >
+            <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
+              Market Cap
+            </span>
+            <div className="mt-1.5 flex items-baseline justify-between">
+              <span className="text-sm sm:text-base font-mono font-black text-slate-100">
+                {stock.marketCap || '—'}
+              </span>
+              <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
+                USD
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

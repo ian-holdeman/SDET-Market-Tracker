@@ -15,6 +15,91 @@ export interface TimeframeSummary {
   changePercent: number;
   high: number;
   low: number;
+  sessionStartUnix?: number;
+  sessionEndUnix?: number;
+}
+
+/**
+ * Determines whether US stock market trading is currently actively open
+ * (including pre-market from 4:00 AM ET, regular session from 9:30 AM ET, and after-hours until 8:00 PM ET, Monday-Friday).
+ */
+export function isMarketTradingActive(): boolean {
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(now);
+    const weekday = parts.find((p) => p.type === 'weekday')?.value || '';
+    if (['Sat', 'Sun', 'Saturday', 'Sunday'].includes(weekday)) {
+      return false;
+    }
+
+    const hourStr = parts.find((p) => p.type === 'hour')?.value || '0';
+    const minStr = parts.find((p) => p.type === 'minute')?.value || '0';
+    const totalMinutes = parseInt(hourStr, 10) * 60 + parseInt(minStr, 10);
+
+    // Active trading happens from 4:00 AM ET (240 min) to 8:00 PM ET (1200 min)
+    return totalMinutes >= 240 && totalMinutes < 1200;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Evaluates whether a specific asset is actively trading right now.
+ * Validates:
+ * 1. Timeframe must be intraday ('1D').
+ * 2. Overall market trading window must be open (4:00 AM - 8:00 PM ET, Mon-Fri).
+ * 3. Asset class check: Mutual funds / non-intraday funds (e.g. Fidelity ZERO funds, 5-letter funds ending in X, or assetType 'Mutual Fund')
+ *    are settled once daily and do not trade continuously.
+ * 4. Freshness check: The most recent data point / tick timestamp must match today's date in Eastern Time (America/New_York).
+ */
+export function isAssetActivelyTrading(
+  timeframe: string,
+  lastPointTimestamp?: number | string,
+  assetType?: string,
+  symbol?: string
+): boolean {
+  // Only intraday '1D' views display live trading activity beacons
+  if (timeframe !== '1D') {
+    return false;
+  }
+
+  // Mutual funds and once-daily priced funds do not trade intraday
+  if (assetType === 'Mutual Fund' || (symbol && /^[A-Z]{4}X$/i.test(symbol))) {
+    return false;
+  }
+
+  // Market must be open in extended trading window (4am - 8pm ET, Mon-Fri)
+  if (!isMarketTradingActive()) {
+    return false;
+  }
+
+  // If timestamp is available, verify it belongs to today's trading session
+  if (lastPointTimestamp) {
+    try {
+      const pointDate = new Date(lastPointTimestamp).toLocaleDateString('en-US', {
+        timeZone: 'America/New_York',
+      });
+      const nowDate = new Date().toLocaleDateString('en-US', {
+        timeZone: 'America/New_York',
+      });
+
+      // If the asset's latest point is from a prior calendar date, it is not trading today
+      if (pointDate !== nowDate) {
+        return false;
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  return true;
 }
 
 /**
