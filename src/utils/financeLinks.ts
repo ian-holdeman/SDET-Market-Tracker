@@ -1,5 +1,12 @@
 import { BoardStock } from '../types';
-import type { FinnhubCompanyProfile } from '../services/finnhub';
+
+export interface CompanyProfile {
+  country?: string;
+  currency?: string;
+  exchange?: string;
+  name?: string;
+  ticker?: string;
+}
 
 /**
  * Standard exchange dictionary for known symbols to guarantee accurate routing.
@@ -100,7 +107,7 @@ export function normalizeExchangeForGoogleFinance(exchangeStr?: string): string 
  */
 export function getGoogleFinanceQuoteUrl(
   stock: Pick<BoardStock, 'symbol' | 'exchange'>,
-  profile?: FinnhubCompanyProfile | null
+  profile?: CompanyProfile | null
 ): string {
   const sym = stock.symbol.trim().toUpperCase();
 

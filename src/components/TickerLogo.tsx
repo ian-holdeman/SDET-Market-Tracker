@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { AssetType } from '../types';
 
 interface TickerLogoProps {
   symbol: string;
-  assetType?: 'ETF' | 'Stock';
+  assetType?: AssetType;
   logoUrl?: string;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -529,6 +530,42 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
           </svg>
         );
 
+      // --- CRYPTO & DIGITAL ASSETS ---
+      case 'BTC':
+      case 'BTC-USD':
+        return (
+          <svg className="w-full h-full p-1" viewBox="0 0 24 24" fill="none">
+            <rect width="24" height="24" rx="4" fill="#F7931A" />
+            <path
+              d="M15.5 10.2C15.8 8.8 14.8 8 13.5 7.6L13.9 6.2L13 6L12.6 7.4C12.4 7.3 12.1 7.3 11.9 7.2L12.3 5.8L11.4 5.6L11 7C10.8 7 10.6 6.9 10.4 6.9L10.4 6.8L9.2 6.5L8.9 7.5C8.9 7.5 9.6 7.7 9.5 7.7C9.9 7.8 10 8.1 10 8.3L9.5 10.3C9.5 10.3 9.6 10.3 9.7 10.4L9.5 10.3L8.8 13.1C8.7 13.3 8.5 13.4 8.2 13.3C8.3 13.4 7.6 13.2 7.6 13.2L7 14.4L8.2 14.7C8.4 14.8 8.7 14.8 8.9 14.9L8.5 16.5L9.4 16.7L9.8 15.1C10 15.2 10.3 15.2 10.5 15.3L10.1 16.9L11 17.1L11.4 15.5C13 15.8 14.2 15.6 14.7 14.3C15.1 13.2 14.7 12.6 13.9 12.2C14.5 11.9 15 11.3 15.5 10.2ZM13.4 13.4C13.1 14.6 11.1 13.9 10.5 13.7L11 11.7C11.6 11.9 13.7 12.2 13.4 13.4ZM13.7 10.1C13.4 11.2 11.7 10.6 11.2 10.5L11.7 8.7C12.2 8.8 14 9.1 13.7 10.1Z"
+              fill="#FFFFFF"
+            />
+          </svg>
+        );
+
+      case 'ETH':
+      case 'ETH-USD':
+        return (
+          <svg className="w-full h-full p-1" viewBox="0 0 24 24" fill="none">
+            <rect width="24" height="24" rx="4" fill="#627EEA" />
+            <path d="M12 4L6.5 13.2L12 16.5L17.5 13.2L12 4Z" fill="#FFFFFF" fillOpacity="0.8" />
+            <path d="M12 4V16.5L17.5 13.2L12 4Z" fill="#FFFFFF" fillOpacity="0.95" />
+            <path d="M12 17.5L6.5 14.2L12 21.5L17.5 14.2L12 17.5Z" fill="#FFFFFF" fillOpacity="0.8" />
+            <path d="M12 17.5V21.5L17.5 14.2L12 17.5Z" fill="#FFFFFF" fillOpacity="0.95" />
+          </svg>
+        );
+
+      case 'SOL':
+      case 'SOL-USD':
+        return (
+          <svg className="w-full h-full p-1" viewBox="0 0 24 24" fill="none">
+            <rect width="24" height="24" rx="4" fill="#141414" />
+            <path d="M5.5 7.5L16.5 7.5L18.5 5.5L7.5 5.5L5.5 7.5Z" fill="#00FFA3" />
+            <path d="M7.5 13L18.5 13L16.5 11L5.5 11L7.5 13Z" fill="#03E1FF" />
+            <path d="M5.5 18.5L16.5 18.5L18.5 16.5L7.5 16.5L5.5 18.5Z" fill="#DC1FFF" />
+          </svg>
+        );
+
       default:
         return null;
     }
@@ -563,16 +600,20 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
     );
   }
 
-  // Fallback: Clean styled typography badge
+  // Fallback: Clean styled typography badge by asset type
+  const badgeColors = {
+    ETF: 'bg-blue-950/70 border-blue-800/60 text-blue-300',
+    Crypto: 'bg-amber-950/70 border-amber-800/60 text-amber-300',
+    Index: 'bg-purple-950/70 border-purple-800/60 text-purple-300',
+    Commodity: 'bg-yellow-950/70 border-yellow-800/60 text-yellow-300',
+    Stock: 'bg-slate-900 border-slate-700/80 text-white',
+  }[assetType || 'Stock'];
+
   return (
     <div
-      className={`flex items-center justify-center font-mono font-black border shadow-inner shrink-0 ${
-        assetType === 'ETF'
-          ? 'bg-blue-950/70 border-blue-800/60 text-blue-300'
-          : 'bg-slate-900 border-slate-700/80 text-white'
-      } ${sizeClasses} ${className}`}
+      className={`flex items-center justify-center font-mono font-black border shadow-inner shrink-0 ${badgeColors} ${sizeClasses} ${className}`}
     >
-      {symbol.slice(0, 3)}
+      {symbol.replace('^', '').slice(0, 3)}
     </div>
   );
 };

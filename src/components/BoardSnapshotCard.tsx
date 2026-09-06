@@ -1,23 +1,34 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
   Layers, 
   ArrowUpRight
 } from 'lucide-react';
-import { useFinnhubMarket } from '../hooks/useFinnhubMarket';
+import { useMarket } from '../context/MarketContext';
 import { TickerLogo } from './TickerLogo';
 import { BoardStock } from '../types';
 import { getAssetShorthandName } from '../utils/shorthandNames';
+import { isUSMarketOpen } from '../utils/marketHours';
+import { formatMarketUpdateTime } from '../utils/timeFormat';
 
 interface BoardSnapshotCardProps {
   onExploreBoard: (symbol?: string) => void;
 }
 
 export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreBoard }) => {
-  const { stocks } = useFinnhubMarket();
+  const { stocks, lastSyncTime } = useMarket();
+  const [isMarketOpen, setIsMarketOpen] = useState(() => isUSMarketOpen());
 
-  // Dynamically derive live top 5 risers and fallers from WebSocket feed
+  // Periodically re-check market hours
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIsMarketOpen(isUSMarketOpen());
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Dynamically derive live top 5 risers and fallers from WebSocket / quote feed
   const risers = useMemo(() => {
     return [...stocks]
       .filter((s) => typeof s.changePercent === 'number' && !isNaN(s.changePercent))
@@ -35,6 +46,9 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
   const handleStockClick = (symbol: string) => {
     onExploreBoard(symbol);
   };
+
+  const isLiveTrading = isMarketOpen;
+  const displayUpdateTime = formatMarketUpdateTime(lastSyncTime);
 
   return (
     <div
@@ -58,15 +72,15 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
         <ArrowUpRight className="relative z-10 w-4 h-4 text-blue-400 group-hover/corner:text-white group-hover/corner:translate-x-0.5 group-hover/corner:-translate-y-0.5 transition-transform" />
       </button>
 
-      {/* 1. Header: Board Icon + Clean Title (Non-clickable static header) */}
-      <div className="flex items-center justify-between gap-3 pb-4 pr-24 sm:pr-28 border-b border-slate-800/80">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 border border-slate-700/70 flex items-center justify-center shadow-inner shrink-0">
-            <Layers className="w-5 h-5 text-blue-400" />
+      {/* 1. Header: Board Icon + Single-Line Clean Title "Market Movers" */}
+      <div className="flex items-center justify-between gap-2 pb-4 pr-24 sm:pr-28 border-b border-slate-800/80">
+        <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 border border-slate-700/70 flex items-center justify-center shadow-inner shrink-0">
+            <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
           </div>
 
-          <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
-            Top 5 Risers and Fallers
+          <h3 className="text-base sm:text-lg font-bold text-white tracking-tight truncate whitespace-nowrap">
+            Market Movers
           </h3>
         </div>
       </div>
@@ -79,7 +93,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
           id="board-card-risers-column"
           className="bg-[#131926]/80 border border-slate-800/80 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between hover:border-slate-700/70 transition-colors"
         >
-          {/* Header: Text on Left, Arrow on Right over numbers */}
+          {/* Header: Text on Left, Arrow on Right */}
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/60">
             <span className="text-base sm:text-lg font-extrabold text-emerald-400 tracking-wide">
               Risers
@@ -103,7 +117,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
                       <div className="font-mono font-bold text-sm sm:text-base text-white group-hover/row:text-blue-300 transition-colors">
                         {item.symbol}
                       </div>
-                      {/* Subtext Shorthand Name: hidden on mobile for minimalist ticker-only view, clear shorthand on desktop */}
+                      {/* Subtext Shorthand Name */}
                       <div className="hidden sm:block text-xs text-slate-400 truncate max-w-[110px] md:max-w-[130px] leading-tight">
                         {getAssetShorthandName(item.symbol, item.name)}
                       </div>
@@ -133,7 +147,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
           id="board-card-fallers-column"
           className="bg-[#131926]/80 border border-slate-800/80 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between hover:border-slate-700/70 transition-colors"
         >
-          {/* Header: Text on Left, Arrow on Right over numbers */}
+          {/* Header: Text on Left, Arrow on Right */}
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/60">
             <span className="text-base sm:text-lg font-extrabold text-rose-400 tracking-wide">
               Fallers
@@ -157,7 +171,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
                       <div className="font-mono font-bold text-sm sm:text-base text-white group-hover/row:text-blue-300 transition-colors">
                         {item.symbol}
                       </div>
-                      {/* Subtext Shorthand Name: hidden on mobile for minimalist ticker-only view, clear shorthand on desktop */}
+                      {/* Subtext Shorthand Name */}
                       <div className="hidden sm:block text-xs text-slate-400 truncate max-w-[110px] md:max-w-[130px] leading-tight">
                         {getAssetShorthandName(item.symbol, item.name)}
                       </div>
@@ -184,16 +198,22 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
 
       </div>
 
-      {/* 3. Bottom Card Metadata: Clean LIVE indicator */}
-      <div className="mt-4 pt-3.5 border-t border-slate-800/70 flex items-center text-[11px] text-slate-400 font-mono">
+      {/* 3. Bottom Card Metadata: Pulsing when live trading, static when closed + Subtle timestamp */}
+      <div className="mt-4 pt-3.5 border-t border-slate-800/70 flex items-center justify-between text-[11px] text-slate-400 font-mono">
         <div className="flex items-center space-x-2 truncate">
           <span className="relative flex h-2 w-2 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            {isLiveTrading && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            )}
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${isLiveTrading ? 'bg-emerald-500' : 'bg-emerald-500/80'}`} />
           </span>
-          <span className="text-slate-300 font-semibold truncate">
-            LIVE WebSocket Feed
+          <span className="text-slate-300 font-medium truncate">
+            {isLiveTrading ? 'LIVE Market Feed' : 'Market Closed'}
           </span>
+        </div>
+
+        <div className="text-slate-500 text-[11px] shrink-0 font-mono pl-2">
+          Updated {displayUpdateTime}
         </div>
       </div>
     </div>

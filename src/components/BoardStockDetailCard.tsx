@@ -17,12 +17,10 @@ import {
   isMarketTradingActive,
   isAssetActivelyTrading
 } from '../utils/timeframeData';
-import { 
-  fetchFinnhubTimeframeCandles
-} from '../services/finnhub';
-import { fetchProxyCandles } from '../services/yahooMarket';
+import { fetchProxyCandles, getCachedProxyCandles } from '../services/yahooMarket';
 import { TickerLogo } from './TickerLogo';
 import { useAuth } from '../context/AuthContext';
+import { useMarket } from '../context/MarketContext';
 import { getGoogleFinanceQuoteUrl } from '../utils/financeLinks';
 
 interface BoardStockDetailCardProps {
@@ -229,6 +227,7 @@ function getEvenXAxisTicks(
 
 export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stock, onClose }) => {
   const { user, isSymbolInWatchlist, toggleWatchlistSymbol, openAuthModal } = useAuth();
+  const { addWatchlistStock, removeWatchlistStock } = useMarket();
   const isWatching = isSymbolInWatchlist(stock.symbol);
 
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -249,8 +248,12 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
 
   const [selectedTimeframe, setSelectedTimeframe] = useState<BoardTimeframe>('1D');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [liveCandleSummary, setLiveCandleSummary] = useState<TimeframeSummary | null>(null);
-  const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(false);
+  const [liveCandleSummary, setLiveCandleSummary] = useState<TimeframeSummary | null>(() => {
+    return getCachedProxyCandles(stock.symbol, '1D');
+  });
+  const [isLoadingCandles, setIsLoadingCandles] = useState<boolean>(() => {
+    return !getCachedProxyCandles(stock.symbol, '1D');
+  });
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const handleWatchToggle = async (e: React.MouseEvent) => {
@@ -260,8 +263,13 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       return;
     }
     const added = await toggleWatchlistSymbol(stock.symbol);
-    if (!added && onClose) {
-      onClose();
+    if (added) {
+      addWatchlistStock(stock);
+    } else {
+      removeWatchlistStock(stock.symbol);
+      if (onClose) {
+        onClose();
+      }
     }
   };
 
@@ -345,63 +353,10 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         return;
       }
 
-      // 2. Secondary fallback: Finnhub Candle API
-      const candles = await fetchFinnhubTimeframeCandles(stock.symbol, selectedTimeframe);
-
-      if (candles && candles.s === 'ok' && Array.isArray(candles.c) && candles.c.length > 5) {
-        const points: ChartPoint[] = candles.c.map((price, i) => {
-          const unixTime = candles.t && candles.t[i] ? candles.t[i] * 1000 : Date.now();
-          const dateObj = new Date(unixTime);
-          
-          let label = '';
-          if (selectedTimeframe === '1D') {
-            label = dateObj.toLocaleTimeString('en-US', {
-              timeZone: 'America/New_York',
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            });
-          } else if (selectedTimeframe === '1W') {
-            const day = dateObj.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' });
-            const timeStr = dateObj.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
-            label = `${day} ${timeStr}`;
-          } else if (selectedTimeframe === '1M') {
-            label = dateObj.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
-          } else if (selectedTimeframe === 'YTD' || selectedTimeframe === '1Y') {
-            label = dateObj.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: '2-digit' });
-          } else {
-            label = dateObj.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', year: 'numeric' });
-          }
-
-          return {
-            date: label,
-            label,
-            price: Number(price.toFixed(2)),
-            timeUnix: unixTime,
-          };
-        });
-
-        if (points.length > 0 && stock.price > 0) {
-          points[points.length - 1].price = stock.price;
-        }
-
-        const startPrice = points[0].price;
-        const currentPrice = stock.price;
-        const prices = points.map((p) => p.price);
-        const high = Math.max(...prices, stock.dayHigh);
-        const low = Math.min(...prices, stock.dayLow);
-        const change = Number((currentPrice - startPrice).toFixed(2));
-        const changePercent = Number((((currentPrice - startPrice) / (startPrice || 1)) * 100).toFixed(2));
-
-        setLiveCandleSummary({
-          points,
-          startPrice,
-          currentPrice,
-          change,
-          changePercent,
-          high,
-          low,
-        });
+      // 2. Reliable fallback based on confirmed stock timeframe metrics
+      const fallbackSummary = buildConfirmedStockTimeframeData(stock, selectedTimeframe);
+      if (fallbackSummary && fallbackSummary.points.length > 0) {
+        setLiveCandleSummary(fallbackSummary);
         setCandleError(null);
       } else {
         setLiveCandleSummary(null);
@@ -409,12 +364,18 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       }
     } catch (err: any) {
       console.warn(`Could not load candles for ${stock.symbol}:`, err);
-      setLiveCandleSummary(null);
-      setCandleError(`Connection interrupted. Showing last confirmed market quote.`);
+      const fallbackSummary = buildConfirmedStockTimeframeData(stock, selectedTimeframe);
+      if (fallbackSummary) {
+        setLiveCandleSummary(fallbackSummary);
+        setCandleError(null);
+      } else {
+        setLiveCandleSummary(null);
+        setCandleError(`Connection interrupted. Showing last confirmed market quote.`);
+      }
     } finally {
       setIsLoadingCandles(false);
     }
-  }, [stock.symbol, stock.price, stock.dayHigh, stock.dayLow, selectedTimeframe]);
+  }, [stock, selectedTimeframe]);
 
   useEffect(() => {
     loadCandleData();
@@ -766,6 +727,19 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 <h2 className="text-base sm:text-lg font-bold text-white font-mono tracking-tight">
                   {stock.symbol}
                 </h2>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono ${
+                  stock.assetType === 'ETF' 
+                    ? 'bg-blue-950/90 text-blue-400 border border-blue-800/50 uppercase'
+                    : stock.assetType === 'Crypto'
+                    ? 'bg-amber-950/90 text-amber-400 border border-amber-800/50 uppercase'
+                    : stock.assetType === 'Index'
+                    ? 'bg-purple-950/90 text-purple-400 border border-purple-800/50 uppercase'
+                    : stock.assetType === 'Commodity'
+                    ? 'bg-yellow-950/90 text-yellow-400 border border-yellow-800/50 uppercase'
+                    : 'bg-slate-800 text-slate-300 border border-slate-700'
+                }`}>
+                  {stock.assetType}
+                </span>
                 {isWatching && (
                   <span 
                     id={`watching-tag-${stock.symbol.toLowerCase()}`}
@@ -852,6 +826,10 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   key={tf}
                   id={`btn-timeframe-${stock.symbol.toLowerCase()}-${tf.toLowerCase()}`}
                   onClick={() => {
+                    const cached = getCachedProxyCandles(stock.symbol, tf);
+                    if (cached) {
+                      setLiveCandleSummary(cached);
+                    }
                     setSelectedTimeframe(tf);
                     setHoverIndex(null);
                   }}
@@ -1106,46 +1084,124 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
 
       {/* Core Statistics Grid: 1Y Target, P/E Ratio, 52W Range, Day's Range, Dividend Yield, Volume (Smooth borderless panels) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 pt-1">
-        {/* 1. Wall Street 1Y Price Target */}
+        {/* 1. 1Y Target (for Equities/ETFs) / 24H Volume (for Crypto) / Benchmark (for Indices) */}
         <div 
           id={`card-wallst-target-${stock.symbol.toLowerCase()}`}
           className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
         >
-          <span className="text-[11px] sm:text-xs font-mono text-blue-400 font-bold uppercase tracking-wider">
-            1Y Target
-          </span>
-          <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-sm sm:text-base font-mono font-black text-white">
-              ${targetMean.toFixed(2)}
-            </span>
-            <span className={`text-xs font-mono font-bold ${
-              isTargetPositive ? 'text-emerald-400' : 'text-rose-400'
-            }`}>
-              {isTargetPositive ? '+' : ''}{targetUpside.toFixed(1)}%
-            </span>
-          </div>
+          {stock.assetType === 'Crypto' ? (
+            <>
+              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
+                24H Volume
+              </span>
+              <div className="mt-1.5 flex items-baseline justify-between">
+                <span className="text-sm sm:text-base font-mono font-black text-white">
+                  {formatVolume(stock.volume)}
+                </span>
+                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
+                  24/7 Market
+                </span>
+              </div>
+            </>
+          ) : stock.assetType === 'Index' ? (
+            <>
+              <span className="text-[11px] sm:text-xs font-mono text-blue-400 font-bold uppercase tracking-wider">
+                Index Type
+              </span>
+              <div className="mt-1.5 flex items-baseline justify-between">
+                <span className="text-sm sm:text-base font-mono font-black text-white">
+                  Benchmark
+                </span>
+                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
+                  US Market
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="text-[11px] sm:text-xs font-mono text-blue-400 font-bold uppercase tracking-wider">
+                1Y Target
+              </span>
+              <div className="mt-1.5 flex items-baseline justify-between">
+                <span className="text-sm sm:text-base font-mono font-black text-white">
+                  ${targetMean.toFixed(2)}
+                </span>
+                <span className={`text-xs font-mono font-bold ${
+                  isTargetPositive ? 'text-emerald-400' : 'text-rose-400'
+                }`}>
+                  {isTargetPositive ? '+' : ''}{targetUpside.toFixed(1)}%
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* 2. P/E Ratio */}
+        {/* 2. P/E Ratio (for Stocks/ETFs) / Asset Class (for Crypto/Index/Commodity) */}
         <div 
           id={`card-pe-ratio-${stock.symbol.toLowerCase()}`}
           className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
         >
-          <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-            P/E Ratio
-          </span>
-          <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-sm sm:text-base font-mono font-black text-white">
-              {typeof stock.peRatio === 'number' && stock.peRatio > 0 ? `${stock.peRatio.toFixed(1)}x` : 'N/A'}
-            </span>
-            <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-              {typeof stock.peRatio === 'number' && stock.peRatio > 0
-                ? 'TTM'
-                : stock.assetType === 'ETF'
-                ? 'ETF'
-                : 'Unprofitable'}
-            </span>
-          </div>
+          {stock.assetType === 'Crypto' ? (
+            <>
+              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
+                Asset Class
+              </span>
+              <div className="mt-1.5 flex items-baseline justify-between">
+                <span className="text-sm sm:text-base font-mono font-black text-white">
+                  Crypto
+                </span>
+                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
+                  Decentralized
+                </span>
+              </div>
+            </>
+          ) : stock.assetType === 'Index' ? (
+            <>
+              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
+                Asset Class
+              </span>
+              <div className="mt-1.5 flex items-baseline justify-between">
+                <span className="text-sm sm:text-base font-mono font-black text-white">
+                  Index
+                </span>
+                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
+                  Market Cap
+                </span>
+              </div>
+            </>
+          ) : stock.assetType === 'Commodity' ? (
+            <>
+              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
+                Asset Class
+              </span>
+              <div className="mt-1.5 flex items-baseline justify-between">
+                <span className="text-sm sm:text-base font-mono font-black text-white">
+                  Commodity
+                </span>
+                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
+                  Spot / Futures
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
+                P/E Ratio
+              </span>
+              <div className="mt-1.5 flex items-baseline justify-between">
+                <span className="text-sm sm:text-base font-mono font-black text-white">
+                  {typeof stock.peRatio === 'number' && stock.peRatio > 0 ? `${stock.peRatio.toFixed(1)}x` : 'N/A'}
+                </span>
+                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
+                  {typeof stock.peRatio === 'number' && stock.peRatio > 0
+                    ? 'TTM'
+                    : stock.assetType === 'ETF'
+                    ? 'ETF Blend'
+                    : 'Unprofitable'}
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* 3. 52W Range */}
@@ -1163,13 +1219,13 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
           </div>
         </div>
 
-        {/* 4. Day's Range */}
+        {/* 4. Day's Range / 24H Range */}
         <div 
           id={`card-day-range-${stock.symbol.toLowerCase()}`}
           className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
         >
           <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-            Day's Range
+            {stock.assetType === 'Crypto' ? '24H Range' : "Day's Range"}
           </span>
           <div className="mt-1.5 flex items-center justify-between text-xs sm:text-sm font-mono font-bold text-slate-100">
             <span>${stock.dayLow.toFixed(2)}</span>
@@ -1178,27 +1234,29 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
           </div>
         </div>
 
-        {/* 5. Dividend Yield */}
+        {/* 5. Dividend Yield / Staking Yield */}
         <div 
           id={`card-dividend-yield-${stock.symbol.toLowerCase()}`}
           className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
         >
           <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-            Dividend Yield
+            {stock.assetType === 'Crypto' ? 'Staking Yield' : 'Dividend Yield'}
           </span>
           <div className="mt-1.5 flex items-baseline justify-between">
             <span className="text-sm sm:text-base font-mono font-black text-emerald-400">
-              {stock.dividendYield !== undefined && stock.dividendYield > 0
+              {stock.assetType === 'Crypto' || stock.assetType === 'Index'
+                ? 'N/A'
+                : stock.dividendYield !== undefined && stock.dividendYield > 0
                 ? `${stock.dividendYield.toFixed(2)}%`
                 : '0.00%'}
             </span>
             <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-              Annual
+              {stock.assetType === 'Crypto' ? 'Native' : stock.assetType === 'Index' ? 'Index' : 'Annual'}
             </span>
           </div>
         </div>
 
-        {/* 6. Market Cap (for Stocks) / Expense Ratio (for ETFs) */}
+        {/* 6. Market Cap (for Stocks/Crypto) / Expense Ratio (for ETFs) / Category (for Indices) */}
         {stock.assetType === 'ETF' ? (
           <div 
             id={`card-expense-ratio-${stock.symbol.toLowerCase()}`}
@@ -1213,6 +1271,23 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               </span>
               <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
                 Annual
+              </span>
+            </div>
+          </div>
+        ) : stock.assetType === 'Index' ? (
+          <div 
+            id={`card-category-${stock.symbol.toLowerCase()}`}
+            className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
+          >
+            <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
+              Category
+            </span>
+            <div className="mt-1.5 flex items-baseline justify-between">
+              <span className="text-sm sm:text-base font-mono font-black text-slate-100">
+                Large Cap
+              </span>
+              <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
+                Benchmark
               </span>
             </div>
           </div>

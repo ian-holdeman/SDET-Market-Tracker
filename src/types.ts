@@ -3,7 +3,7 @@
  * Designed with strict type-safety and self-documenting structures.
  */
 
-export type PageView = 'home' | 'board' | 'tests' | 'about';
+export type PageView = 'home' | 'board' | 'tests' | 'logic' | 'about' | 'settings';
 
 export type Timeframe = '1D' | '1W' | '1M' | '1Y' | 'ALL';
 
@@ -83,10 +83,12 @@ export interface WallStreetPriceTarget {
   analystCount: number;
 }
 
+export type AssetType = 'ETF' | 'Stock' | 'Crypto' | 'Index' | 'Commodity';
+
 export interface BoardStock {
   symbol: string;
   name: string;
-  assetType: 'ETF' | 'Stock';
+  assetType: AssetType;
   category: AssetCategory;
   exchange?: string;
   isFavorite?: boolean;

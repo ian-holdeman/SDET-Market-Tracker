@@ -115,9 +115,19 @@ export const buildConfirmedStockTimeframeData = (
   const startPrice = stock.prevClose && stock.prevClose > 0 ? stock.prevClose : currentPrice;
   const rawSparkline = stock.sparkline && stock.sparkline.length > 0 ? stock.sparkline : [startPrice, currentPrice];
 
+  const now = Date.now();
+  const sessionDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+  const sessionStartUnix = new Date(`${sessionDate} 04:00:00 GMT-0400`).getTime();
+  const sessionEndUnix = new Date(`${sessionDate} 20:00:00 GMT-0400`).getTime();
+  const regStartUnix = new Date(`${sessionDate} 09:30:00 GMT-0400`).getTime();
+  const regEndUnix = new Date(`${sessionDate} 16:00:00 GMT-0400`).getTime();
+  const activeEndUnix = Math.min(Math.max(now, regStartUnix + 60000), regEndUnix);
+
   const points: ChartPoint[] = rawSparkline.map((price, idx) => {
     const frac = idx / (rawSparkline.length - 1 || 1);
     let label = '';
+    let timeUnix = now;
+
     if (timeframe === '1D') {
       const totalMinutes = Math.round(frac * 390);
       const hours = Math.floor((9 * 60 + 30 + totalMinutes) / 60);
@@ -126,14 +136,17 @@ export const buildConfirmedStockTimeframeData = (
       const h = hours % 12 === 0 ? 12 : hours % 12;
       const m = mins < 10 ? `0${mins}` : `${mins}`;
       label = `${h}:${m} ${ampm}`;
+      timeUnix = Math.round(regStartUnix + frac * (activeEndUnix - regStartUnix));
     } else {
       label = `Tick ${idx + 1}`;
+      timeUnix = now - Math.round((1 - frac) * 86400000);
     }
 
     return {
       date: label,
       label,
       price,
+      timeUnix,
     };
   });
 
@@ -151,5 +164,7 @@ export const buildConfirmedStockTimeframeData = (
     changePercent,
     high,
     low,
+    sessionStartUnix,
+    sessionEndUnix,
   };
 };

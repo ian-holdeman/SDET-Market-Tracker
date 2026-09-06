@@ -23,10 +23,10 @@ test.describe('Navigation Suite', () => {
     await homePage.header.navTestsBtn.click();
     await expect(testsPage.pageHeading).toBeVisible();
 
-    await homePage.header.navAboutBtn.click();
+    await homePage.header.navLogicBtn.click();
     await expect(aboutPage.pageHeading).toBeVisible();
 
-    await homePage.header.navHomeBtn.click();
+    await homePage.header.brandLogoBtn.click();
     await expect(homePage.heroHeading).toBeVisible();
   });
 });

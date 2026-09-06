@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { UserProfile, loginUser, signUpUser, saveUserWatchlist, getUserRole } from '../services/authService';
+import { UserProfile, loginUser, signUpUser, saveUserWatchlist, deleteUserAccount, getUserRole } from '../services/authService';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -14,6 +14,7 @@ interface AuthContextType {
   login: (username: string, passcode: string) => Promise<void>;
   signup: (username: string, passcode: string) => Promise<void>;
   logout: () => void;
+  deleteAccount: () => Promise<void>;
   toggleWatchlistSymbol: (symbol: string) => Promise<boolean>;
   isSymbolInWatchlist: (symbol: string) => boolean;
   clearError: () => void;
@@ -109,6 +110,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(LOCAL_STORAGE_KEY);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteUserAccount(user.username);
+      setUser(null);
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to delete account.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
   const toggleWatchlistSymbol = useCallback(async (symbol: string): Promise<boolean> => {
     if (!user) {
       openAuthModal('login');
@@ -162,6 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         signup,
         logout,
+        deleteAccount,
         toggleWatchlistSymbol,
         isSymbolInWatchlist,
         clearError,

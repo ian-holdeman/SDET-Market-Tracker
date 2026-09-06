@@ -9,6 +9,7 @@ import {
   X 
 } from 'lucide-react';
 import { subscribeToTestRuns, TestRunRecord } from '../services/testRunsService';
+import { formatAbsoluteRunTime } from '../utils/timeFormat';
 
 interface TestSnapshotCardProps {
   onExploreTests: () => void;
@@ -59,7 +60,6 @@ function formatDuration(ms: number): string {
 
 export const TestSnapshotCard: React.FC<TestSnapshotCardProps> = ({ onExploreTests }) => {
   const [latestRun, setLatestRun] = useState<TestRunRecord>(DEFAULT_LATEST_RUN);
-  const [isLiveConnected, setIsLiveConnected] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Subscribe to real-time test run telemetry from Firestore (only most recent build on main)
@@ -73,7 +73,6 @@ export const TestSnapshotCard: React.FC<TestSnapshotCardProps> = ({ onExploreTes
           } else {
             setLatestRun(runs[0]);
           }
-          setIsLiveConnected(true);
         }
       },
       (err) => {
@@ -87,6 +86,7 @@ export const TestSnapshotCard: React.FC<TestSnapshotCardProps> = ({ onExploreTes
   }, []);
 
   const isPassed = latestRun.status === 'passed' || (latestRun.failed === 0 && latestRun.totalTests > 0);
+  const isTestRunning = latestRun.status === ('running' as any) || latestRun.status === ('in_progress' as any);
   const passRate = typeof latestRun.passRate === 'number' 
     ? latestRun.passRate 
     : (latestRun.totalTests > 0 ? Number(((latestRun.passed / latestRun.totalTests) * 100).toFixed(1)) : 100);
@@ -94,6 +94,8 @@ export const TestSnapshotCard: React.FC<TestSnapshotCardProps> = ({ onExploreTes
   const cleanBuildNumber = latestRun.runId.startsWith('run_')
     ? `#${latestRun.runId.substring(4, 9)}`
     : `#${latestRun.runId}`;
+
+  const formattedRunTime = formatAbsoluteRunTime(latestRun.createdAt || latestRun.timestamp);
 
   return (
     <>
@@ -195,14 +197,25 @@ export const TestSnapshotCard: React.FC<TestSnapshotCardProps> = ({ onExploreTes
           </button>
         </div>
 
-        {/* 3. Bottom Run Metadata */}
-        <div className="mt-4 pt-3.5 border-t border-slate-800/70 flex items-center justify-between text-[11px] text-slate-400 font-mono">
-          <div className="flex items-center space-x-2 truncate">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-            <span className="text-slate-300 font-semibold truncate">
+        {/* 3. Bottom Run Metadata: Pulsing indicator only when test is actively executing, otherwise static + compact absolute timestamp */}
+        <div className="mt-4 pt-3.5 border-t border-slate-800/70 flex items-center justify-between text-[11px] text-slate-400 font-mono gap-2">
+          <div className="flex items-center space-x-2 min-w-0">
+            <span className="relative flex h-2 w-2 shrink-0">
+              {isTestRunning && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              )}
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${isPassed ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            </span>
+            <span className="text-slate-300 font-medium whitespace-nowrap">
               Latest Run {cleanBuildNumber}
             </span>
           </div>
+
+          {formattedRunTime && (
+            <div className="text-slate-500 text-[11px] shrink-0 font-mono text-right whitespace-nowrap">
+              {formattedRunTime}
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, Layers, Terminal, User, LogIn, LogOut, Star, ChevronDown } from 'lucide-react';
+import { TrendingUp, Layers, Terminal, Brain, LogIn, LogOut, Star, ChevronDown, Settings } from 'lucide-react';
 import { PageView } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -36,12 +36,6 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
 
   const navItems: NavItem[] = [
     {
-      id: 'home',
-      btnId: 'nav-home-btn',
-      mobileBtnId: 'mobile-nav-home-btn',
-      label: 'Home',
-    },
-    {
       id: 'board',
       btnId: 'nav-board-btn',
       mobileBtnId: 'mobile-nav-board-btn',
@@ -57,11 +51,11 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
       badge: <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />,
     },
     {
-      id: 'about',
-      btnId: 'nav-about-btn',
-      mobileBtnId: 'mobile-nav-about-btn',
-      label: 'About',
-      icon: <User className="w-4 h-4" />,
+      id: 'logic',
+      btnId: 'nav-logic-btn',
+      mobileBtnId: 'mobile-nav-logic-btn',
+      label: 'The Logic',
+      icon: <Brain className="w-4 h-4" />,
     },
   ];
 
@@ -83,11 +77,8 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-lg font-bold tracking-tight text-white group-hover:text-blue-200 transition-colors">
-                  <span className="inline sm:hidden">IMT</span>
-                  <span className="hidden sm:inline">Ian's Market Tracker</span>
-                </span>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-950/80 text-blue-400 border border-blue-800/60">
-                  SDET v1.0
+                  <span className="inline sm:hidden">SDET</span>
+                  <span className="hidden sm:inline">The SDET's Market Tracker</span>
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
@@ -99,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
           {/* Desktop Navigation Links with Crisp Sliding Pill */}
           <nav className="hidden md:flex items-center space-x-1 lg:space-x-1.5 bg-[#121722]/90 p-1.5 rounded-xl border border-slate-800/90 shadow-inner">
             {navItems.map((item) => {
-              const isActive = currentPage === item.id;
+              const isActive = currentPage === item.id || (item.id === 'logic' && (currentPage as string) === 'about');
               return (
                 <button
                   key={item.id}
@@ -179,6 +170,18 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                       </div>
 
                       <button
+                        id="header-settings-btn"
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          onNavigate('settings');
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs text-slate-300 hover:text-white hover:bg-slate-800/60 flex items-center space-x-2 transition-colors cursor-pointer border-b border-slate-800/60"
+                      >
+                        <Settings className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Settings</span>
+                      </button>
+
+                      <button
                         id="header-logout-btn"
                         onClick={() => {
                           setIsDropdownOpen(false);
@@ -209,7 +212,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
         {/* Mobile Sub-Navigation Bar */}
         <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-800/60 text-xs font-medium relative bg-[#0B0E14]/95">
           {navItems.map((item) => {
-            const isActive = currentPage === item.id;
+            const isActive = currentPage === item.id || (item.id === 'logic' && (currentPage as string) === 'about');
             return (
               <button
                 key={item.id}

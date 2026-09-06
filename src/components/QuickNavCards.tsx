@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   Layers, 
   Terminal, 
-  User, 
+  Brain, 
   ArrowRight, 
   CheckCircle2, 
   Activity, 
@@ -111,10 +111,10 @@ export const QuickNavCards: React.FC<QuickNavCardsProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Card 3: About */}
+        {/* Card 3: The Logic */}
         <div 
-          id="card-the-about"
-          onClick={() => onNavigate('about')}
+          id="card-the-logic"
+          onClick={() => onNavigate('logic')}
           className="group relative bg-[#0F141E] hover:bg-[#131A28] border border-slate-800/90 hover:border-purple-500/50 rounded-2xl p-6 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-2xl hover:shadow-purple-950/30 flex flex-col justify-between"
         >
           <div className="absolute top-4 right-4 text-slate-600 group-hover:text-purple-400 transition-colors">
@@ -123,27 +123,27 @@ export const QuickNavCards: React.FC<QuickNavCardsProps> = ({ onNavigate }) => {
 
           <div>
             <div className="w-12 h-12 rounded-xl bg-purple-950/60 border border-purple-800/50 flex items-center justify-center text-purple-400 mb-4 group-hover:scale-105 transition-transform">
-              <User className="w-6 h-6" />
+              <Brain className="w-6 h-6" />
             </div>
 
             <div className="flex items-center space-x-2">
               <h3 className="text-lg font-bold text-white group-hover:text-purple-300 transition-colors">
-                About & SDET Craft
+                The Logic
               </h3>
               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-950 text-purple-400 border border-purple-800/50">
-                Profile
+                Philosophy
               </span>
             </div>
 
             <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
-              Architectural breakdown, test automation philosophy, clean code standards, and Ian's SDET engineering background.
+              System architecture, intentional engineering decisions, and the rigorous SDET testing framework ensuring zero-defect quality.
             </p>
           </div>
 
           <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center justify-between text-xs">
-            <span className="text-slate-500 font-mono">Documentation & Bio</span>
+            <span className="text-slate-500 font-mono">Architecture & Strategy</span>
             <span className="text-purple-400 font-medium group-hover:underline flex items-center gap-1">
-              Read Story <ArrowRight className="w-3.5 h-3.5 inline" />
+              Explore Logic <ArrowRight className="w-3.5 h-3.5 inline" />
             </span>
           </div>
         </div>

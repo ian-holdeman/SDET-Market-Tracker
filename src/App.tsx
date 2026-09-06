@@ -6,10 +6,15 @@ import { BoardSnapshotCard } from './components/BoardSnapshotCard';
 import { TestSnapshotCard } from './components/TestSnapshotCard';
 import { TheBoard } from './components/TheBoard';
 import { TheTests } from './components/TheTests';
+import { TheLogic } from './components/TheLogic';
+import { UserSettings } from './components/UserSettings';
 import { Footer } from './components/Footer';
+import { ContactModal } from './components/ContactModal';
+import { PrivacyModal } from './components/PrivacyModal';
 import { PagePlaceholder } from './components/PagePlaceholder';
 import { AuthModal } from './components/AuthModal';
 import { AuthProvider } from './context/AuthContext';
+import { MarketProvider } from './context/MarketContext';
 import { PageView } from './types';
 import { parseRouteFromLocation, syncRouteUrl } from './utils/navigation';
 
@@ -21,6 +26,9 @@ function AppContent() {
   const [selectedStockSymbol, setSelectedStockSymbol] = useState<string | undefined>(() => {
     return parseRouteFromLocation().symbol;
   });
+
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
 
   // Keep state in sync with browser back / forward buttons
   useEffect(() => {
@@ -39,7 +47,9 @@ function AppContent() {
     setCurrentPage(page);
     setSelectedStockSymbol(symbol);
     syncRouteUrl(page, symbol);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!symbol) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }, []);
 
   return (
@@ -82,17 +92,17 @@ function AppContent() {
           >
             {currentPage === 'home' ? (
               <div className="w-full space-y-8 sm:space-y-12">
-                {/* Centered Page Title & Subtitle */}
-                <div className="w-full text-center max-w-3xl mx-auto space-y-3 pb-2">
+                {/* Centered Page Title & Gradient Accent */}
+                <div className="w-full text-center max-w-3xl mx-auto space-y-3 pb-2 flex flex-col items-center">
                   <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-                    Ian's Market Tracker
-                    <span className="block text-xl sm:text-2xl lg:text-3xl font-bold text-slate-400 mt-2 font-sans tracking-normal">
-                      (and Test Automation Suite!)
-                    </span>
+                    The SDET's Market Tracker
                   </h1>
-                  
-                  <p className="mt-3 text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
-                    A dual-purpose financial platform providing real-time broad market surveillance and a live visual showcase of automated SDET test execution and API contract validation.
+
+                  {/* Subtle gradient accent underline linking Market (Blue) & SDET (Emerald) palette */}
+                  <div className="h-[2px] w-32 sm:w-48 bg-gradient-to-r from-transparent via-blue-500/70 via-emerald-400/70 to-transparent rounded-full my-1.5" />
+
+                  <p className="mt-1 text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+                    A dual-purpose financial platform providing real-time market surveillance of select assets and a live visual showcase of automated test execution
                   </p>
                 </div>
 
@@ -128,6 +138,10 @@ function AppContent() {
               />
             ) : currentPage === 'tests' ? (
               <TheTests />
+            ) : currentPage === 'logic' || currentPage === 'about' ? (
+              <TheLogic onNavigate={handleNavigate} />
+            ) : currentPage === 'settings' ? (
+              <UserSettings onNavigate={handleNavigate} />
             ) : (
               <PagePlaceholder
                 page={currentPage}
@@ -140,8 +154,23 @@ function AppContent() {
         </AnimatePresence>
       </main>
 
-      {/* Footer */}
-      <Footer />
+      {/* Footer with subtle navigation & modal triggers */}
+      <Footer
+        onOpenContact={() => setIsContactModalOpen(true)}
+        onOpenPrivacy={() => setIsPrivacyModalOpen(true)}
+      />
+
+      {/* Contact Services Modal */}
+      <ContactModal
+        isOpen={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
+      />
+
+      {/* Privacy Policy Modal */}
+      <PrivacyModal
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+      />
     </div>
   );
 }
@@ -149,7 +178,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <MarketProvider>
+        <AppContent />
+      </MarketProvider>
     </AuthProvider>
   );
 }

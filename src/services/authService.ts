@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { UserProfile, UserRole } from '../types';
 
@@ -142,3 +142,13 @@ export async function saveUserWatchlist(username: string, watchlist: string[]): 
     updatedAt: new Date().toISOString(),
   });
 }
+
+/**
+ * Permanently deletes the user account document from Firestore.
+ */
+export async function deleteUserAccount(username: string): Promise<void> {
+  const cleanKey = username.trim().toLowerCase();
+  const userRef = doc(db, 'users', cleanKey);
+  await deleteDoc(userRef);
+}
+

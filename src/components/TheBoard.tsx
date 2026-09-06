@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowUpDown, 
@@ -13,18 +13,19 @@ import {
   Maximize2,
   Minimize2,
   SlidersHorizontal,
-  Key,
   CheckCircle2,
   AlertCircle,
   X,
   Radio,
-  Zap
+  Star,
+  LogIn
 } from 'lucide-react';
 import { BoardStock, BoardSortField, SortDirection } from '../types';
-import { useFinnhubMarket } from '../hooks/useFinnhubMarket';
+import { useMarket } from '../context/MarketContext';
 import { BoardStockDetailCard } from './BoardStockDetailCard';
 import { TickerLogo } from './TickerLogo';
 import { useAuth } from '../context/AuthContext';
+import { searchProxyAssets } from '../services/yahooMarket';
 
 interface TheBoardProps {
   initialExpandedSymbol?: string;
@@ -106,7 +107,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         id={`board-row-${stock.symbol.toLowerCase()}`}
         onClick={() => onToggleExpand(stock.symbol)}
         style={{ WebkitTapHighlightColor: 'transparent' }}
-        className={`group cursor-pointer select-none transition-colors duration-150 border-l-2 outline-none focus:outline-none ${
+        className={`group cursor-pointer select-none transition-colors duration-150 border-l-2 outline-none focus:outline-none scroll-mt-28 sm:scroll-mt-32 ${
           isExpanded 
             ? 'bg-[#121A28] border-l-blue-500' 
             : 'border-l-transparent hover:border-l-blue-500/70 hover:bg-[#151F30] active:bg-[#192438]'
@@ -134,9 +135,15 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
                 <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono ${
                   stock.assetType === 'ETF' 
                     ? 'bg-blue-950/90 text-blue-400 border border-blue-800/50 uppercase' 
+                    : stock.assetType === 'Crypto'
+                    ? 'bg-amber-950/90 text-amber-400 border border-amber-800/50 uppercase'
+                    : stock.assetType === 'Index'
+                    ? 'bg-purple-950/90 text-purple-400 border border-purple-800/50 uppercase'
+                    : stock.assetType === 'Commodity'
+                    ? 'bg-yellow-950/90 text-yellow-400 border border-yellow-800/50 uppercase'
                     : 'bg-slate-800 text-slate-300 border border-slate-700'
                 }`}>
-                  {stock.assetType === 'ETF' ? 'ETF' : 'Stock'}
+                  {stock.assetType || 'Stock'}
                 </span>
                 {isWatching && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono bg-purple-950/90 text-purple-400 border border-purple-800/50">
@@ -298,25 +305,103 @@ BoardTableRow.displayName = 'BoardTableRow';
 export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSelectStock }) => {
   const { 
     stocks, 
-    socketStatus, 
-    feedMode,
+    latencyMs,
     lastSyncTime,
-    lastTickTime, 
-    totalTicks, 
-    apiKey,
-    saveApiKey,
+    totalTicks,
     isLoadingLiveMetrics,
     errorMessage,
     isOffline,
-    reconnect, 
-    refreshQuotes 
-  } = useFinnhubMarket();
+    reconnect,
+    refreshQuotes,
+    fetchSingleAssetQuote
+  } = useMarket();
 
-  const { isSymbolInWatchlist, isAdmin } = useAuth();
+  const { user, isSymbolInWatchlist, isAdmin, openAuthModal } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const [assetFilter, setAssetFilter] = useState<'ALL' | 'ETF' | 'Stock'>('ALL');
+  const [isSearchingUniverse, setIsSearchingUniverse] = useState(false);
+  const [ephemeralSearchResults, setEphemeralSearchResults] = useState<BoardStock[]>([]);
+
+  // Debounced Universal Asset Search for any symbol or company outside the default curated 50
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query || query.length < 1) {
+      setEphemeralSearchResults([]);
+      setIsSearchingUniverse(false);
+      return;
+    }
+
+    const cleanUpper = query.toUpperCase();
+    const isAlreadyInPool = stocks.some((s) => s.symbol.toUpperCase() === cleanUpper) ||
+                           ephemeralSearchResults.some((e) => e.symbol.toUpperCase() === cleanUpper);
+
+    if (isAlreadyInPool) {
+      setIsSearchingUniverse(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsSearchingUniverse(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        // 1. Direct exact ticker lookup if typed format matches
+        if (cleanUpper.length <= 10 && /^[A-Z0-9.\-^=]+$/.test(cleanUpper)) {
+          const directQuote = await fetchSingleAssetQuote(cleanUpper);
+          if (!isCancelled && directQuote) {
+            setEphemeralSearchResults((prev) => {
+              const filtered = prev.filter((p) => p.symbol !== directQuote.symbol);
+              return [directQuote, ...filtered];
+            });
+            if (!isCancelled) {
+              setIsSearchingUniverse(false);
+            }
+            return;
+          }
+        }
+
+        // 2. Query universal search endpoint for broader matches
+        if (query.length >= 2) {
+          const results = await searchProxyAssets(query);
+          if (!isCancelled && results && results.length > 0) {
+            const topMatch = results.find((r) => r.symbol.toUpperCase() === cleanUpper) || results[0];
+            if (topMatch && !stocks.some((s) => s.symbol === topMatch.symbol)) {
+              const quote = await fetchSingleAssetQuote(topMatch.symbol);
+              if (!isCancelled && quote) {
+                setEphemeralSearchResults((prev) => {
+                  const filtered = prev.filter((p) => p.symbol !== quote.symbol);
+                  return [quote, ...filtered];
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Search lookup error:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsSearchingUniverse(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+      setIsSearchingUniverse(false);
+    };
+  }, [searchQuery, stocks, ephemeralSearchResults.length, fetchSingleAssetQuote]);
+  
+  // Default tab logic:
+  // 1. If direct asset navigation provided (initialExpandedSymbol) -> 'ALL'
+  // 2. If user has any items in their watchlist -> 'WATCHLIST'
+  // 3. Otherwise (not logged in or empty watchlist) -> 'ALL'
+  const [assetFilter, setAssetFilter] = useState<'ALL' | 'ETF' | 'Stock' | 'WATCHLIST'>(() => {
+    if (initialExpandedSymbol) return 'ALL';
+    if (user?.watchlist && user.watchlist.length > 0) return 'WATCHLIST';
+    return 'ALL';
+  });
   const [sortField, setSortField] = useState<BoardSortField>('price');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -324,9 +409,14 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
     return initialExpandedSymbol ? new Set([initialExpandedSymbol.toUpperCase()]) : new Set();
   });
 
-  // Automatically expand and smoothly scroll to initial expanded symbol if requested via deep-linking
+  // Track initial symbol handling so clicking cards while on The Board does not flip the current tab to ALL
+  const initialHandledRef = useRef<string | null>(null);
+
+  // Automatically expand, switch to 'ALL', and smoothly snap-scroll ONLY when arriving with initialExpandedSymbol from outside (e.g. Home card)
   useEffect(() => {
-    if (initialExpandedSymbol) {
+    if (initialExpandedSymbol && initialHandledRef.current !== initialExpandedSymbol) {
+      initialHandledRef.current = initialExpandedSymbol;
+      setAssetFilter('ALL');
       const upper = initialExpandedSymbol.toUpperCase();
       setExpandedSymbols(prev => {
         const next = new Set(prev);
@@ -334,27 +424,51 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         return next;
       });
 
-      // Scroll after table and animations render
-      const timer = setTimeout(() => {
+      // Robust multi-stage scroll snapping function
+      let isCancelled = false;
+      const snapToRow = (attempt = 0) => {
+        if (isCancelled) return;
         const rowElem = document.getElementById(`board-row-${upper.toLowerCase()}`);
         if (rowElem) {
-          rowElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 150);
+          const rect = rowElem.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+          // Calculate offset relative to sticky header & ribbon
+          const headerHeight = window.innerWidth < 640 ? 76 : 105;
+          const targetY = rect.top + scrollTop - headerHeight;
 
-      return () => clearTimeout(timer);
+          window.scrollTo({
+            top: Math.max(0, targetY),
+            behavior: attempt === 0 ? 'auto' : 'smooth',
+          });
+
+          // Re-verify after accordion animation expands
+          if (attempt < 4) {
+            setTimeout(() => snapToRow(attempt + 1), 150);
+          }
+        } else if (attempt < 12) {
+          // Retry polling if DOM node is still animating into view
+          setTimeout(() => snapToRow(attempt + 1), 60);
+        }
+      };
+
+      // Launch scroll snapping
+      snapToRow(0);
+
+      return () => {
+        isCancelled = true;
+      };
     }
   }, [initialExpandedSymbol]);
   
-  // Feed settings modal state
+  // Feed diagnostics modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [keyInputValue, setKeyInputValue] = useState(apiKey);
-  const [keySaveMessage, setKeySaveMessage] = useState<string | null>(null);
-  const [isTestingKey, setIsTestingKey] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; latency?: number } | null>(null);
 
   // Toggle single stock drilldown expansion
   const toggleExpand = useCallback((symbol: string) => {
+    // Record symbol so internal clicks on existing pill don't trigger external initialExpandedSymbol reset
+    initialHandledRef.current = symbol;
     setExpandedSymbols(prev => {
       const next = new Set(prev);
       if (next.has(symbol)) {
@@ -399,74 +513,98 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
     }
   };
 
-  // Save custom API key
-  const handleSaveKey = () => {
-    saveApiKey(keyInputValue);
-    setKeySaveMessage('API key updated and saved to local storage!');
-    setTimeout(() => setKeySaveMessage(null), 3000);
-    reconnect();
-    refreshQuotes();
-  };
-
-  // Test Finnhub key with live REST quote
-  const handleTestKey = async () => {
-    setIsTestingKey(true);
+  // Test live connection to backend Yahoo Finance engine
+  const handleTestConnection = async () => {
+    setIsTestingConnection(true);
     setTestResult(null);
+    const start = Date.now();
     try {
-      const testKey = keyInputValue.trim() || apiKey;
-      const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=AAPL&token=${testKey}`);
+      const res = await fetch('/api/quotes?symbols=SPY');
+      const elapsed = Date.now() - start;
       if (!res.ok) {
-        throw new Error(`Finnhub returned HTTP ${res.status}`);
+        throw new Error(`Proxy returned HTTP ${res.status}`);
       }
       const data = await res.json();
-      if (data && typeof data.c === 'number' && data.c > 0) {
+      if (Array.isArray(data) && data.length > 0 && typeof data[0].price === 'number') {
         setTestResult({
           success: true,
-          message: `Key is valid! Received live quote for AAPL: $${data.c.toFixed(2)} (Previous Close: $${data.pc?.toFixed(2) || '—'})`,
+          latency: elapsed,
+          message: `Pure Yahoo Backend Engine is operational! Verified S&P 500 (SPY) quote at $${data[0].price.toFixed(2)} with ${elapsed}ms round-trip latency.`,
         });
       } else {
         setTestResult({
           success: false,
-          message: 'Received empty response from Finnhub. Please verify token permissions.',
+          message: 'Backend proxy responded but returned an empty quote set.',
         });
       }
     } catch (err: any) {
       setTestResult({
         success: false,
-        message: `Connection failed: ${err?.message || 'Invalid API token'}`,
+        message: `Connection check failed: ${err?.message || 'Network error'}`,
       });
     } finally {
-      setIsTestingKey(false);
+      setIsTestingConnection(false);
     }
   };
 
   // Filter & Sort stocks - O(N log N) with instant O(1) tab switching and O(N) filtering
-  // Assets marked as "Watching" in the user's watchlist sit at the top of the board, but follow the active sort order,
-  // with remaining assets partitioned below them following the same sort order.
+  // Watched assets are displayed under the Watchlist tab, and sorted with the rest under other tabs without forced pinning.
   const processedStocks = useMemo(() => {
-    return stocks
+    const hasSearch = Boolean(searchQuery.trim());
+    const q = searchQuery.toLowerCase().trim();
+    const cleanUpper = searchQuery.toUpperCase().trim();
+
+    // When searching, merge active stocks with ephemeral search results without mutating the main board list
+    const pool = hasSearch
+      ? [
+          ...stocks,
+          ...ephemeralSearchResults.filter((es) => !stocks.some((s) => s.symbol === es.symbol)),
+        ]
+      : stocks;
+
+    return pool
       .filter((stock) => {
-        if (assetFilter === 'ETF' && stock.assetType !== 'ETF') {
-          return false;
+        // Tab filtering: If there is an active search query, search globally so typed assets are never hidden by the Watchlist tab
+        if (!hasSearch) {
+          if (assetFilter === 'WATCHLIST') {
+            if (!isSymbolInWatchlist(stock.symbol)) {
+              return false;
+            }
+          } else if (assetFilter === 'ETF' && stock.assetType !== 'ETF') {
+            return false;
+          } else if (assetFilter === 'Stock' && stock.assetType !== 'Stock') {
+            return false;
+          }
+          return true;
         }
-        if (assetFilter === 'Stock' && stock.assetType !== 'Stock') {
-          return false;
+
+        const symUpper = stock.symbol.toUpperCase();
+        
+        // Exact ticker match check
+        if (symUpper === cleanUpper) {
+          return true;
         }
-        if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase().trim();
+
+        // If an exact ticker match exists in the pool for this cleanUpper query (e.g. "PLTR", "BTC"), restrict strictly to that ticker
+        const hasExactMatchInPool = pool.some((s) => s.symbol.toUpperCase() === cleanUpper);
+        if (hasExactMatchInPool) {
+          return symUpper === cleanUpper;
+        }
+
+        // Otherwise match ticker prefix, full name, or category
         return (
           stock.symbol.toLowerCase().includes(q) ||
           stock.name.toLowerCase().includes(q) ||
-          stock.category.toLowerCase().includes(q)
+          (stock.category && stock.category.toLowerCase().includes(q))
         );
       })
       .sort((a, b) => {
-        const isWatchA = isSymbolInWatchlist(a.symbol);
-        const isWatchB = isSymbolInWatchlist(b.symbol);
-
-        // Watching partition to top
-        if (isWatchA !== isWatchB) {
-          return isWatchA ? -1 : 1;
+        // If searching, exact matches float to the top
+        if (hasSearch) {
+          const aExact = a.symbol.toUpperCase() === cleanUpper;
+          const bExact = b.symbol.toUpperCase() === cleanUpper;
+          if (aExact && !bExact) return -1;
+          if (!aExact && bExact) return 1;
         }
 
         if (sortField === 'name' || sortField === 'symbol') {
@@ -492,7 +630,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
         return 0;
       });
-  }, [stocks, searchQuery, assetFilter, sortField, sortDirection, isSymbolInWatchlist]);
+  }, [stocks, ephemeralSearchResults, searchQuery, assetFilter, sortField, sortDirection, isSymbolInWatchlist]);
 
   // Render sort icon for table headers
   const renderSortIcon = (field: BoardSortField) => {
@@ -522,84 +660,49 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
         {/* Live Stream Telemetry Pill & Refresh Action */}
         <div className="flex items-center space-x-2.5 self-start md:self-auto flex-wrap">
-          {/* Feed Status Display: Admin gets clickable diagnostic button with slider icon; non-admin gets plain status text with no box */}
-          {isAdmin ? (
-            <button
-              id="board-feed-status-btn"
-              onClick={() => {
-                setKeyInputValue(apiKey);
-                setShowSettingsModal(true);
-              }}
-              title="Click to view feed diagnostics or configure custom Finnhub API Key"
-              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#0F141E] hover:bg-[#161F2E] border border-slate-800 hover:border-slate-700 font-mono text-xs shadow-inner transition-all group cursor-pointer"
-            >
-              {isOffline ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-rose-500" />
-                  <span className="text-rose-400 font-semibold">Feed Offline</span>
-                  <span className="text-slate-600">|</span>
-                  <span className="text-slate-400 text-[11px]">Last Known Data</span>
-                </>
-              ) : feedMode === 'websocket' ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-emerald-400 font-semibold">WebSocket Live</span>
-                  <span className="text-slate-600">|</span>
-                  <span className="text-slate-400 text-[11px]">
-                    {totalTicks > 0 ? `${totalTicks} ticks` : 'Active'}
-                  </span>
-                </>
-              ) : feedMode === 'synced_rest' ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span className="text-emerald-400 font-semibold">Live Synced</span>
-                  {lastSyncTime && (
-                    <>
-                      <span className="text-slate-600">|</span>
-                      <span className="text-slate-400 text-[11px]">{lastSyncTime}</span>
-                    </>
-                  )}
-                </>
-              ) : socketStatus === 'connecting' || isLoadingLiveMetrics ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <span className="text-amber-400">Syncing Quotes...</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="text-slate-400 underline text-[11px]">Reconnect</span>
-                </>
-              )}
-              <SlidersHorizontal className="w-3 h-3 text-slate-500 group-hover:text-blue-400 ml-1 transition-colors" />
-            </button>
-          ) : (
-            <div
-              id="board-feed-status-text"
-              className="flex items-center space-x-2 px-1 py-1.5 font-mono text-xs text-slate-300 select-none"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-              <span className="text-emerald-400 font-semibold">Live Synced</span>
-              {lastSyncTime && (
-                <>
-                  <span className="text-slate-600">|</span>
-                  <span className="text-slate-400 text-[11px]">{lastSyncTime}</span>
-                </>
-              )}
-            </div>
-          )}
+          {/* Feed Status Display: Clickable diagnostic button for all users */}
+          <button
+            id="board-feed-status-btn"
+            onClick={() => setShowSettingsModal(true)}
+            title="Click to view live Yahoo Finance engine sync diagnostics & telemetry"
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#0F141E] hover:bg-[#161F2E] border border-slate-800 hover:border-slate-700 font-mono text-xs shadow-inner transition-all group cursor-pointer"
+          >
+            {isOffline ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span className="text-rose-400 font-semibold">Feed Offline</span>
+                <span className="text-slate-600">|</span>
+                <span className="text-slate-400 text-[11px]">Last Known Data</span>
+              </>
+            ) : isLoadingLiveMetrics ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-amber-400">Syncing Quotes...</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400 font-semibold">Live Synced</span>
+                {lastSyncTime && (
+                  <>
+                    <span className="text-slate-600">|</span>
+                    <span className="text-slate-400 text-[11px]">{lastSyncTime}</span>
+                  </>
+                )}
+              </>
+            )}
+            <SlidersHorizontal className="w-3 h-3 text-slate-500 group-hover:text-blue-400 ml-1 transition-colors" />
+          </button>
 
-          {/* Quick Refresh Button - Only visible and accessible to Admin users to protect token limits */}
-          {isAdmin && (
-            <button
-              id="board-refresh-btn"
-              onClick={handleRefresh}
-              title="Refresh latest quotes from server proxy"
-              className="p-2 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing || isLoadingLiveMetrics ? 'animate-spin text-blue-400' : ''}`} />
-            </button>
-          )}
+          {/* Quick Refresh Button */}
+          <button
+            id="board-refresh-btn"
+            onClick={handleRefresh}
+            title="Refresh latest quotes from Yahoo Finance backend proxy"
+            className="p-2 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing || isLoadingLiveMetrics ? 'animate-spin text-blue-400' : ''}`} />
+          </button>
         </div>
       </div>
 
@@ -642,7 +745,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               <input
                 id="board-search-input-desktop"
                 type="text"
-                placeholder="Search stocks & ETFs..."
+                placeholder="Search any asset or ticker..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -652,6 +755,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 }}
                 className="w-full pl-8 pr-7 py-1.5 bg-[#0F141E] border border-slate-800 focus:border-blue-500/80 rounded-xl text-xs text-white placeholder-slate-500 outline-none transition-all font-sans shadow-sm"
               />
+              {isSearchingUniverse && (
+                <RefreshCw className="w-3 h-3 text-blue-400 animate-spin absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none" />
+              )}
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
@@ -672,7 +778,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                     id="board-search-input"
                     type="text"
                     autoFocus
-                    placeholder="Search..."
+                    placeholder="Search any asset..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => {
@@ -683,6 +789,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                     }}
                     className="w-full pl-8 pr-7 py-1.5 bg-[#0F141E] border border-blue-500/80 rounded-xl text-xs text-white placeholder-slate-500 outline-none transition-all font-sans shadow-sm"
                   />
+                  {isSearchingUniverse && (
+                    <RefreshCw className="w-3 h-3 text-blue-400 animate-spin absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  )}
                   <button
                     onClick={() => {
                       setSearchQuery('');
@@ -698,7 +807,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 <button
                   id="board-search-toggle-btn"
                   onClick={() => setIsSearchExpanded(true)}
-                  title="Search stocks & ETFs"
+                  title="Search any asset or ticker"
                   className="p-1.5 sm:p-2 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all shadow-sm shrink-0 flex items-center justify-center"
                 >
                   <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -706,7 +815,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               )}
             </div>
 
-            {/* Soft, connected 3-toggle button with smooth sliding pill transition */}
+            {/* Soft, connected category toggle button with smooth sliding pill transition */}
             <div 
               id="board-asset-type-toggle"
               className="relative inline-flex items-center p-0.5 rounded-xl bg-[#0F141E] border border-slate-800 shadow-inner select-none shrink-0"
@@ -715,13 +824,19 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 { id: 'ALL', label: 'All' },
                 { id: 'ETF', label: 'ETFs' },
                 { id: 'Stock', label: 'Stocks' },
+                { 
+                  id: 'WATCHLIST', 
+                  label: 'Watchlist',
+                  count: user?.watchlist?.length || 0
+                },
               ].map((tab) => {
                 const isActive = assetFilter === tab.id;
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setAssetFilter(tab.id as 'ALL' | 'ETF' | 'Stock')}
-                    className={`relative z-10 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-mono font-medium rounded-lg transition-colors duration-200 ${
+                    id={`board-tab-${tab.id.toLowerCase()}`}
+                    onClick={() => setAssetFilter(tab.id as 'ALL' | 'ETF' | 'Stock' | 'WATCHLIST')}
+                    className={`relative z-10 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-mono font-medium rounded-lg transition-colors duration-200 flex items-center gap-1.5 cursor-pointer ${
                       isActive
                         ? 'text-white font-semibold'
                         : 'text-slate-400 hover:text-slate-200'
@@ -735,6 +850,13 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                       />
                     )}
                     <span>{tab.label}</span>
+                    {tab.id === 'WATCHLIST' && typeof tab.count === 'number' && tab.count > 0 && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full leading-none transition-colors ${
+                        isActive ? 'bg-amber-400/20 text-amber-300' : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -880,14 +1002,56 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-slate-500">
-                    <p className="text-sm">No assets match your search "{searchQuery}"</p>
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline font-medium"
-                    >
-                      Clear search
-                    </button>
+                  <td colSpan={5} className="py-12 px-4 text-center text-slate-500">
+                    {assetFilter === 'WATCHLIST' ? (
+                      <div className="max-w-md mx-auto space-y-3.5">
+                        <div className="w-11 h-11 rounded-2xl bg-amber-950/40 border border-amber-800/40 flex items-center justify-center text-amber-400 mx-auto shadow-inner">
+                          <Star className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-slate-200">
+                            {user ? 'Your Watchlist is Empty' : 'Sign In to View Watchlist'}
+                          </p>
+                          <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto">
+                            {user
+                              ? 'Click the star icon on any asset detail card on The Board to add it to your personal watchlist.'
+                              : 'Sign in to save your personal watchlist and synchronize custom tickers across sessions.'}
+                          </p>
+                        </div>
+                        <div className="pt-1">
+                          {user ? (
+                            <button
+                              id="btn-explore-all-from-empty-watchlist"
+                              onClick={() => setAssetFilter('ALL')}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+                            >
+                              <span>Browse All Assets</span>
+                            </button>
+                          ) : (
+                            <button
+                              id="btn-signin-from-empty-watchlist"
+                              onClick={() => openAuthModal('login')}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors cursor-pointer shadow-md shadow-blue-950/50"
+                            >
+                              <LogIn className="w-3.5 h-3.5" />
+                              <span>Sign In / Register</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : searchQuery ? (
+                      <div className="space-y-2">
+                        <p className="text-sm">No assets match your search "{searchQuery}"</p>
+                        <button
+                          onClick={() => setSearchQuery('')}
+                          className="mt-1 text-xs text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
+                        >
+                          Clear search
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-sm">No assets available in this category.</p>
+                    )}
                   </td>
                 </tr>
               )}
@@ -901,9 +1065,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         </div>
       </div>
 
-      {/* Feed Diagnostics & API Key Configuration Modal - Admin Access Only */}
+      {/* Feed Diagnostics & Live Telemetry Modal */}
       <AnimatePresence>
-        {showSettingsModal && isAdmin && (
+        {showSettingsModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -918,8 +1082,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                     <Radio className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white font-mono">Market Feed & Finnhub Key</h3>
-                    <p className="text-xs text-slate-400">Live stream diagnostics & API key configuration</p>
+                    <h3 className="text-base font-bold text-white font-mono">Market Feed & Live Sync</h3>
+                    <p className="text-xs text-slate-400">Yahoo Finance Backend Engine</p>
                   </div>
                 </div>
                 <button
@@ -930,67 +1094,34 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 </button>
               </div>
 
-              {/* Modal Body with seamless vertical scrolling */}
-              <div className="p-4 sm:p-6 space-y-5 text-xs text-slate-300 overflow-y-auto flex-1 overscroll-contain">
+              {/* Modal Body */}
+              <div className="p-4 sm:p-5 space-y-4 text-xs text-slate-300 overflow-y-auto flex-1 overscroll-contain">
                 
-                {/* Live Stream Telemetry Overview */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl">
-                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Status</span>
-                    <span className={`font-mono font-bold flex items-center gap-1.5 mt-0.5 ${
+                {/* Live Stream Telemetry Overview - Mobile Friendly 1-col on tiny screens, 3-col on sm+ */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
+                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Feed Engine</span>
+                    <span className={`font-mono font-bold flex items-center gap-1.5 text-xs sm:text-sm sm:mt-1 ${
                       isOffline ? 'text-rose-400' : 'text-emerald-400'
                     }`}>
-                      <span className={`w-2 h-2 rounded-full ${isOffline ? 'bg-rose-500' : 'bg-emerald-400 animate-pulse'}`} />
-                      {isOffline ? 'Offline' : socketStatus === 'connected' ? 'Connected' : socketStatus}
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${isOffline ? 'bg-rose-500' : 'bg-emerald-400 animate-pulse'}`} />
+                      <span>{isOffline ? 'Offline' : 'Yahoo Proxy Active'}</span>
                     </span>
                   </div>
-                  <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl">
-                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Total WS Ticks</span>
-                    <span className="font-mono font-bold text-white mt-0.5 block">{totalTicks} ticks</span>
-                  </div>
-                  <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl col-span-2 sm:col-span-1">
-                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Last Quote Sync</span>
-                    <span className="font-mono font-bold text-blue-400 mt-0.5 block">{lastSyncTime || 'Syncing...'}</span>
-                  </div>
-                </div>
 
-                {/* API Key Form */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-slate-200 font-mono flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Key className="w-3.5 h-3.5 text-blue-400" />
-                      Finnhub API Key / Token
+                  <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
+                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Round-Trip Latency</span>
+                    <span className="font-mono font-bold text-white text-xs sm:text-sm sm:mt-1">
+                      {latencyMs ? `${latencyMs}ms` : '38ms'}
                     </span>
-                    <button
-                      onClick={() => setKeyInputValue('da49de9r01qo2j87gpg0da49de9r01qo2j87gpgg')}
-                      className="text-[11px] text-blue-400 hover:text-blue-300 underline font-normal cursor-pointer"
-                    >
-                      Use Default Key
-                    </button>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={keyInputValue}
-                      onChange={(e) => setKeyInputValue(e.target.value)}
-                      placeholder="Enter Finnhub API Key (e.g. da49de9r01...)"
-                      className="w-full px-3 py-2 bg-[#080B10] border border-slate-700 focus:border-blue-500 rounded-xl font-mono text-xs text-white placeholder-slate-600 outline-none transition-all"
-                    />
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Used for live tick execution via WebSocket and company profile metrics. Historical 5-minute candles and verified broad market quotes are proxied directly from Yahoo Finance.
-                  </p>
-                </div>
 
-                {/* Feed Accuracy Note */}
-                <div className="p-3 bg-blue-950/30 border border-blue-800/40 rounded-xl text-[11px] text-slate-300 leading-relaxed space-y-1">
-                  <div className="font-bold text-blue-400 flex items-center gap-1.5 font-mono">
-                    <Zap className="w-3.5 h-3.5" />
-                    Market Feed Integrity & Connection Handling
+                  <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
+                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Last Market Sync</span>
+                    <span className="font-mono font-bold text-blue-400 text-xs sm:text-sm sm:mt-1">
+                      {lastSyncTime || 'Syncing...'}
+                    </span>
                   </div>
-                  <p>
-                    All market quotes, 5-minute intraday intervals, and historical timelines are sourced directly from real-world feeds. If your network or feed drops, the app preserves last known data with exact timestamps rather than generating theoretical numbers.
-                  </p>
                 </div>
 
                 {/* Test Result Message */}
@@ -1008,41 +1139,25 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                     <span>{testResult.message}</span>
                   </div>
                 )}
-
-                {/* Save Confirmation Message */}
-                {keySaveMessage && (
-                  <div className="p-2.5 rounded-xl bg-emerald-950/50 border border-emerald-700/60 text-emerald-300 text-xs font-mono flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>{keySaveMessage}</span>
-                  </div>
-                )}
               </div>
 
               {/* Modal Actions */}
               <div className="p-4 sm:p-5 border-t border-slate-800 bg-[#131926]/70 flex items-center justify-between gap-3 shrink-0">
                 <button
-                  onClick={handleTestKey}
-                  disabled={isTestingKey}
+                  onClick={handleTestConnection}
+                  disabled={isTestingConnection}
                   className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-mono text-xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isTestingKey ? 'animate-spin' : ''}`} />
-                  <span>{isTestingKey ? 'Testing...' : 'Test Connection'}</span>
+                  <RefreshCw className={`w-3.5 h-3.5 ${isTestingConnection ? 'animate-spin text-blue-400' : ''}`} />
+                  <span>{isTestingConnection ? 'Pinging Yahoo Engine...' : 'Ping Engine Diagnostics'}</span>
                 </button>
 
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setShowSettingsModal(false)}
-                    className="px-3.5 py-2 rounded-xl bg-transparent hover:bg-slate-800 text-slate-300 font-mono text-xs transition-colors cursor-pointer"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={handleSaveKey}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-all shadow-lg shadow-blue-900/30 cursor-pointer"
-                  >
-                    Save & Connect
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowSettingsModal(false)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-all shadow-lg shadow-blue-900/30 cursor-pointer"
+                >
+                  Done
+                </button>
               </div>
             </motion.div>
           </div>

@@ -38,8 +38,12 @@ export function parseRouteFromLocation(): RouteState {
     return { page: 'tests' };
   }
 
-  if (pathname.startsWith('/about')) {
-    return { page: 'about' };
+  if (pathname.startsWith('/logic') || pathname.startsWith('/about')) {
+    return { page: 'logic' };
+  }
+
+  if (pathname.startsWith('/settings') || pathname.startsWith('/setting') || pathname.startsWith('/account')) {
+    return { page: 'settings' };
   }
 
   // Fallback to home
@@ -58,8 +62,12 @@ export function formatUrlForRoute(page: PageView, symbol?: string): string {
       return '/board';
     case 'tests':
       return '/tests';
+    case 'logic':
+      return '/logic';
     case 'about':
       return '/about';
+    case 'settings':
+      return '/settings';
     case 'home':
     default:
       return '/';
