@@ -718,7 +718,7 @@ export const TestingDashboardPlus: React.FC = () => {
                     <div className="text-emerald-400">✓ [locator] locator("#nav-home-btn:visible") verified</div>
                     <div className="text-emerald-400">✓ [locator] locator("#nav-board-btn:visible") verified</div>
                     <div className="text-emerald-400">✓ [locator] locator("#nav-tests-btn:visible") verified</div>
-                    <div className="text-emerald-400">✓ [locator] locator("#nav-about-btn:visible") verified</div>
+                    <div className="text-emerald-400">✓ [locator] locator("#nav-logic-btn:visible") verified</div>
                     <div className="text-slate-500">... [telemetry synced to Firestore /test_runs collection]</div>
                   </div>
                 </div>

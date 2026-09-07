@@ -178,14 +178,14 @@ test.describe('Home Page - Dual Telemetry', () => {
         assertion: "expect(testsPage.pageHeading).toBeVisible()",
       },
       {
-        name: 'Navigate to About from Header',
-        action: "await testsPage.header.navigateToAbout();",
+        name: 'Navigate to Logic from Header',
+        action: "await testsPage.header.navigateToLogic();",
         durationMs: 85,
-        assertion: "expect(aboutPage.pageHeading).toBeVisible()",
+        assertion: "expect(logicPage.pageHeading).toBeVisible()",
       },
       {
         name: 'Reset to Home via Brand Logo',
-        action: "await aboutPage.header.clickBrandLogo();",
+        action: "await logicPage.header.clickBrandLogo();",
         durationMs: 90,
         assertion: "expect(homePage.heroHeading).toBeVisible()",
       },

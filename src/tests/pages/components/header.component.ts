@@ -9,10 +9,10 @@ export class HeaderComponent {
 
   constructor(page: Page) {
     this.page = page;
-    this.brandLogoBtn = page.locator('#brand-logo-btn');
-    this.navBoardBtn = page.locator('#nav-board-btn:visible, #mobile-nav-board-btn:visible');
-    this.navTestsBtn = page.locator('#nav-tests-btn:visible, #mobile-nav-tests-btn:visible');
-    this.navLogicBtn = page.locator('#nav-logic-btn:visible, #mobile-nav-logic-btn:visible');
+    this.brandLogoBtn = page.getByRole('button', { name: "The SDET's Market Tracker home" });
+    this.navBoardBtn = page.getByRole('button', { name: 'The Board', exact: true });
+    this.navTestsBtn = page.getByRole('button', { name: 'The Tests', exact: true });
+    this.navLogicBtn = page.getByRole('button', { name: 'The Logic', exact: true });
   }
 }
 

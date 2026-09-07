@@ -66,6 +66,9 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
           {/* Brand Logo & Name */}
           <motion.div
             id="brand-logo-btn"
+            role="button"
+            tabIndex={0}
+            aria-label="The SDET's Market Tracker home"
             onClick={() => onNavigate('home')}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
@@ -90,11 +93,12 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
           {/* Desktop Navigation Links with Crisp Sliding Pill */}
           <nav className="hidden md:flex items-center space-x-1 lg:space-x-1.5 bg-[#121722]/90 p-1.5 rounded-xl border border-slate-800/90 shadow-inner">
             {navItems.map((item) => {
-              const isActive = currentPage === item.id || (item.id === 'logic' && (currentPage as string) === 'about');
+              const isActive = currentPage === item.id;
               return (
                 <button
                   key={item.id}
                   id={item.btnId}
+                  aria-label={item.label}
                   onClick={() => onNavigate(item.id)}
                   className={`relative px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-blue-400 select-none ${
                     isActive
@@ -212,11 +216,12 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
         {/* Mobile Sub-Navigation Bar */}
         <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-800/60 text-xs font-medium relative bg-[#0B0E14]/95">
           {navItems.map((item) => {
-            const isActive = currentPage === item.id || (item.id === 'logic' && (currentPage as string) === 'about');
+            const isActive = currentPage === item.id;
             return (
               <button
                 key={item.id}
                 id={item.mobileBtnId}
+                aria-label={item.label}
                 onClick={() => onNavigate(item.id)}
                 className={`relative pl-[11px] pr-[13px] py-1.5 rounded-lg flex items-center justify-center space-x-1 outline-none select-none transition-colors text-center ${
                   isActive

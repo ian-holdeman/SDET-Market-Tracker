@@ -23,7 +23,7 @@ export const APP_ROUTES = {
   HOME: '/',
   BOARD: '/#board',
   TESTS: '/#tests',
-  ABOUT: '/#about',
+  LOGIC: '/#logic',
 } as const;
 
 export const TIMEFRAMES = ['1D', '1W', '1M', 'YTD', '1Y', '5Y', 'MAX'] as const;

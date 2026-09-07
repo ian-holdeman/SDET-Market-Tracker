@@ -12,7 +12,7 @@ export interface RouteState {
  *   /board         -> board
  *   /board?symbol=X or /board?ticker=X or /board/X -> board with expanded symbol X
  *   /tests         -> tests
- *   /about         -> about
+ *   /logic         -> logic
  */
 export function parseRouteFromLocation(): RouteState {
   if (typeof window === 'undefined') {
@@ -38,7 +38,7 @@ export function parseRouteFromLocation(): RouteState {
     return { page: 'tests' };
   }
 
-  if (pathname.startsWith('/logic') || pathname.startsWith('/about')) {
+  if (pathname.startsWith('/logic')) {
     return { page: 'logic' };
   }
 
@@ -64,8 +64,6 @@ export function formatUrlForRoute(page: PageView, symbol?: string): string {
       return '/tests';
     case 'logic':
       return '/logic';
-    case 'about':
-      return '/about';
     case 'settings':
       return '/settings';
     case 'home':

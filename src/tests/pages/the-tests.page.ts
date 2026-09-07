@@ -6,11 +6,11 @@ export class TheTestsPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.pageHeading = page.locator('h1:has-text("The Tests"), h2:has-text("The Tests")').first();
+    this.pageHeading = page.getByRole('heading', { name: 'The Tests', exact: true });
   }
 
   async open(): Promise<void> {
-    await this.navigateTo('/');
+    await this.navigateTo();
     await this.header.navTestsBtn.click();
     await this.pageHeading.waitFor({ state: 'visible' });
   }

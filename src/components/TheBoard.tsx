@@ -117,6 +117,9 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
     <>
       <tr
         id={`board-row-${stock.symbol.toLowerCase()}`}
+        role="button"
+        tabIndex={0}
+        aria-label={`${stock.symbol} ${stock.name} details`}
         onClick={() => onToggleExpand(stock.symbol)}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`group cursor-pointer select-none transition-colors duration-150 border-l-2 outline-none focus:outline-none scroll-mt-28 sm:scroll-mt-32 ${
@@ -771,6 +774,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           {/* Quick Refresh Button */}
           <button
             id="board-refresh-btn"
+            aria-label="Refresh market quotes"
             onClick={handleRefresh}
             title="Refresh latest quotes from Yahoo Finance backend proxy"
             className="p-2 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer"
@@ -819,6 +823,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               <input
                 id="board-search-input-desktop"
                 type="text"
+                aria-label="Search market assets"
                 placeholder="Search any asset or ticker..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -851,6 +856,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                   <input
                     id="board-search-input"
                     type="text"
+                    aria-label="Search market assets"
                     autoFocus
                     placeholder="Search..."
                     value={searchQuery}
@@ -880,6 +886,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               ) : (
                 <button
                   id="board-search-toggle-btn"
+                  aria-label="Search market assets"
                   onClick={() => setIsSearchExpanded(true)}
                   title="Search any asset or ticker"
                   className="p-1.5 sm:p-2 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all shadow-sm shrink-0 flex items-center justify-center"
@@ -935,6 +942,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 {/* 2. Dropdown Arrow: Toggles category popover menu to navigate categories */}
                 <button
                   id="board-category-dropdown-arrow-btn"
+                  aria-label="Change asset category"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsCategoryDropdownOpen((prev) => !prev);
@@ -957,6 +965,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               {/* Watchlist Pill Button */}
               <button
                 id="board-tab-watchlist"
+                aria-label="Show watchlist"
                 onClick={() => {
                   setAssetFilter('WATCHLIST');
                   setIsCategoryDropdownOpen(false);
@@ -1068,6 +1077,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           <div className="flex items-center shrink-0">
             <button
               id="board-expand-all-btn"
+              aria-label={expandedSymbols.size > 0 ? 'Collapse all assets' : 'Expand all assets'}
               onClick={toggleExpandAll}
               title={expandedSymbols.size > 0 ? 'Collapse All' : 'Expand All'}
               className="p-1.5 sm:p-2 lg:px-3 lg:py-1.5 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95 text-xs font-mono font-medium cursor-pointer"

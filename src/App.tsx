@@ -138,7 +138,7 @@ function AppContent() {
               />
             ) : currentPage === 'tests' ? (
               <TheTests />
-            ) : currentPage === 'logic' || currentPage === 'about' ? (
+            ) : currentPage === 'logic' ? (
               <TheLogic onNavigate={handleNavigate} />
             ) : currentPage === 'settings' ? (
               <UserSettings onNavigate={handleNavigate} />

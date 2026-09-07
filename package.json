@@ -10,10 +10,10 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test:e2e": "playwright test --config=src/tests/config/playwright.config.ts",
+    "test:e2e": "playwright test",
     "test:e2e:ingest": "tsx scripts/ingest-test-results.ts",
-    "test:e2e:ui": "playwright test --config=src/tests/config/playwright.config.ts --ui",
-    "test:e2e:headed": "playwright test --config=src/tests/config/playwright.config.ts --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {

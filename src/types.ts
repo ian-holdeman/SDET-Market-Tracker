@@ -3,7 +3,7 @@
  * Designed with strict type-safety and self-documenting structures.
  */
 
-export type PageView = 'home' | 'board' | 'tests' | 'logic' | 'about' | 'settings';
+export type PageView = 'home' | 'board' | 'tests' | 'logic' | 'settings';
 
 export type Timeframe = '1D' | '1W' | '1M' | '1Y' | 'ALL';
 

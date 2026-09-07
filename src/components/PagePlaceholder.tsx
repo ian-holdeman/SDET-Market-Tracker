@@ -36,9 +36,9 @@ export const PagePlaceholder: React.FC<PagePlaceholderProps> = ({ page, onBackTo
             'Code coverage heatmaps and test pipeline run histories',
           ],
         };
-      case 'about':
+      case 'logic':
         return {
-          title: 'About & SDET Craft',
+          title: 'Logic & SDET Craft',
           badge: 'Upcoming Page 4',
           icon: <User className="w-8 h-8 text-purple-400" />,
           description: 'The engineer profile, SDET testing philosophy, architecture rationale, and project documentation for hiring managers and collaborators.',
