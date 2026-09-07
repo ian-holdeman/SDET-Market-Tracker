@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 import type { UserProfile, UserRole } from '../types';
 
 export type { UserProfile, UserRole };
@@ -72,7 +72,7 @@ export async function signUpUser(username: string, passcode: string): Promise<Us
   }
 
   const cleanKey = username.trim().toLowerCase();
-  const userRef = doc(db, 'users', cleanKey);
+  const userRef = doc(getDb(), 'users', cleanKey);
   const existingDoc = await getDoc(userRef);
 
   if (existingDoc.exists()) {
@@ -108,7 +108,7 @@ export async function loginUser(username: string, passcode: string): Promise<Use
     throw new Error('Please enter your passcode.');
   }
 
-  const userRef = doc(db, 'users', cleanKey);
+  const userRef = doc(getDb(), 'users', cleanKey);
   const snapshot = await getDoc(userRef);
 
   if (!snapshot.exists()) {
@@ -136,7 +136,7 @@ export async function loginUser(username: string, passcode: string): Promise<Use
  */
 export async function saveUserWatchlist(username: string, watchlist: string[]): Promise<void> {
   const cleanKey = username.trim().toLowerCase();
-  const userRef = doc(db, 'users', cleanKey);
+  const userRef = doc(getDb(), 'users', cleanKey);
   await updateDoc(userRef, {
     watchlist,
     updatedAt: new Date().toISOString(),
@@ -148,7 +148,7 @@ export async function saveUserWatchlist(username: string, watchlist: string[]): 
  */
 export async function deleteUserAccount(username: string): Promise<void> {
   const cleanKey = username.trim().toLowerCase();
-  const userRef = doc(db, 'users', cleanKey);
+  const userRef = doc(getDb(), 'users', cleanKey);
   await deleteDoc(userRef);
 }
 

@@ -65,9 +65,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    command: 'npm start',
+    url: `${env.BASE_URL}/api/health`,
+    env: { PORT: new URL(env.BASE_URL).port || '3100' },
+    reuseExistingServer: false,
     timeout: 120 * 1000,
   },
 });

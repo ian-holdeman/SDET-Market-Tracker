@@ -30,6 +30,7 @@ export interface BuildFailure {
 }
 
 export interface BuildRecord {
+  status: TestRunRecord['status'];
   buildNumber: number | string;
   runId: string;
   branch: string;
@@ -110,7 +111,7 @@ export const TestingDashboardPlus: React.FC = () => {
             if (r.suites) {
               r.suites.forEach((s) => {
                 s.tests?.forEach((t) => {
-                  if (t.status === 'failed' || t.status === 'unexpected') {
+                  if (t.status === 'failed' || t.status === 'unexpected' || t.status === 'timedOut') {
                     runFailures.push({
                       specFile: s.file || s.title || 'spec.ts',
                       errorType: 'Assertion/Execution Error',
@@ -137,6 +138,7 @@ export const TestingDashboardPlus: React.FC = () => {
               : `#${r.runId}`;
 
             return {
+              status: r.status,
               buildNumber: buildNum,
               runId: r.runId,
               branch: r.branch || 'main',
@@ -630,8 +632,8 @@ export const TestingDashboardPlus: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 p-3 rounded-lg border border-slate-800/80">
                 <div>
                   <div className="text-[10px] text-slate-500 uppercase">Status</div>
-                  <div className={`font-bold mt-0.5 ${activeBuild.failed === 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {activeBuild.failed === 0 ? 'PASSED' : 'FAILED'}
+                  <div className={`font-bold mt-0.5 ${activeBuild.status === 'passed' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {activeBuild.status.toUpperCase()}
                   </div>
                 </div>
                 <div>

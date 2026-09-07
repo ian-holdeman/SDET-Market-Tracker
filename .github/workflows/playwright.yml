@@ -1,69 +1,40 @@
-name: Playwright Tests
+name: Application baseline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    name: Run E2E Test Suite
     timeout-minutes: 20
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: 'npm'
-
-      - name: Install dependencies
-        id: install_deps
-        run: npm ci || npm install
-
-      - name: Install Playwright Browsers & OS Dependencies
-        if: steps.install_deps.outcome == 'success'
-        run: npx playwright install --with-deps
-
-      - name: Typecheck & Lint
-        if: steps.install_deps.outcome == 'success'
-        run: npm run lint
-
-      - name: Run Playwright Tests
-        id: run_tests
-        if: steps.install_deps.outcome == 'success'
-        run: npm run test:e2e
-        env:
-          CI: true
-          PORT: 3000
-
-      - name: Ingest Test Results to Firestore
-        if: always() && steps.install_deps.outcome == 'success'
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test:baseline
+      - run: npm run test:e2e
+        id: browser_tests
+      - name: Validate telemetry without publishing
+        if: always() && (steps.browser_tests.outcome == 'success' || steps.browser_tests.outcome == 'failure')
         run: npm run test:e2e:ingest
-        env:
-          CI: true
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
-          GITHUB_WORKFLOW: ${{ github.workflow }}
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID || 'ai-studio-iansmarkettracke-95ec9aa5-e7d1-415f-8d19-8a9a23af2c94' }}
-          VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID || 'ai-studio-iansmarkettracke-95ec9aa5-e7d1-415f-8d19-8a9a23af2c94' }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-
-      - name: Upload Playwright Test Report
-        uses: actions/upload-artifact@v4
-        if: always() && steps.install_deps.outcome == 'success'
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
+          name: playwright-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

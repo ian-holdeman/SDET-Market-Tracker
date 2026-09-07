@@ -15,42 +15,6 @@ interface TestSnapshotCardProps {
   onExploreTests: () => void;
 }
 
-// Fallback baseline if Firestore has not yet recorded any test runs
-const DEFAULT_LATEST_RUN: TestRunRecord = {
-  runId: 'run_latest_ci',
-  timestamp: new Date().toISOString(),
-  branch: 'main',
-  commitSha: '8g5fe21',
-  commitMessage: 'feat(ci): Playwright automated test telemetry and API validation',
-  status: 'passed',
-  totalTests: 142,
-  passed: 142,
-  failed: 0,
-  skipped: 0,
-  durationMs: 385,
-  passRate: 100,
-  environment: 'Linux x64 (CI)',
-  createdAt: new Date().toISOString(),
-  suites: [
-    {
-      title: 'Navigation & Core Routing Suite',
-      file: 'src/tests/specs/navigation/navigation.spec.ts',
-      tests: [
-        { name: 'verifies active page highlight and header navigation', status: 'passed', durationMs: 110 },
-        { name: 'navigates seamlessly between Home, The Board, and The Tests', status: 'passed', durationMs: 95 }
-      ]
-    },
-    {
-      title: 'Market Data Proxy & Intraday Candles Suite',
-      file: 'src/tests/specs/board/the-board.spec.ts',
-      tests: [
-        { name: 'loads live quotes for VTI and board equities', status: 'passed', durationMs: 120 },
-        { name: 'renders interactive chart timeline and sparklines', status: 'passed', durationMs: 60 }
-      ]
-    }
-  ]
-};
-
 function formatDuration(ms: number): string {
   if (!ms || ms <= 0) return '0ms';
   if (ms < 1000) return `${ms}ms`;
@@ -59,13 +23,16 @@ function formatDuration(ms: number): string {
 }
 
 export const TestSnapshotCard: React.FC<TestSnapshotCardProps> = ({ onExploreTests }) => {
-  const [latestRun, setLatestRun] = useState<TestRunRecord>(DEFAULT_LATEST_RUN);
+  const [latestRun, setLatestRun] = useState<TestRunRecord | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Subscribe to real-time test run telemetry from Firestore (only most recent build on main)
   useEffect(() => {
     const unsubscribe = subscribeToTestRuns(
       (runs) => {
+        setHistoryError(null);
+        if (!runs.length) setLatestRun(null);
         if (runs && runs.length > 0) {
           const mainRuns = runs.filter((r) => r.branch === 'main' || r.branch === 'master');
           if (mainRuns.length > 0) {
@@ -76,7 +43,7 @@ export const TestSnapshotCard: React.FC<TestSnapshotCardProps> = ({ onExploreTes
         }
       },
       (err) => {
-        console.warn('Firestore test runs subscription fallback:', err);
+        setHistoryError(err.message);
       }
     );
 
@@ -85,7 +52,17 @@ export const TestSnapshotCard: React.FC<TestSnapshotCardProps> = ({ onExploreTes
     };
   }, []);
 
-  const isPassed = latestRun.status === 'passed' || (latestRun.failed === 0 && latestRun.totalTests > 0);
+  if (!latestRun || historyError) {
+    return (
+      <div id="sdet-test-snapshot-card" className="relative w-full bg-[#0F141E] border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl shadow-black/40 flex flex-col justify-between gap-4">
+        <h2 className="text-xl font-bold text-white">Test execution history</h2>
+        <p role="status" className="text-sm text-slate-400">{historyError || 'No verified test run is available yet.'}</p>
+        <button aria-label="The Tests Card" onClick={onExploreTests} className="text-emerald-300 font-bold text-sm self-end">The Tests →</button>
+      </div>
+    );
+  }
+
+  const isPassed = latestRun.status === 'passed';
   const isTestRunning = latestRun.status === ('running' as any) || latestRun.status === ('in_progress' as any);
   const passRate = typeof latestRun.passRate === 'number' 
     ? latestRun.passRate 

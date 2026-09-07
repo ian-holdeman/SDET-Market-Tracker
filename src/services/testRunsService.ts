@@ -6,7 +6,7 @@ import {
   onSnapshot, 
   getDocs 
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 
 export enum OperationType {
   CREATE = 'create',
@@ -53,6 +53,8 @@ export interface TestRunRecord {
   totalTests: number;
   passed: number;
   failed: number;
+  flaky?: number;
+  errors?: string[];
   skipped: number;
   durationMs: number;
   passRate: number;
@@ -68,10 +70,9 @@ export function subscribeToTestRuns(
   onUpdate: (runs: TestRunRecord[]) => void,
   onError?: (error: Error) => void
 ): () => void {
-  const testRunsCollection = collection(db, 'test_runs');
-  const q = query(testRunsCollection, orderBy('createdAt', 'desc'), limit(25));
-
   try {
+    const testRunsCollection = collection(getDb(), 'test_runs');
+    const q = query(testRunsCollection, orderBy('createdAt', 'desc'), limit(25));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -89,6 +90,7 @@ export function subscribeToTestRuns(
     return unsubscribe;
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, 'test_runs');
+    onError?.(error instanceof Error ? error : new Error(String(error)));
     return () => {};
   }
 }
@@ -97,10 +99,9 @@ export function subscribeToTestRuns(
  * Fetches recent test runs once
  */
 export async function fetchRecentTestRuns(maxCount = 20): Promise<TestRunRecord[]> {
-  const testRunsCollection = collection(db, 'test_runs');
-  const q = query(testRunsCollection, orderBy('createdAt', 'desc'), limit(maxCount));
-
   try {
+    const testRunsCollection = collection(getDb(), 'test_runs');
+    const q = query(testRunsCollection, orderBy('createdAt', 'desc'), limit(maxCount));
     const snapshot = await getDocs(q);
     const records: TestRunRecord[] = [];
     snapshot.forEach((doc) => {

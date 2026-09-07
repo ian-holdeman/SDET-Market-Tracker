@@ -1,5 +1,4 @@
-import 'dotenv/config';
-
+// Deliberately independent of personal .env and any remote deployment URL.
 export const env = {
-  BASE_URL: process.env.BASE_URL || 'http://localhost:3000',
+  BASE_URL: 'http://127.0.0.1:3100',
 };

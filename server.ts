@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 
 interface CachedData {
   timestamp: number;
@@ -154,7 +155,10 @@ async function fetchYahooQuotesBatch(symbols: string[]): Promise<Map<string, any
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
+  if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+    throw new Error('PORT must be an integer between 1 and 65535.');
+  }
 
   app.use(express.json());
 
@@ -606,7 +610,8 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.argv.includes('--development')) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
@@ -616,9 +621,17 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = fileURLToPath(new URL('../client/', import.meta.url));
+    if (!existsSync(path.join(distPath, 'index.html'))) {
+      throw new Error('Production client build is missing. Run npm run build before npm start.');
+    }
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      if ((path.extname(req.path) && !req.path.startsWith('/board/')) ||
+          /(^|\/)\./.test(req.path) || /^\/(server|@vite|@fs|src)\//.test(req.path)) {
+        res.sendStatus(404);
+        return;
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
@@ -628,5 +641,8 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error(error.message);
+  process.exitCode = 1;
+});
 
