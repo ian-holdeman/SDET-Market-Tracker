@@ -5,14 +5,12 @@ export class HomePage extends BasePage {
   readonly heroHeading: Locator;
   readonly boardCard: Locator;
   readonly testsCard: Locator;
-  readonly logicCard: Locator;
 
   constructor(page: Page) {
     super(page);
     this.heroHeading = page.getByRole('heading', { name: "The SDET's Market Tracker", exact: true });
-    this.boardCard = page.getByRole('button', { name: 'Open The Board', exact: true });
-    this.testsCard = page.getByRole('button', { name: 'Open The Tests', exact: true });
-    this.logicCard = page.getByRole('button', { name: 'Open The Logic', exact: true });
+    this.boardCard = page.getByRole('button', { name: 'The Board Card', exact: true });
+    this.testsCard = page.getByRole('button', { name: 'The Tests Card', exact: true });
   }
 
   async open(): Promise<void> {

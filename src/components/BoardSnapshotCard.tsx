@@ -62,6 +62,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
       <button
         id="snapshot-view-board-btn"
         type="button"
+        aria-label="The Board Card"
         onClick={() => onExploreBoard()}
         className="absolute top-0 right-0 z-10 pt-4 pr-5 pb-4 pl-10 flex items-center gap-1.5 text-xs sm:text-sm font-bold text-blue-300 hover:text-white transition-all duration-300 cursor-pointer group/corner"
       >
