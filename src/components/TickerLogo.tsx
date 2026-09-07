@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AssetType } from '../types';
 
 interface TickerLogoProps {
@@ -9,6 +9,40 @@ interface TickerLogoProps {
   className?: string;
 }
 
+// Module-level caches to avoid re-requesting failed or re-loading successful logos
+const failedLogoCache = new Set<string>();
+const loadedLogoCache = new Set<string>();
+
+/**
+ * Preloads ticker logo images into the browser cache so they appear instantaneously
+ * without fade-in when browsing The Board.
+ */
+export function preloadTickerLogos(symbols: string[]): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  
+  const promises = symbols.map((symbol) => {
+    const cleanSym = symbol ? symbol.replace('^', '').replace('-USD', '').trim().toUpperCase() : '';
+    if (!cleanSym || cleanSym.includes('^')) return Promise.resolve();
+    if (loadedLogoCache.has(cleanSym) || failedLogoCache.has(cleanSym)) return Promise.resolve();
+
+    return new Promise<void>((resolve) => {
+      const img = new Image();
+      img.referrerPolicy = 'no-referrer';
+      img.src = `https://assets.parqet.com/logos/symbol/${cleanSym}?format=png`;
+      img.onload = () => {
+        loadedLogoCache.add(cleanSym);
+        resolve();
+      };
+      img.onerror = () => {
+        failedLogoCache.add(cleanSym);
+        resolve();
+      };
+    });
+  });
+
+  return Promise.all(promises).then(() => {});
+}
+
 export const TickerLogo: React.FC<TickerLogoProps> = ({
   symbol,
   assetType = 'Stock',
@@ -16,7 +50,24 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
   size = 'md',
   className = '',
 }) => {
-  const [imgError, setImgError] = useState(false);
+  const cleanSym = symbol ? symbol.replace('^', '').replace('-USD', '').trim().toUpperCase() : '';
+  const isAlreadyPreloaded = cleanSym ? loadedLogoCache.has(cleanSym) : false;
+  const initialFailed = cleanSym ? failedLogoCache.has(cleanSym) : false;
+
+  const [imgLoaded, setImgLoaded] = useState(isAlreadyPreloaded);
+  const [imgError, setImgError] = useState(initialFailed);
+
+  // Sync state if symbol prop changes
+  useEffect(() => {
+    if (cleanSym) {
+      if (loadedLogoCache.has(cleanSym)) {
+        setImgLoaded(true);
+      }
+      if (failedLogoCache.has(cleanSym)) {
+        setImgError(true);
+      }
+    }
+  }, [cleanSym]);
 
   // Size mapping
   const sizeClasses = {
@@ -253,6 +304,22 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
             <path d="M5 5H13L9 9H5V5Z" fill="#00A859" />
             <path d="M19 5V13L15 9V5H19Z" fill="#00A859" />
             <path d="M19 19H11L15 15H19V19Z" fill="#00A859" />
+          </svg>
+        );
+
+      case 'MU':
+        return (
+          <svg className="w-full h-full p-1" viewBox="0 0 24 24" fill="none">
+            <rect width="24" height="24" rx="4" fill="#003594" />
+            <path d="M5 18V6H8.5L12 12.5L15.5 6H19V18H16V10.5L13 16H11L8 10.5V18H5Z" fill="#FFFFFF" />
+          </svg>
+        );
+
+      case 'SNDK':
+        return (
+          <svg className="w-full h-full p-1" viewBox="0 0 24 24" fill="none">
+            <rect width="24" height="24" rx="4" fill="#E2231A" />
+            <path d="M6 8.5C6 7.1 7.1 6 8.5 6H15.5C16.9 6 18 7.1 18 8.5V10H9.5C8.1 10 7 11.1 7 12.5C7 13.9 8.1 15 9.5 15H18V15.5C18 16.9 16.9 18 15.5 18H8.5C7.1 18 6 16.9 6 15.5V8.5Z" fill="#FFFFFF" />
           </svg>
         );
 
@@ -573,22 +640,7 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
 
   const brandSvg = renderBrandLogo();
 
-  // If we have custom logo URL that hasn't errored
-  if (logoUrl && !imgError) {
-    return (
-      <div className={`relative flex items-center justify-center overflow-hidden border border-slate-700/80 bg-slate-900 shadow-inner shrink-0 ${sizeClasses} ${className}`}>
-        <img
-          src={logoUrl}
-          alt={symbol}
-          className="w-full h-full object-contain p-1"
-          referrerPolicy="no-referrer"
-          onError={() => setImgError(true)}
-        />
-      </div>
-    );
-  }
-
-  // If we have an inline SVG brand icon for this ticker
+  // If we have an inline SVG brand icon for this ticker, render immediately (0ms latency, sharp vector)
   if (brandSvg) {
     return (
       <div 
@@ -600,14 +652,55 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
     );
   }
 
-  // Fallback: Clean styled typography badge by asset type
+  // Fallback typography colors
   const badgeColors = {
     ETF: 'bg-blue-950/70 border-blue-800/60 text-blue-300',
     Crypto: 'bg-amber-950/70 border-amber-800/60 text-amber-300',
-    Index: 'bg-purple-950/70 border-purple-800/60 text-purple-300',
+    Index: 'bg-blue-950/70 border-blue-800/60 text-blue-300',
     Commodity: 'bg-yellow-950/70 border-yellow-800/60 text-yellow-300',
+    'Bond Yield': 'bg-emerald-950/70 border-emerald-800/60 text-emerald-300',
     Stock: 'bg-slate-900 border-slate-700/80 text-white',
   }[assetType || 'Stock'];
+
+  // Determine external / CDN logo URL candidate
+  const cdnUrl = logoUrl || (cleanSym && !cleanSym.includes('^') && !imgError ? `https://assets.parqet.com/logos/symbol/${cleanSym}?format=png` : null);
+
+  // If we have a candidate CDN / external image and it hasn't failed
+  if (cdnUrl && !imgError) {
+    return (
+      <div 
+        className={`relative flex items-center justify-center overflow-hidden border border-slate-700/80 bg-[#0c1017] shadow-inner shrink-0 ${sizeClasses} ${className}`}
+        title={symbol}
+      >
+        {/* Underlay: Typography fallback to prevent blank state or layout shifts */}
+        {!imgLoaded && (
+          <span className={`font-mono font-bold text-[10px] sm:text-xs opacity-60 text-slate-400 select-none`}>
+            {cleanSym.slice(0, 3)}
+          </span>
+        )}
+        <img
+          src={cdnUrl}
+          alt={symbol}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className={`w-full h-full object-contain p-0.5 ${
+            isAlreadyPreloaded 
+              ? 'opacity-100' 
+              : `transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0'}`
+          }`}
+          onLoad={() => {
+            if (cleanSym) loadedLogoCache.add(cleanSym);
+            setImgLoaded(true);
+          }}
+          onError={() => {
+            if (cleanSym) failedLogoCache.add(cleanSym);
+            setImgError(true);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div

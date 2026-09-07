@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { BoardStock } from '../types';
 import { INITIAL_BOARD_STOCKS } from '../data/marketData';
 import { fetchProxyQuotes, ProxyQuoteItem, preloadProxyCandles } from '../services/yahooMarket';
+import { preloadTickerLogos } from '../components/TickerLogo';
 import { useAuth } from './AuthContext';
 
 export type SocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -349,6 +350,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Initial root mount and continuous background refresh (15s interval)
   useEffect(() => {
+    // Eagerly preload all ticker logo assets across the board universe into the browser cache
+    preloadTickerLogos(INITIAL_BOARD_STOCKS.map(s => s.symbol));
+
     fetchLiveMarketData();
 
     const refreshTimer = setInterval(() => {

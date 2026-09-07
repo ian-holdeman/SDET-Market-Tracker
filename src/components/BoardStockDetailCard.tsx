@@ -727,19 +727,21 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 <h2 className="text-base sm:text-lg font-bold text-white font-mono tracking-tight">
                   {stock.symbol}
                 </h2>
+                {/* Required Product Type Tag */}
                 <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono ${
-                  stock.assetType === 'ETF' 
+                  stock.assetType === 'ETF' || stock.assetType === 'Index'
                     ? 'bg-blue-950/90 text-blue-400 border border-blue-800/50 uppercase'
                     : stock.assetType === 'Crypto'
                     ? 'bg-amber-950/90 text-amber-400 border border-amber-800/50 uppercase'
-                    : stock.assetType === 'Index'
-                    ? 'bg-purple-950/90 text-purple-400 border border-purple-800/50 uppercase'
                     : stock.assetType === 'Commodity'
                     ? 'bg-yellow-950/90 text-yellow-400 border border-yellow-800/50 uppercase'
+                    : stock.assetType === 'Bond Yield'
+                    ? 'bg-emerald-950/90 text-emerald-400 border border-emerald-800/50 uppercase'
                     : 'bg-slate-800 text-slate-300 border border-slate-700'
                 }`}>
-                  {stock.assetType}
+                  {stock.symbol === 'AGG' ? 'Bonds' : stock.assetType}
                 </span>
+
                 {isWatching && (
                   <span 
                     id={`watching-tag-${stock.symbol.toLowerCase()}`}

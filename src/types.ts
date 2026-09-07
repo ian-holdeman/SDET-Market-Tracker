@@ -58,13 +58,15 @@ export interface TickerSummary {
 }
 
 export type AssetCategory = 
-  | 'Index & Broad ETFs'
-  | 'Sector ETFs'
-  | 'Tech'
-  | 'Consumer & Retail'
-  | 'Fintech'
-  | 'Healthcare & Biotech'
-  | 'Industrials & Aerospace'
+  | 'Mega Cap'
+  | 'Blue Chip'
+  | 'Growth'
+  | 'Value'
+  | 'Dividend'
+  | 'Speculative'
+  | 'Macro Benchmark'
+  | 'Sector Tracker'
+  | 'Broad Market'
   | string;
 
 export interface TradeTick {
@@ -83,13 +85,13 @@ export interface WallStreetPriceTarget {
   analystCount: number;
 }
 
-export type AssetType = 'ETF' | 'Stock' | 'Crypto' | 'Index' | 'Commodity';
+export type AssetType = 'ETF' | 'Stock' | 'Crypto' | 'Index' | 'Commodity' | 'Bond Yield';
 
 export interface BoardStock {
   symbol: string;
   name: string;
   assetType: AssetType;
-  category: AssetCategory;
+  category?: AssetCategory;
   exchange?: string;
   isFavorite?: boolean;
   price: number;

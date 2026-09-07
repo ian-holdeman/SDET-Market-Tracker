@@ -18,12 +18,14 @@ import {
   X,
   Radio,
   Star,
-  LogIn
+  LogIn,
+  ChevronDown,
+  Check
 } from 'lucide-react';
-import { BoardStock, BoardSortField, SortDirection } from '../types';
+import { BoardStock, BoardSortField, SortDirection, AssetType } from '../types';
 import { useMarket } from '../context/MarketContext';
 import { BoardStockDetailCard } from './BoardStockDetailCard';
-import { TickerLogo } from './TickerLogo';
+import { TickerLogo, preloadTickerLogos } from './TickerLogo';
 import { useAuth } from '../context/AuthContext';
 import { searchProxyAssets } from '../services/yahooMarket';
 
@@ -31,6 +33,16 @@ interface TheBoardProps {
   initialExpandedSymbol?: string;
   onSelectStock?: (symbol: string) => void;
 }
+
+const CATEGORY_OPTIONS: { id: 'ALL' | AssetType; label: string; shortLabel: string }[] = [
+  { id: 'ALL', label: 'All Categories', shortLabel: 'All' },
+  { id: 'Stock', label: 'Stocks', shortLabel: 'Stocks' },
+  { id: 'ETF', label: 'ETFs', shortLabel: 'ETFs' },
+  { id: 'Index', label: 'Indexes', shortLabel: 'Indexes' },
+  { id: 'Crypto', label: 'Crypto', shortLabel: 'Crypto' },
+  { id: 'Commodity', label: 'Commodities', shortLabel: 'Commodities' },
+  { id: 'Bond Yield', label: 'Bonds & Yields', shortLabel: 'Bonds' },
+];
 
 interface BoardTableRowProps {
   stock: BoardStock;
@@ -133,17 +145,17 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
                   {stock.symbol}
                 </span>
                 <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono ${
-                  stock.assetType === 'ETF' 
+                  stock.assetType === 'ETF' || stock.assetType === 'Index'
                     ? 'bg-blue-950/90 text-blue-400 border border-blue-800/50 uppercase' 
                     : stock.assetType === 'Crypto'
                     ? 'bg-amber-950/90 text-amber-400 border border-amber-800/50 uppercase'
-                    : stock.assetType === 'Index'
-                    ? 'bg-purple-950/90 text-purple-400 border border-purple-800/50 uppercase'
                     : stock.assetType === 'Commodity'
                     ? 'bg-yellow-950/90 text-yellow-400 border border-yellow-800/50 uppercase'
+                    : stock.assetType === 'Bond Yield'
+                    ? 'bg-emerald-950/90 text-emerald-400 border border-emerald-800/50 uppercase'
                     : 'bg-slate-800 text-slate-300 border border-slate-700'
                 }`}>
-                  {stock.assetType || 'Stock'}
+                  {stock.symbol === 'AGG' ? 'Bonds' : (stock.assetType || 'Stock')}
                 </span>
                 {isWatching && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono bg-purple-950/90 text-purple-400 border border-purple-800/50">
@@ -397,11 +409,62 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
   // 1. If direct asset navigation provided (initialExpandedSymbol) -> 'ALL'
   // 2. If user has any items in their watchlist -> 'WATCHLIST'
   // 3. Otherwise (not logged in or empty watchlist) -> 'ALL'
-  const [assetFilter, setAssetFilter] = useState<'ALL' | 'ETF' | 'Stock' | 'WATCHLIST'>(() => {
+  const [assetFilter, setAssetFilter] = useState<'ALL' | 'WATCHLIST'>(() => {
     if (initialExpandedSymbol) return 'ALL';
     if (user?.watchlist && user.watchlist.length > 0) return 'WATCHLIST';
     return 'ALL';
   });
+  const [selectedCategory, setSelectedCategory] = useState<'ALL' | AssetType>('ALL');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close category dropdown on click outside or escape key
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+
+    if (isCategoryDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCategoryDropdownOpen]);
+
+  // Aggregate category counts and watched counts for dynamic badges and pill labels
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: stocks.length };
+    const watchedCounts: Record<string, number> = { ALL: 0 };
+
+    stocks.forEach((stock) => {
+      const type = stock.assetType || 'Stock';
+      counts[type] = (counts[type] || 0) + 1;
+      if (isSymbolInWatchlist(stock.symbol)) {
+        watchedCounts.ALL = (watchedCounts.ALL || 0) + 1;
+        watchedCounts[type] = (watchedCounts[type] || 0) + 1;
+      }
+    });
+
+    return { counts, watchedCounts };
+  }, [stocks, isSymbolInWatchlist]);
+
+  const watchedCountForCategory = selectedCategory === 'ALL'
+    ? (categoryCounts.watchedCounts.ALL || 0)
+    : (categoryCounts.watchedCounts[selectedCategory] || 0);
+
   const [sortField, setSortField] = useState<BoardSortField>('price');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -413,6 +476,13 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
   const initialHandledRef = useRef<string | null>(null);
 
   // Automatically expand, switch to 'ALL', and smoothly snap-scroll ONLY when arriving with initialExpandedSymbol from outside (e.g. Home card)
+  useEffect(() => {
+    // Preload all ticker logo assets on entering The Board so images show instantly
+    if (stocks && stocks.length > 0) {
+      preloadTickerLogos(stocks.map(s => s.symbol));
+    }
+  }, [stocks]);
+
   useEffect(() => {
     if (initialExpandedSymbol && initialHandledRef.current !== initialExpandedSymbol) {
       initialHandledRef.current = initialExpandedSymbol;
@@ -564,17 +634,21 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
     return pool
       .filter((stock) => {
-        // Tab filtering: If there is an active search query, search globally so typed assets are never hidden by the Watchlist tab
+        // Tab & Category filtering:
+        // If there is an active search query, search globally so typed assets are never hidden
         if (!hasSearch) {
+          // 1. Check Product Category
+          if (selectedCategory !== 'ALL' && stock.assetType !== selectedCategory) {
+            return false;
+          }
+
+          // 2. Check Watchlist Tab
           if (assetFilter === 'WATCHLIST') {
             if (!isSymbolInWatchlist(stock.symbol)) {
               return false;
             }
-          } else if (assetFilter === 'ETF' && stock.assetType !== 'ETF') {
-            return false;
-          } else if (assetFilter === 'Stock' && stock.assetType !== 'Stock') {
-            return false;
           }
+
           return true;
         }
 
@@ -630,7 +704,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
         return 0;
       });
-  }, [stocks, ephemeralSearchResults, searchQuery, assetFilter, sortField, sortDirection, isSymbolInWatchlist]);
+  }, [stocks, ephemeralSearchResults, searchQuery, selectedCategory, assetFilter, sortField, sortDirection, isSymbolInWatchlist]);
 
   // Render sort icon for table headers
   const renderSortIcon = (field: BoardSortField) => {
@@ -735,9 +809,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
       )}
 
       {/* Main Horizontal Roll Table with Seamless Render Architecture */}
-      <div className="w-full bg-[#0F141E] border border-slate-800 rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden backdrop-blur-sm">
+      <div className="relative z-10 w-full min-h-[320px] sm:min-h-[380px] bg-[#0F141E] border border-slate-800 rounded-xl sm:rounded-2xl shadow-2xl backdrop-blur-sm">
         {/* Top Controls Toolbar on a single horizontal axis touching the table */}
-        <div className="flex items-center justify-between gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-[#0B0F17]/90">
+        <div className="relative z-30 flex items-center justify-between gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-[#0B0F17]/90 rounded-t-xl sm:rounded-t-2xl">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
             {/* 1. Desktop View: Always Expanded Search Bar */}
             <div className="hidden lg:flex relative items-center w-52 xl:w-64">
@@ -772,13 +846,13 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
             {/* 2. Mobile & Tablet View: Toggle Button or Expandable Input */}
             <div className="lg:hidden flex items-center">
               {isSearchExpanded || searchQuery ? (
-                <div className="relative flex items-center w-36 xs:w-44 sm:w-56 transition-all">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <div className="relative flex items-center w-28 xs:w-32 sm:w-44 md:w-56 transition-all">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     id="board-search-input"
                     type="text"
                     autoFocus
-                    placeholder="Search any asset..."
+                    placeholder="Search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => {
@@ -787,10 +861,10 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                         setIsSearchExpanded(false);
                       }
                     }}
-                    className="w-full pl-8 pr-7 py-1.5 bg-[#0F141E] border border-blue-500/80 rounded-xl text-xs text-white placeholder-slate-500 outline-none transition-all font-sans shadow-sm"
+                    className="w-full pl-7 pr-6 py-1 sm:py-1.5 bg-[#0F141E] border border-blue-500/80 rounded-xl text-xs text-white placeholder-slate-500 outline-none transition-all font-sans shadow-sm"
                   />
                   {isSearchingUniverse && (
-                    <RefreshCw className="w-3 h-3 text-blue-400 animate-spin absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <RefreshCw className="w-3 h-3 text-blue-400 animate-spin absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   )}
                   <button
                     onClick={() => {
@@ -798,7 +872,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                       setIsSearchExpanded(false);
                     }}
                     title="Clear and close search"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white transition-colors"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -815,51 +889,178 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               )}
             </div>
 
-            {/* Soft, connected category toggle button with smooth sliding pill transition */}
+            {/* Soft, connected category & watchlist toggle pill with subtle dropdown menu */}
             <div 
+              ref={dropdownRef}
               id="board-asset-type-toggle"
-              className="relative inline-flex items-center p-0.5 rounded-xl bg-[#0F141E] border border-slate-800 shadow-inner select-none shrink-0"
+              className="relative inline-flex items-center p-0.5 rounded-xl bg-[#0F141E] border border-slate-800 shadow-inner select-none shrink-0 gap-0.5"
             >
-              {[
-                { id: 'ALL', label: 'All' },
-                { id: 'ETF', label: 'ETFs' },
-                { id: 'Stock', label: 'Stocks' },
-                { 
-                  id: 'WATCHLIST', 
-                  label: 'Watchlist',
-                  count: user?.watchlist?.length || 0
-                },
-              ].map((tab) => {
-                const isActive = assetFilter === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    id={`board-tab-${tab.id.toLowerCase()}`}
-                    onClick={() => setAssetFilter(tab.id as 'ALL' | 'ETF' | 'Stock' | 'WATCHLIST')}
-                    className={`relative z-10 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-mono font-medium rounded-lg transition-colors duration-200 flex items-center gap-1.5 cursor-pointer ${
-                      isActive
-                        ? 'text-white font-semibold'
-                        : 'text-slate-400 hover:text-slate-200'
+              {/* Category Segmented Control with Separate Label and Dropdown Arrow Hit Areas */}
+              <div
+                className={`relative z-10 inline-flex items-center rounded-lg transition-all duration-150 ${
+                  assetFilter === 'ALL'
+                    ? 'text-white font-semibold'
+                    : 'text-slate-400'
+                }`}
+              >
+                {assetFilter === 'ALL' && (
+                  <motion.div
+                    layoutId="boardAssetFilterPill"
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    className="absolute inset-0 bg-slate-800 border border-slate-700/80 rounded-lg shadow-sm -z-10"
+                  />
+                )}
+
+                {/* 1. Category Label: Switches view to overall category */}
+                <button
+                  id="board-category-main-btn"
+                  onClick={() => {
+                    setAssetFilter('ALL');
+                    setIsCategoryDropdownOpen(false);
+                  }}
+                  className={`pl-2.5 sm:pl-3 pr-1.5 py-1 text-[11px] sm:text-xs font-mono font-medium rounded-l-lg transition-colors cursor-pointer flex items-center ${
+                    assetFilter === 'ALL'
+                      ? 'text-white hover:text-blue-200'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                  title={`View all ${selectedCategory === 'ALL' ? 'assets' : (CATEGORY_OPTIONS.find((c) => c.id === selectedCategory)?.shortLabel || selectedCategory)}`}
+                >
+                  <span>
+                    {selectedCategory === 'ALL' 
+                      ? 'All' 
+                      : (CATEGORY_OPTIONS.find((c) => c.id === selectedCategory)?.shortLabel || selectedCategory)}
+                  </span>
+                </button>
+
+                {/* 2. Dropdown Arrow: Toggles category popover menu to navigate categories */}
+                <button
+                  id="board-category-dropdown-arrow-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCategoryDropdownOpen((prev) => !prev);
+                  }}
+                  className={`pl-1 pr-2 sm:pr-2.5 py-1 rounded-r-lg transition-colors cursor-pointer flex items-center justify-center border-l ${
+                    assetFilter === 'ALL'
+                      ? 'border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-700/50'
+                      : 'border-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800/70'
+                  }`}
+                  title={assetFilter === 'WATCHLIST' ? 'Filter Watchlist by Category' : 'Change Asset Category'}
+                >
+                  <ChevronDown 
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                      isCategoryDropdownOpen ? 'rotate-180 text-blue-400' : 'text-slate-400 group-hover:text-slate-200'
+                    }`} 
+                  />
+                </button>
+              </div>
+
+              {/* Watchlist Pill Button */}
+              <button
+                id="board-tab-watchlist"
+                onClick={() => {
+                  setAssetFilter('WATCHLIST');
+                  setIsCategoryDropdownOpen(false);
+                }}
+                className={`relative z-10 px-2.5 sm:px-3.5 py-1 text-[11px] sm:text-xs font-mono font-medium rounded-lg transition-all duration-150 flex items-center gap-1.5 cursor-pointer ${
+                  assetFilter === 'WATCHLIST'
+                    ? 'text-white font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+                }`}
+                title={`Watchlist (${selectedCategory === 'ALL' ? 'All categories' : (CATEGORY_OPTIONS.find((c) => c.id === selectedCategory)?.shortLabel || selectedCategory)})`}
+              >
+                {assetFilter === 'WATCHLIST' && (
+                  <motion.div
+                    layoutId="boardAssetFilterPill"
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    className="absolute inset-0 bg-slate-800 border border-slate-700/80 rounded-lg shadow-sm -z-10"
+                  />
+                )}
+                <span>Watchlist</span>
+                {watchedCountForCategory > 0 && (
+                  <span 
+                    id="board-watchlist-count-badge"
+                    className={`text-[10px] sm:text-[11px] font-bold font-mono px-1.5 py-0.5 rounded-full leading-none transition-colors border ${
+                      assetFilter === 'WATCHLIST' ? 'bg-amber-400/25 text-amber-300 border-amber-400/40' : 'bg-slate-800 text-slate-300 border-slate-700'
                     }`}
                   >
-                    {isActive && (
-                      <motion.div
-                        layoutId="boardAssetFilterPill"
-                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                        className="absolute inset-0 bg-slate-800 border border-slate-700/80 rounded-lg shadow-sm -z-10"
-                      />
-                    )}
-                    <span>{tab.label}</span>
-                    {tab.id === 'WATCHLIST' && typeof tab.count === 'number' && tab.count > 0 && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full leading-none transition-colors ${
-                        isActive ? 'bg-amber-400/20 text-amber-300' : 'bg-slate-800 text-slate-400'
-                      }`}>
-                        {tab.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+                    {watchedCountForCategory}
+                  </span>
+                )}
+              </button>
+
+              {/* Subtle Dropdown Menu Floating Popover */}
+              <AnimatePresence>
+                {isCategoryDropdownOpen && (
+                  <motion.div
+                    id="board-category-dropdown-menu"
+                    initial={{ opacity: 0, y: -4, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    className="absolute left-0 top-full mt-1.5 z-50 w-max min-w-[180px] sm:min-w-[210px] max-w-[calc(100vw-2rem)] p-1 sm:p-1.5 bg-[#0C1017]/98 backdrop-blur-xl border border-slate-700/80 rounded-xl shadow-2xl shadow-black/90 font-sans"
+                  >
+                    <div className="px-2 py-1 flex items-center justify-between text-[9px] sm:text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase border-b border-slate-800/80 pb-1 mb-0.5">
+                      <span>{assetFilter === 'WATCHLIST' ? 'Watchlist Category' : 'Product Category'}</span>
+                      {selectedCategory !== 'ALL' && (
+                        <button
+                          id="btn-reset-category-filter"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCategory('ALL');
+                            setIsCategoryDropdownOpen(false);
+                          }}
+                          className="text-[9px] text-blue-400 hover:text-blue-300 normal-case font-medium hover:underline cursor-pointer"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-0.5">
+                      {CATEGORY_OPTIONS.map((opt) => {
+                        const isSelected = selectedCategory === opt.id;
+                        const count = opt.id === 'ALL' 
+                          ? stocks.length 
+                          : (categoryCounts.counts[opt.id] || 0);
+                        const watchedCount = opt.id === 'ALL'
+                          ? categoryCounts.watchedCounts.ALL
+                          : (categoryCounts.watchedCounts[opt.id] || 0);
+
+                        return (
+                          <button
+                            key={opt.id}
+                            id={`board-category-opt-${opt.id.toLowerCase().replace(/\s+/g, '-')}`}
+                            onClick={() => {
+                              setSelectedCategory(opt.id);
+                              setIsCategoryDropdownOpen(false);
+                            }}
+                            className={`w-full px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-mono flex items-center justify-between transition-colors cursor-pointer text-left ${
+                              isSelected
+                                ? 'bg-blue-600/15 text-blue-300 font-semibold border border-blue-500/30'
+                                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              {isSelected ? (
+                                <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 shrink-0" />
+                              ) : (
+                                <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                              )}
+                              <span>{opt.label}</span>
+                            </div>
+                            <span className={`text-[10px] sm:text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md shrink-0 ml-2 border ${
+                              isSelected
+                                ? 'bg-blue-500/25 text-blue-200 border-blue-400/40'
+                                : 'bg-slate-800 text-slate-200 border-slate-700/80'
+                            }`}>
+                              {assetFilter === 'WATCHLIST' ? watchedCount : count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -886,7 +1087,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           </div>
         </div>
 
-        <div className="w-full overflow-hidden">
+        <div className="w-full overflow-hidden rounded-b-xl sm:rounded-b-2xl">
           <table className="w-full table-fixed md:table-auto text-left border-separate border-spacing-0">
             {/* Table Header with Clickable Sorting */}
             <thead>
@@ -1010,23 +1211,40 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm font-bold text-slate-200">
-                            {user ? 'Your Watchlist is Empty' : 'Sign In to View Watchlist'}
+                            {!user
+                              ? 'Sign In to View Watchlist'
+                              : (user.watchlist?.length || 0) === 0
+                              ? 'Your Watchlist is Empty'
+                              : `No Watched ${selectedCategory === 'ALL' ? 'Assets' : (CATEGORY_OPTIONS.find(c => c.id === selectedCategory)?.shortLabel || selectedCategory)} Found`}
                           </p>
                           <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto">
-                            {user
+                            {!user
+                              ? 'Sign in to save your personal watchlist and synchronize custom tickers across sessions.'
+                              : (user.watchlist?.length || 0) === 0
                               ? 'Click the star icon on any asset detail card on The Board to add it to your personal watchlist.'
-                              : 'Sign in to save your personal watchlist and synchronize custom tickers across sessions.'}
+                              : `You have items in your watchlist, but none in the ${selectedCategory === 'ALL' ? 'selected' : (CATEGORY_OPTIONS.find(c => c.id === selectedCategory)?.shortLabel || selectedCategory)} category.`}
                           </p>
                         </div>
-                        <div className="pt-1">
+                        <div className="pt-1 flex items-center justify-center gap-2 flex-wrap">
                           {user ? (
-                            <button
-                              id="btn-explore-all-from-empty-watchlist"
-                              onClick={() => setAssetFilter('ALL')}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
-                            >
-                              <span>Browse All Assets</span>
-                            </button>
+                            <>
+                              {selectedCategory !== 'ALL' && categoryCounts.watchedCounts.ALL > 0 && (
+                                <button
+                                  id="btn-show-all-watched-categories"
+                                  onClick={() => setSelectedCategory('ALL')}
+                                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+                                >
+                                  <span>View All Watched ({categoryCounts.watchedCounts.ALL})</span>
+                                </button>
+                              )}
+                              <button
+                                id="btn-explore-all-from-empty-watchlist"
+                                onClick={() => setAssetFilter('ALL')}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-semibold border border-blue-500/30 transition-colors cursor-pointer"
+                              >
+                                <span>Browse All {selectedCategory === 'ALL' ? 'Assets' : (CATEGORY_OPTIONS.find(c => c.id === selectedCategory)?.shortLabel || selectedCategory)}</span>
+                              </button>
+                            </>
                           ) : (
                             <button
                               id="btn-signin-from-empty-watchlist"
@@ -1050,7 +1268,18 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                         </button>
                       </div>
                     ) : (
-                      <p className="text-sm">No assets available in this category.</p>
+                      <div className="space-y-2">
+                        <p className="text-sm">No assets available in this category.</p>
+                        {selectedCategory !== 'ALL' && (
+                          <button
+                            id="btn-empty-reset-category"
+                            onClick={() => setSelectedCategory('ALL')}
+                            className="mt-1 text-xs text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
+                          >
+                            Show all categories
+                          </button>
+                        )}
+                      </div>
                     )}
                   </td>
                 </tr>

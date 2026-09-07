@@ -48,20 +48,23 @@ function getYahooSymbol(sym: string): string {
   return upper;
 }
 
-function inferAssetType(sym: string, quoteType?: string): 'Stock' | 'ETF' | 'Crypto' | 'Index' | 'Commodity' {
+function inferAssetType(sym: string, quoteType?: string): 'Stock' | 'ETF' | 'Crypto' | 'Index' | 'Commodity' | 'Bond Yield' {
   const upper = sym.toUpperCase();
   const qType = (quoteType || '').toUpperCase();
+  if (upper === '^TNX' || upper === 'AGG' || qType === 'YIELD') {
+    return 'Bond Yield';
+  }
   if (qType === 'CRYPTOCURRENCY' || upper.endsWith('-USD') || ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'ADA'].includes(upper)) {
     return 'Crypto';
+  }
+  if (['GLD', 'USO', 'GOLD', 'OIL', 'SILVER'].includes(upper) || qType === 'COMMODITY' || upper.endsWith('=F')) {
+    return 'Commodity';
   }
   if (qType === 'ETF' || qType === 'MUTUALFUND') {
     return 'ETF';
   }
   if (qType === 'INDEX' || upper.startsWith('^') || ['SPX', 'DOW', 'NDX', 'RUT'].includes(upper)) {
     return 'Index';
-  }
-  if (qType === 'COMMODITY' || upper.endsWith('=F') || ['GOLD', 'OIL', 'SILVER'].includes(upper)) {
-    return 'Commodity';
   }
   return 'Stock';
 }
