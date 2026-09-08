@@ -1,62 +1,25 @@
-# The SDET's Market Tracker
+# SDET Market Tracker
 
-The next database foundation is documented in [supabase/README.md](supabase/README.md).
-It is local-only and does not replace the running Firebase integration yet.
-
-React/TypeScript market dashboard and SDET portfolio. Express proxies market data;
-the browser uses Firestore for accounts and test history. This baseline does not
-deploy anything or require paid infrastructure.
+A React/TypeScript stock-market board and SDET portfolio. Express validates Yahoo market data, Supabase owns Google authentication and private watchlists, and GitHub Actions supplies published test evidence. Visitors can browse every public page without signing in. Firebase has been retired; old test results are not migrated.
 
 ## Local setup
 
-Use Node.js 22 (see `.nvmrc`) and npm. CI uses the same Node major and `npm ci`
-with the committed lockfile. Do not substitute `npm install` when `npm ci` fails;
-resolve the lockfile mismatch instead.
+Use Node 22 (`.nvmrc`) and npm. Docker/WSL is required for local Supabase and database tests.
 
 ```sh
 npm ci
-npx playwright install chromium webkit
+npm run db:start
+npm run auth:setup:local
 npm run dev
 ```
 
-On Linux, install browser system dependencies with
-`npx playwright install --with-deps chromium webkit`.
-Development runs at http://localhost:3000. HMR remains disabled as in the existing
-application; refresh the browser after edits.
+`auth:setup:local` writes ignored local configuration using the local Supabase stack. See [Supabase setup](supabase/README.md) for Google OAuth setup, fixtures and role provisioning. Do not reset a database containing accounts you want to keep. Apply new local migrations without reset with `node scripts/supabase.mjs migration up --local`.
 
-The public market pages work without Firebase configuration. Accounts and test
-history report that Firebase is unavailable, including the missing variable names.
-They do not silently initialize against an unrelated project. The market proxy
-requires outbound access to Yahoo Finance; ticker images use Parqet's asset CDN.
+The app defaults to [localhost:3000](http://localhost:3000). Google returns through `/auth/callback`; authentication returns Board visitors to its overview. The public market pages do not require credentials. Missing optional account or history configuration produces an explicit unavailable/empty state.
 
-## Firebase configuration
+Copy configuration names from `.env.example`; keep values in ignored `.env.local` or the hosting environment. `VITE_*` values are public and embedded at build time. `SUPABASE_SECRET_KEY` and `TEST_HISTORY_TOKEN` are server-only. Never prefix them with `VITE_`.
 
-Copy `.env.example` to `.env.local` and populate the Firebase **web app** values
-for an isolated development project. The required fields are
-`VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID`, and `VITE_FIREBASE_APP_ID`.
-The remaining fields are described in the example. Set
-`VITE_FIREBASE_DATABASE_ID` to the provisioned named database, or leave it empty
-for `(default)`. The browser and ingestion CLI use the same default and validator.
-Validation checks presence/placeholders, not remote project validity or access.
-
-Both Vite and the ingestion CLI load `.env.local` before `.env`; existing process
-environment variables take precedence. Vite also supports its mode-specific env
-files. Do not use mode-specific Firebase settings for ingestion: supply them in
-the CLI environment explicitly. `VITE_*` values are public build-time configuration,
-not secrets. Restart development or rebuild after changing them. Never place a
-service-account key or other private credential in a `VITE_*` variable.
-
-Gemini is not used. Legacy `GEMINI_API_KEY` and `BASE_URL` entries are unnecessary.
-The ingestion CLI no longer accepts `FIREBASE_*` aliases; use `VITE_FIREBASE_*`
-consistently. No configuration values are committed.
-
-**Known pre-launch blocker:** authentication is still the original browser-side
-passcode system, and the checked-in Firestore rules allow public writes. This
-task does not change authentication, rules, or the existing database. Do not
-mistake configuration validation for access control. Firebase Auth, enforced RBAC,
-and isolated database integration tests are separate work before launch.
-
-## Production build and local preview
+## Build and serve
 
 ```sh
 npm run lint
@@ -64,106 +27,42 @@ npm run build
 npm start
 ```
 
-`npm run preview` also starts the full application. `npm start` always uses
-production serving, regardless of `NODE_ENV`; only `npm run dev` enables Vite.
-The build cleans the fixed repository `dist` directory using a cross-platform
-Node script, then writes:
+`lint` runs TypeScript checking. The build writes public Vite assets to `dist/client` and the private ESM server to `dist/server`. Only `dist/client` is served. Production paths resolve relative to the server bundle, not the working directory. Runtime deployment needs both directories, package manifests and production dependencies. `npm run preview` also starts the full server; only `npm run dev` enables Vite. Restart development after server changes.
 
-- `dist/client`: public HTML, CSS, and JavaScript.
-- `dist/server`: private Node ESM server bundle and source map.
+The server reads `.env.local`, then `.env`, without overriding existing process variables. `PORT` defaults to 3000. `/api/health` checks application availability, not provider availability. No hosting or deployment is configured by this slice.
 
-Only `dist/client` is served. Start paths resolve relative to the server bundle,
-not the current directory. Runtime dependencies must be installed, but Vite and
-other dev dependencies are only needed to develop/build. A deployment would need
-both output directories plus package manifests and `npm ci --omit=dev`.
-No hosting provider is configured by this task.
-
-`PORT` is a process environment variable, defaulting to 3000. On PowerShell:
-
-```powershell
-$env:PORT = '3001'
-npm start
-```
-
-On a POSIX shell: `PORT=3001 npm start`. The server does not load PORT from `.env`.
-`GET /api/health` checks application availability, not Yahoo/Firebase availability.
-
-## Baseline checks
+## Verification
 
 ```sh
-npm run lint
-npm run build
+npm run build:e2e
 npm run test:baseline
-npm run test:e2e
+npm run test:e2e -- --workers=2
 npm run test:e2e:ingest
+npm run db:test
+npm run db:lint
+npm run test:auth
+npm run build
 ```
 
-- `lint` is TypeScript checking, not ESLint.
-- `test:baseline` uses Node's test runner for configuration/report validation and
-  HTTP checks against the built server. Build first. It checks health, asset serving,
-  deep-link fallback, API 404s, private artifact isolation, and PORT validation.
-- Playwright starts a fresh **production build** on `127.0.0.1:3100` and refuses
-  to reuse another process. Keep this port available. It deliberately ignores
-  personal `.env` BASE_URL values so it cannot target a remote site accidentally.
-- The navigation smoke test runs in desktop Chromium and mobile WebKit, checks
-  navigation, refresh, and browser history. Market responses are intercepted and
-  external browser requests are blocked. It does not validate live prices or
-  Firebase. Other suite files are still scaffolding, not coverage claims.
-- Browser reports/artifacts are under `playwright-report` and `test-results`.
-  Headed debugging: `npm run test:e2e:headed`; UI runner: `npm run test:e2e:ui`.
+Playwright launches an isolated production server on `127.0.0.1:3100`, with fake public Supabase configuration and intercepted external APIs. It cannot reuse your development server. Restore the normal build afterwards. Browser tests do not prove database authorization: SQL and local Auth/PostgREST tests exercise those boundaries separately with transactional/disposable fixtures. Test cases have at most one retry; every attempt is retained in evidence.
 
-CI runs the same checks on Node 22/Linux and retains reports for 14 days. It needs
-no Firebase credentials and does not publish telemetry. A failed browser command
-still fails the job even if report validation succeeds afterward.
+The offline suite covers server/configuration boundaries, provider validation, financial calculations, ownership endpoints and telemetry integrity. Opt-in `npm run test:market:live` and `npm run test:market:coverage` access Yahoo; they establish point-in-time availability rather than independent financial correctness. HTML reports, traces and recordings are local diagnostic artifacts and are not published by CI.
 
-## Telemetry is explicit
+## Published test history
 
-`npm run test:e2e:ingest` validates `test-results/results.json` without connecting
-to Firebase. Missing, malformed, inconsistent, empty, or skipped-only reports
-exit nonzero; none generate sample passes. Failed reports remain failed, flaky
-retries are counted separately, all browser projects are retained, and run-level
-errors prevent a passed status. Validation success means the report is structurally
-valid, not that its tests passed. Check the test command exit status for that.
+GitHub Actions runs browser/offline and local database checks in parallel jobs of `.github/workflows/playwright.yml`. Only sanitized test evidence is uploaded, keyed by run ID and workflow attempt. Database-job failure prevents the overall workflow from appearing passed, even if browser tests passed. PR runs execute checks but are not accepted as portfolio telemetry.
 
-Only after intentionally choosing a target database, this command publishes:
+Configure server-only `TEST_HISTORY_REPOSITORY`, `TEST_HISTORY_BRANCH` and `TEST_HISTORY_TOKEN` to read trusted workflow history. The token needs Actions read access to that repository; there is no browser token or publishing endpoint. Leaving all three unset shows “No verified runs yet.” Configuration and publication have not been verified on GitHub until the updated workflow actually runs.
 
-```sh
-npm run test:e2e:ingest -- --write
-```
+`npm run test:e2e:ingest` writes local evidence only. `--github` is reserved for the Actions workflow. Missing/invalid reports produce incomplete evidence and exit nonzero. Failed reports remain failed even when validation succeeds. The dashboard never treats ingestion success as test success.
 
-Publishing requires valid configuration and permission to write `test_runs`.
-Write errors exit nonzero. A timeout has an unknown remote outcome and is reported
-as a failure. This remains a client-SDK writer under the current rules; trusted
-CI authentication and automated publishing must be designed with the RBAC work.
-The command uses the current report file, so run tests immediately before publishing.
-The home card no longer invents successful test runs when history is unavailable.
+See [telemetry architecture and evidence semantics](docs/test-telemetry.md) for retention, trust boundaries, latest-run ordering, failure states and setup requirements.
 
-## Engineering rationale and next decisions
+## Architecture and security references
 
-The baseline separates public assets from executable artifacts, decouples public
-pages from optional services, and tests failure paths as well as the happy path.
-Local smoke tests are deterministic and cost-free; external integration accuracy
-must be established separately rather than inferred from those smoke results.
+- [Market-data pipeline](docs/market-data.md): server validation, provenance, caches, unavailable values and coverage limits.
+- [Accounts and database authorization](supabase/README.md): Google sign-in, UUID ownership, curation and deletion.
+- [Searched-asset registration](docs/symbol-registration.md): trusted validation without curation privileges.
+- [Test telemetry](docs/test-telemetry.md): authoritative CI evidence and public-safe publication.
 
-Next decisions: Firebase Auth/RBAC design, an emulator or disposable development
-database, free hosting constraints, live market reliability checks, and a budgeted
-architecture for user-triggered headed execution. No live-runner/container
-infrastructure or broader UI redesign is included here.
-
-## Supabase accounts
-
-Google sign-in, private UUID-owned watchlists, curated membership and account deletion
-use Supabase. Firebase configuration now applies only to legacy test history.
-See [Supabase setup](supabase/README.md#google-sign-in-and-frontend-integration) for
-local configuration, exact OAuth URLs, Google provider setup, permission boundaries
-and verification commands. No hosted project or Google OAuth client is configured yet.
-Use `npm run build:e2e` before browser tests and `npm run build` afterwards to restore
-the normal local build.
-
-## Board market-data validation
-
-The Board uses validated Yahoo proxy responses and an identity-only initial catalog. Missing values stay unavailable; failed refreshes mark retained data stale. Quotes show regular-session observation timestamps, while historical charts retain their sampled closes, including extended hours when supplied. Data may be delayed. No estimated analyst targets, ranges, expenses or synthetic chart fallbacks are used.
-
-See [the market-data contract](docs/market-data.md) for financial semantics, failure/cache behavior, verification results, provider limitations and interview rationale. `npm run test:baseline` includes deterministic market checks; `npm run test:market:live` is a separate opt-in read-only provider check and does not prove price accuracy.
-
-Searched assets can now be registered through authenticated Yahoo validation before saving an owner-only watchlist item. See [symbol registration setup and security tests](docs/symbol-registration.md).
+Future work includes execution recordings, hosting/access decisions, distributed rate limits and independent market-data reconciliation. Visitors never trigger test runs.

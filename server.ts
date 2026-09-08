@@ -1,3 +1,4 @@
+import { historyRouter, historyConfig } from './server/test-history';
 import { configuredAssetRouter } from './server/assets';
 import { marketRouter } from './server/market';
 import express from "express";
@@ -17,6 +18,7 @@ async function startServer() {
   }
 
   app.use(express.json());
+  app.use(historyRouter(historyConfig(process.env)));
   app.use(configuredAccountRouter(process.env));
   app.use(configuredAssetRouter(process.env));
 

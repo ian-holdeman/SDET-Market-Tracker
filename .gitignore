@@ -9,3 +9,5 @@ playwright-report/
 .env*
 !.env.example
 firebase-applet-config.json
+
+.telemetry/

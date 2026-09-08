@@ -30,7 +30,7 @@ export const PagePlaceholder: React.FC<PagePlaceholderProps> = ({ page, onBackTo
           icon: <Terminal className="w-8 h-8 text-emerald-400" />,
           description: 'A live visual feed to automated test runs, test suites, execution logs, API contract validations, and SDET quality metrics.',
           roadmap: [
-            'Live simulated and real-time automated test runner execution feeds',
+            'Verified GitHub Actions results and execution evidence',
             'API contract verification (JSON schema, response latencies, data bounds)',
             'Visual regression test summaries and flaky test diagnostic logs',
             'Code coverage heatmaps and test pipeline run histories',

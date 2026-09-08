@@ -11,7 +11,7 @@ test.describe('Navigation Suite', () => {
   test.beforeEach(async ({ page }) => {
     pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
-    // This is a routing smoke test, not a live-provider or Firestore test.
+    // This is a routing smoke test, not a live-provider or database test.
     await page.route('**/*', async (route) => {
       const url = new URL(route.request().url());
       if (url.origin !== 'http://127.0.0.1:3100') return route.abort();

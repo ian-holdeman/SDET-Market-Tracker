@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   test:
-    timeout-minutes: 20
+    timeout-minutes: 25
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,20 +21,42 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+        id: dependencies
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run lint
       - run: npm run build:e2e
       - run: npm run test:baseline
       - run: npm run test:e2e
         id: browser_tests
-      - name: Validate telemetry without publishing
-        if: always() && (steps.browser_tests.outcome == 'success' || steps.browser_tests.outcome == 'failure')
-        run: npm run test:e2e:ingest
-      - uses: actions/upload-artifact@v4
-        if: always()
+      - name: Validate sanitized evidence
+        if: always() && steps.dependencies.outcome == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        run: npm run test:e2e:ingest -- --github
+      - name: Retain public-safe evidence only
+        uses: actions/upload-artifact@v4
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         with:
-          name: playwright-results
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 14
+          name: test-evidence-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .telemetry/publish/telemetry.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: false
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:start
+      - run: npm run db:reset
+      - run: npm run db:test
+      - run: npm run db:lint
+      - run: npm run test:auth
+      - run: npm run db:stop
+        if: always()

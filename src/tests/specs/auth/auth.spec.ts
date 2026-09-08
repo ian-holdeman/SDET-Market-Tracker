@@ -55,6 +55,7 @@ async function mockApp(page: Page, authenticated = false, admin = false) {
       state.catalogAvailable = true;
       return route.fulfill({ json: { symbol: 'AAPL' } });
     }
+    if (url.pathname === '/api/test-history') return route.fulfill({ json: { version: 1, configured: true, fetchedAt: new Date().toISOString(), stale: false, runs: [] } });
     if (url.pathname === '/api/account') {
       expect(request.method()).toBe('DELETE'); expect(request.headers().authorization).toBe('Bearer ' + token);
       expect(request.postData()).toBeNull();
@@ -117,7 +118,7 @@ test('An unconfigured Google provider explains the problem without leaving the p
   await page.goto('/tests');
   await page.locator('#header-login-btn').click();
   await page.getByRole('button', { name: 'Continue with Google' }).click();
-  await expect(page.getByRole('alert')).toContainText('Google sign-in is not enabled');
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Google sign-in is not enabled');
   await expect(page).toHaveURL(/\/tests$/);
 });
 
@@ -152,6 +153,9 @@ test('Validated searched assets save to the owner watchlist without curation', a
   await expect(page.locator('#watching-tag-aapl')).toBeVisible();
   expect(state.writes).toEqual([{ user_id: id, symbol: 'AAPL' }]);
   expect(state.curated).toEqual(['AAPL', 'MSFT']);
+  await page.reload();
+  await expect(page.locator('#watching-tag-aapl')).toBeVisible();
+  expect(state.writes).toHaveLength(1);
   await expect(page.getByRole('button', { name: 'Remove from curated Board' })).toHaveCount(0);
 });
 

@@ -1,7 +1,7 @@
 # Local database foundation
 
 Supabase now backs frontend authentication, watchlists and curated membership.
-Firebase remains for legacy test telemetry. No hosted project is linked. PostgreSQL 17 and the exact Supabase
+Test telemetry now uses GitHub Actions artifacts. No hosted project is linked. PostgreSQL 17 and the exact Supabase
 CLI version in package.json provide the local baseline.
 
 ## Setup and reset
@@ -142,7 +142,7 @@ contacted or modified.
 ## Google sign-in and frontend integration
 
 The frontend now uses Supabase for accounts, UUID-owned watchlists, and curated
-membership. Firebase remains only for legacy test history/telemetry. No hosted
+membership. Test history is read from GitHub Actions artifacts. No hosted
 Supabase project has been verified or linked in this workspace.
 
 ### Local configuration

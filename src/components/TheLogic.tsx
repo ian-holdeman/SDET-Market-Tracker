@@ -54,7 +54,7 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => {
             </div>
             <h3 className="text-lg font-bold text-white mb-2">Dual-Purpose Vision</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Combining a live financial market surveillance engine with an interactive, transparent SDET test telemetry suite — proving frontend performance and backend validation simultaneously.
+              Combining a live financial market surveillance engine with an interactive, transparent SDET test telemetry suite — showing evidence of frontend behavior and backend authorization.
             </p>
           </div>
           <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center text-blue-400 text-xs font-semibold">
@@ -70,7 +70,7 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => {
             </div>
             <h3 className="text-lg font-bold text-white mb-2">SDET-First Engineering</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Testing is not an afterthought; it is built into the core. Strict Page Object Models (POM), contract validation, deterministic fixtures, and live telemetry ingestion.
+              Testing is not an afterthought; it is built into the core. Strict Page Object Models (POM), contract validation, deterministic fixtures, and validated GitHub Actions evidence.
             </p>
           </div>
           <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center text-emerald-400 text-xs font-semibold">
@@ -185,7 +185,7 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => {
         <div>
           <h4 className="text-base font-bold text-white">Experience the System Live</h4>
           <p className="text-xs text-slate-400 mt-1">
-            Explore the real-time stock board or inspect the live test execution telemetry.
+            Explore the real-time stock board or inspect published test execution evidence.
           </p>
         </div>
 
