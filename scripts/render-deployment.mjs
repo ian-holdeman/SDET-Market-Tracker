@@ -9,7 +9,9 @@ if (![supabaseVersion,historyVersion].every(v=>/^[1-9]\d*$/.test(v||''))) throw 
 const environment={APP_DEPLOYMENT:'cloud-run',APP_ORIGIN:config.origin,SUPABASE_URL:config.supabaseUrl,VITE_SUPABASE_URL:config.supabaseUrl,
   VITE_SUPABASE_PUBLISHABLE_KEY:key,VITE_AUTH_REDIRECT_URL:config.origin+'/auth/callback',
   TEST_HISTORY_REPOSITORY:'ian-holdeman/SDET-Market-Tracker',TEST_HISTORY_BRANCH:'main',TEST_SNAPSHOT_BUCKET:config.snapshotBucket,TEST_ARCHIVE_BUCKET:config.archiveBucket};
-const service={apiVersion:'serving.knative.dev/v1',kind:'Service',metadata:{name:config.service,namespace:config.projectNumber,
+// The required gcloud --project flag supplies the namespace. An explicit namespace
+// makes gcloud fetch project metadata, which a service-scoped deployer does not need.
+const service={apiVersion:'serving.knative.dev/v1',kind:'Service',metadata:{name:config.service,
   annotations:{'run.googleapis.com/ingress':'all','run.googleapis.com/minScale':String(config.minimumInstances),'run.googleapis.com/maxScale':String(config.maximumInstances)}},
   spec:{template:{metadata:{annotations:{'run.googleapis.com/execution-environment':'gen2','run.googleapis.com/cpu-throttling':'true','run.googleapis.com/startup-cpu-boost':'true'}},
     spec:{serviceAccountName:config.runtimeIdentity,containerConcurrency:config.concurrency,timeoutSeconds:config.requestTimeoutSeconds,

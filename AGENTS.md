@@ -81,3 +81,5 @@ Keep generated drafts and QA artifacts in ignored local directories. Preserve ca
 ## Production release boundaries
 
 Follow `docs/deployment.md` and its exact target checks. Disable the existing Supabase GitHub production deployment integration before the first release push; local configuration and fixture seeds must never deploy hosted data. Use only `supabase/production/catalog.sql` for first-launch shared data. Cloud Run request-based CPU requires refresh/persistence to finish inside active requests. Keep archive publication separate from the runtime identity. GitHub actions use their supported Node 24 runtime while the application continues to use `.nvmrc` Node 22. Never suppress retries or warning annotations to manufacture a clean release.
+
+Production operations must preserve owner bucket IAM while updating narrowly scoped application bindings. Use explicit gcloud project flags with the generated service manifest; do not broaden deployer project permissions to satisfy avoidable metadata lookups. Destructive archive verification belongs in a unique verification prefix and must never modify the selected production archive.

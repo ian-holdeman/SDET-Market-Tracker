@@ -49,4 +49,4 @@ Publish policy changes with an updated date; identify material changes to data u
 
 ## Remaining launch requirements
 
-Verify the selected targets, HTTPS/redirect URLs, operational access, log redaction/retention, backup/recovery and request handling against [deployment.md](deployment.md). Obtain Parqet permission or agree on an alternative. Configure the public privacy URL on OAuth once the production origin exists. Verify production functionality, consent, request destinations and headers on that origin only after separate authorization. Hosting is selected; provisioning/deployment still require the named release approval and hosted evidence.
+Verify the selected targets, HTTPS/redirect URLs, operational access, log redaction/retention, backup/recovery and request handling against [deployment.md](deployment.md). Obtain Parqet permission or agree on an alternative. Google branding uses the real application home and /privacy URLs, and basic identity/email/profile scopes. The named deployment and hosted checks are authorized and underway; their actual evidence and remaining Google sign-in acceptance are recorded in the deployment guide.

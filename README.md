@@ -2,6 +2,8 @@
 
 A React/TypeScript stock-market board and SDET portfolio. Express validates Yahoo market data, Supabase owns Google authentication and private watchlists, and GitHub Actions supplies published test evidence. Visitors can browse every public page without signing in. Firebase has been retired; old test results are not migrated.
 
+Live application: [The SDET’s Market Tracker](https://sdet-market-tracker-855618435389.us-west1.run.app). Deployment status, evidence and operating limits are recorded in [deployment and operation](docs/deployment.md).
+
 ## Local setup
 
 Use Node 22 (`.nvmrc`) and npm. Docker/WSL is required for local Supabase and database tests.
@@ -29,7 +31,7 @@ npm start
 
 `lint` checks TypeScript source and syntax of maintained `.mjs` scripts. Generated output is excluded from TypeScript checking. The build writes public Vite assets to `dist/client` and the private ESM server to `dist/server`. Only `dist/client` is served. Production paths resolve relative to the server bundle, not the working directory. Runtime deployment needs both directories, package manifests and production dependencies. `npm run preview` also starts the full server; only `npm run dev` enables Vite. Restart development after server changes.
 
-Outside Cloud Run, the server reads `.env.local`, then `.env`, without overriding existing process variables. Hosted startup reads only supplied environment configuration. `PORT` defaults to 3000. `/api/health` checks application availability, not provider availability. The pinned Dockerfile and `deploy/production.json` prepare the accepted Cloud Run deployment; see [deployment and operation](docs/deployment.md) for approval, release, costs and rollback. Committed configuration does not establish a live deployment.
+Outside Cloud Run, the server reads `.env.local`, then `.env`, without overriding existing process variables. Hosted startup reads only supplied environment configuration. `PORT` defaults to 3000. `/api/health` checks application availability, not provider availability. The pinned Dockerfile and `deploy/production.json` reproduce the Cloud Run configuration; see [deployment and operation](docs/deployment.md) for release evidence, costs and rollback.
 
 ## Verification
 

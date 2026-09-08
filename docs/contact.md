@@ -10,7 +10,7 @@ Keep the established three-option design, fonts and shared light/dark palette. T
 
 The canonical editable source is `docs/resume/ian-holdeman-resume.html`; its approved PDF is `docs/resume/ian-holdeman-resume.pdf`. `public/resume.pdf` is the identical public copy. Earlier drafts are local artifacts, not maintained sources. The resume has two pages with selectable text, professional and personal experience, education and a compact certificates section.
 
-The project's “Live application: [hosting URL pending]” line is intentionally retained. The final URL will be set during hosting configuration. Once that URL is approved, edit the canonical HTML, then run `node scripts/render-resume.mjs` with Node 22 and the installed Playwright Chromium browser. The script updates the canonical and public PDFs together; it is never run automatically by an application build. Visually inspect every rendered page and verify text extraction after any resume edit. Credential links and award dates are not included in the source.
+The project's live-application link is [https://sdet-market-tracker-855618435389.us-west1.run.app](https://sdet-market-tracker-855618435389.us-west1.run.app). Only the pending URL was changed; approved wording and credentials were preserved. Both regenerated pages were rendered and inspected, extraction was compared with the approved text, and the canonical/public PDFs match byte for byte. For future authorized edits, update the canonical HTML, then run `node scripts/render-resume.mjs` with Node 22 and the installed Playwright Chromium browser. The script updates the canonical and public PDFs together; it is never run automatically by an application build. Visually inspect every rendered page and verify text extraction after any resume edit. Credential links and award dates are not included in the source.
 
 Contact opens `/resume` in a new tab, preserving the original page and modal. This standalone route mounts `ResumeViewer` without the market/Auth application providers. A lazily loaded, pinned PDF.js dependency and same-origin worker decode `/resume.pdf` into page canvases with selectable text layers. The paper remains white in both palettes, and the surrounding view follows the existing device/browser appearance preference. Rendering uses the PDF itself, not an HTML facsimile or pre-rendered page images. No third-party viewer service, new server endpoint, CSP relaxation, or visitor authentication is needed.
 
@@ -30,10 +30,8 @@ npm run test:baseline
 npm run build
 ```
 
-The existing copy-email feedback issue below is deferred from this resume integration; no mail is sent by these tests.
-
-The copy-email handler currently reports success before its clipboard promise resolves and does not clean up its feedback timer. Cover success, rejected/unavailable clipboard and closure before adding reliable feedback. Email actions must remain user-initiated; tests inspect destinations without sending mail. Do not send emails as part of verification.
+Email actions remain user-initiated; tests inspect destinations without sending mail. Do not send emails as part of verification.
 
 Keep this work focused on Contact and the resume. Hosting choice, remote configuration, deployment and production verification remain separate authorized steps. Maintain [roadmap](roadmap.md) and [privacy/security launch requirements](privacy-security.md).
 
-Copy-email feedback waits for successful clipboard completion. Rejection/unavailability permits retry with an accessible failure message; pending requests cannot report success after closure and feedback timers are cleaned up. The resume application URL remains pending until the real Cloud Run origin is confirmed; update only that URL in the canonical editable source and verify all rendered pages plus extracted text before synchronizing both PDFs.
+Copy-email feedback waits for successful clipboard completion. Rejection/unavailability permits retry with an accessible failure message; pending requests cannot report success after closure and feedback timers are cleaned up. The resume URL is synchronized with the confirmed Cloud Run origin.

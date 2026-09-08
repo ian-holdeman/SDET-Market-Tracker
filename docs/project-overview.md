@@ -2,7 +2,7 @@
 
 This project serves two purposes: personal market monitoring and a public portfolio demonstrating Senior SDET skills. The audience should see useful functionality and inspect credible engineering evidence without needing an account. Production-quality behavior and a minimalist interface take priority over breadth. Infrastructure cost matters; do not infer a budget or provision paid services.
 
-Home, The Board, The Tests, The Logic, Privacy, Settings/application themes, and Contact are complete and owner-accepted for the local initial version. The main resume and browser PDF preview are also accepted. Feature development for this version is complete; the next phase is hosting selection, deployment preparation and verification on the production origin. The resume hosting URL remains pending. See [Contact behavior](contact.md) and the [roadmap](roadmap.md).
+Home, The Board, The Tests, The Logic, Privacy, Settings/application themes, and Contact are complete and owner-accepted for the local initial version. The main resume and browser PDF preview are also accepted. Feature development for this version is complete. The application is deployed on Cloud Run with Supabase Free and private Cloud Storage; final production acceptance is tracked in the deployment guide. The canonical resume now contains the real application URL. See [Contact behavior](contact.md) and the [roadmap](roadmap.md).
 
 ## Architecture map
 
@@ -36,7 +36,7 @@ Keep one source of truth per concern: AGENTS.md for engineering and design stand
 
 ## Environment and evidence boundaries
 
-The tracked local setup uses Supabase and Node; production packaging targets Cloud Run with private Cloud Storage and the separately configured Supabase Free project. See [deployment and operation](deployment.md). Hosted provisioning and verification remain separate. Verify ignored local configuration and the intended project before any environment-dependent work; a Google Cloud OAuth project is not a Supabase project. Google setup and the owner-reported manual round trip are documented in the account guide. Do not duplicate credentials here.
+The tracked local setup uses Supabase and Node; production packaging targets Cloud Run with private Cloud Storage and the separately configured Supabase Free project. See [deployment and operation](deployment.md). The named resources are provisioned; the deployment guide distinguishes completed hosted checks from pending acceptance. Verify ignored local configuration and the intended project before any environment-dependent work; a Google Cloud OAuth project is not a Supabase project. Google setup and the owner-reported manual round trip are documented in the account guide. Do not duplicate credentials here.
 
 During the preceding implementation work, local offline/browser checks, database/Auth integration checks, and read-only GitHub retrieval were exercised. The owner reported successful real Google sign-in, watchlist persistence and deletion/re-login behavior. These observations are not a permanent green baseline or proof of hosted durability. Rerun affected checks for new changes and inspect actual GitHub runs before claiming publication for a particular commit.
 
