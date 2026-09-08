@@ -1,4 +1,4 @@
-# Local database foundation
+# Accounts and local database
 
 Supabase now backs frontend authentication, watchlists and curated membership.
 Test telemetry now uses GitHub Actions artifacts. No hosted project is linked. PostgreSQL 17 and the exact Supabase
@@ -6,15 +6,7 @@ CLI version in package.json provide the local baseline.
 
 ## Setup and reset
 
-Windows setup is working: Docker Desktop 4.90.0, Docker Engine 29.7.2 and WSL
-2.7.13.0 (kernel 6.18.33.2). PostgreSQL runs in Supabase's containers; a separate
-Windows PostgreSQL installation is unnecessary.
-
-During setup, all virtualization features were enabled but the Windows hypervisor
-was not running. Windows system-file repair succeeded, and a full **Restart**
-resolved startup. The last shutdown/power-on cycles had used Fast Startup, which
-preserves kernel state. If this recurs after feature changes, use Start > Power >
-Restart and verify `docker info` before changing firmware settings.
+PostgreSQL runs in Supabase containers; a separate Windows PostgreSQL installation is unnecessary. If Docker cannot start after Windows virtualization changes, perform a full Restart and verify Docker/WSL before changing firmware settings. Verify installed versions rather than relying on historical setup notes.
 
 Install/start a Docker-compatible Linux container runtime (Docker Desktop with WSL2
 on Windows), then run from the repository root:
@@ -40,7 +32,7 @@ Optional CLI telemetry opt-out for the current PowerShell session:
 `$env:SUPABASE_TELEMETRY_DISABLED = '1'`.
 
 The configuration exposes only `public`, disables automatic API grants, and leaves
-Google OAuth and public signup disabled until the authentication slice. Realtime,
+Google OAuth and public signup disabled unless the wrapper finds both Google credentials. Realtime,
 Storage, Analytics and Edge Runtime are not needed here and are disabled.
 
 ## Data model and permissions
@@ -48,7 +40,8 @@ Storage, Analytics and Edge Runtime are not needed here and are disabled.
 | Object/action | Visitor | User | App admin |
 |---|---|---|---|
 | Read asset catalog and curated membership | Yes | Yes | Yes |
-| Register a catalog symbol | No | No | Yes |
+| Direct catalog INSERT through Data API | No | No | Yes |
+| Request trusted searched-symbol registration | No | Yes, server validation | Yes, server validation |
 | Add/remove curated membership | No | No | Yes |
 | Read/add/remove watchlist items | No | Own only | Own only |
 | Update ownership, truncate tables, delete asset identity | No | No | No |
@@ -70,14 +63,12 @@ statements without waiting for JWT claims to refresh. Editable profile metadata 
 never consulted. Database owners bypass RLS intentionally; browser roles do not.
 
 Only catalog/curation are public. The admin has no policy permitting access to other
-users' watchlists. Neither browser roles nor the service role are granted access to
-the role table in this slice. A future privileged backend must receive only the
-grants it needs, rather than implicitly depending on default Supabase grants.
+users' watchlists. Neither browser roles nor the service role have direct role-table access. The trusted registration migration grants service_role SELECT/INSERT on assets only; Auth admin APIs remain broadly privileged. See [symbol registration](../docs/symbol-registration.md) for the endpoint and limits.
 
 ## Trusted admin provisioning
 
 Use a trusted database-owner SQL session (local Studio SQL editor in development;
-an owner-controlled administrative process in a future hosted project). First verify
+an owner-controlled administrative process for a verified hosted project). First verify
 the intended user's Auth UUID against their identity. Then substitute it below:
 
 ```sql
@@ -95,9 +86,7 @@ code or VITE variables.
 
 ## Fixtures and tests
 
-The asset seed snapshots **88** symbols from `INITIAL_BOARD_STOCKS` (the legacy code's
-comments describing 50 do not match the current list). It seeds identities only,
-not the app's placeholder prices. Fixtures are config seed files, not migrations.
+The asset seed snapshots **88** symbols from `INITIAL_BOARD_STOCKS`. It seeds identities only, never market prices. Fixtures are config seed files, not migrations.
 
 | Local SQL identity | UUID | Initial item |
 |---|---|---|
@@ -109,26 +98,13 @@ Emails use the reserved `example.invalid` domain. No passwords, OAuth identities
 refresh tokens, or browser login credentials are seeded. SQL tests switch database
 roles and transaction-local JWT claims to exercise the policies. This does not test
 JWT signing, Google OAuth or HTTP authentication; those need separate integration
-tests in the next slice. Production callers cannot set database roles/claims this way
+tests described below. Production callers cannot set database roles/claims this way
 through the Data API; the gateway must establish them from a verified token.
 
 `supabase/tests/authorization.test.sql` uses pgTAP inside a rolled-back transaction.
 It checks anonymous access, ownership, cross-user and admin isolation, self-promotion,
 metadata forgery, curation, constraints, role revocation, deletion cascades and stale
-deleted-user tokens. Reset before running so fixtures are deterministic.
-
-## Foundation verification (2026-09-07, before frontend integration)
-
-TypeScript, production build, six baseline tests (including exact asset seed parity),
-and both Playwright smoke projects passed. Existing logo/bundle build warnings remain.
-After the Windows restart, `db:start` and a clean `db:reset` successfully applied the
-migration and all local fixtures. **All 48 pgTAP authorization assertions passed.**
-`db:lint` checked both public and private schemas with no errors or warnings.
-The tests roll back their changes, preserving the seeded development identities.
-The separate database GitHub Actions workflow has not been run remotely. Google
-OAuth, Auth API account deletion, and frontend migration were pending at this stage;
-SQL tests do not validate those integrations. No Firebase or hosted database was
-contacted or modified.
+deleted-user tokens. Use the seeded local stack; reset only when its data is disposable.
 
 ## Official references
 
@@ -149,7 +125,6 @@ Supabase project has been verified or linked in this workspace.
 
 ```sh
 npm run db:start
-npm run db:reset
 npm run auth:setup:local
 npm run dev
 ```
@@ -189,7 +164,7 @@ their original query and fragment.
 The return path is restricted to this app's routes; no user-controlled external URL
 is accepted. Start and finish in the same browser and origin.
 
-Google credentials have **not** been created. In Google Cloud, select/create a
+For a new environment, in Google Cloud select/create a
 project owned by you, configure Google Auth Platform branding/audience, and create
 a Web application OAuth client using the exact values above. While the consent
 screen is in Testing, add your Google account as a test user. Request only the
@@ -217,8 +192,7 @@ For a future hosted project, Google's redirect URI becomes
 `https://<verified-project-ref>.supabase.co/auth/v1/callback`. Use the exact deployed
 HTTPS origin for the app Site URL and `<origin>/auth/callback` for the additional
 redirect and VITE setting. Avoid wildcard redirect rules. Verify the project/ref
-before applying migrations; do not upload local Auth fixtures. Production hosting,
-hosted project provisioning and Google console changes have not occurred.
+before applying migrations; do not upload local Auth fixtures. Application hosting is not configured in this repository. Existing Google console settings are environment-specific; verify them before making changes.
 
 ### Authorization and deletion
 
@@ -237,11 +211,7 @@ confirmed. Curation deletes membership only. Watchlist writes use the authentica
 UUID, with per-user RLS and foreign keys as the authority. A failed write is shown
 rather than represented as a successful optimistic save.
 
-**Unregistered search assets cannot be saved yet.** The UI explains this restriction.
-The future trusted registration path must authenticate callers, validate a
-canonical symbol against a provider, and insert asset identity only. It must never
-grant curated membership, watchlist access for another UUID, or role assignment.
-There is intentionally no such endpoint or new service-role catalog grant here.
+Searched assets outside the catalog can be saved through `POST /api/assets/register`. The server verifies the caller and provider symbol, inserts shared identity only, then the frontend saves the watchlist item with the user session under RLS. Registration grants no curation, role or cross-user privileges. See [trusted symbol registration](../docs/symbol-registration.md) for the full contract.
 
 `DELETE /api/account` accepts a bearer access token and no target/body parameters.
 The server validates the token by calling Auth `getUser(token)`, then invokes
@@ -290,13 +260,9 @@ npm run build
 - `build:e2e` builds a mock-configured bundle for browser tests. Always run
   `npm run build` afterwards for a normal local build. Both builds keep secrets
   out of the browser.
-- CI adds local Auth API integration to the database job and browser Auth checks
-  to the existing application job. It has not been executed remotely.
+- `.github/workflows/playwright.yml` runs local Auth API integration in the database job and mocked browser checks in the application job. Inspect the specific GitHub run before claiming CI success for a change.
 
-Live Google consent, real Google callback/cancellation, deletion of a
-Google-linked Auth identity, and signing in again with the same Google account
-still need a manual end-to-end check after provider configuration. SQL and password
-Auth tests cannot prove those outcomes or provider retention guarantees.
+The owner reported successful real Google sign-in, watchlist persistence, account deletion/sign-out, and subsequent same-email sign-in with an empty watchlist and no inherited admin role. These are manual observations, separate from automated SQL/password-Auth/browser evidence. Repeat the relevant real-provider checks after OAuth configuration changes; none establishes provider retention guarantees.
 
 References:
 [Google provider setup](https://supabase.com/docs/guides/auth/social-login/auth-google),
@@ -305,54 +271,6 @@ References:
 [Auth admin deletion](https://supabase.com/docs/reference/javascript/auth-admin-deleteuser),
 [deleted users and JWT lifetime](https://supabase.com/docs/guides/auth/managing-user-data).
 
-### Integration verification (2026-09-07)
+### Board OAuth regression contract
 
-Passed locally: TypeScript, normal production build, nine baseline checks,
-53 pgTAP assertions, database lint, real local Auth API deletion/recreation,
-and 16 browser checks across the full and focused Chromium/WebKit runs.
-Telemetry validation ran in dry-run mode only. A dummy secret-key build was
-correctly rejected; the restored normal browser artifacts were checked against
-the configured server secret and did not contain it. Existing duplicate logo
-cases and large bundle warnings remain. The normal local build is restored.
-
-The owner has now created the Google Cloud project named SDET Market Tracker.
-The OAuth client/provider configuration and live Google round trip still need
-completion. The Google Cloud sign-in page is open in Codex for the owner to
-continue. A Google Cloud project is distinct from a hosted Supabase project;
-no hosted Supabase project has been verified or changed.
-
-### Google provider setup (2026-09-07)
-
-The local OAuth client and its exact URLs were verified in Google Cloud. Saved
-credentials are read only from ignored root .env. After a volume-preserving
-restart, Auth settings reported Google enabled and signup allowed. All 53 pgTAP
-assertions and the real local Auth deletion/recreation test passed again. The app
-is running at http://localhost:3000. A real sign-in from /logic reached Google’s
-consent screen requesting name/profile picture and email. User consent and the
-completed callback are still pending; this is not yet a verified round trip.
-
-### Owner manual Google OAuth verification
-
-The owner reported verifying the real Google sign-in return destination, watchlist
-persistence across sign-out/sign-in, account deletion signing the user out, and a
-subsequent same-email sign-in starting with an empty watchlist and no inherited
-admin access. These are owner-reported manual results, supplementing the automated
-SQL, Auth API and mocked browser checks. They do not establish provider backup or
-log-retention guarantees.
-
-A follow-up navigation defect was reproduced: individual card collapse and Collapse
-All left a stale symbol in the URL. OAuth restored that URL and reopened the card.
-The Board now keeps the URL aligned with individual expansion state and clears a
-single-card destination on bulk expansion/collapse. Regression checks exercise
-watchlist save, collapse, sign-out and Google re-login, while retaining deliberate
-open-card deep links.
-
-### Corrected Board OAuth return contract
-
-OAuth return paths now normalize any allowed Board route to `/board`, even when
-the user leaves an asset card open before signing out and back in. Normalizing
-both when saving the destination and when consuming it also handles previously
-stored asset URLs. Ordinary direct asset links still expand cards outside OAuth.
-This supersedes the earlier test expectation that OAuth should preserve open-card
-deep links. Browser regressions leave the card open and exercise sign-out/sign-in
-from both query-based and path-based asset URLs with a populated watchlist.
+OAuth normalizes every allowed Board return route to `/board` both when saving and consuming the destination. Signing out from an expanded card must not reopen it after login. Ordinary direct asset links remain supported outside OAuth. Browser regressions cover query/path destinations and populated watchlists.

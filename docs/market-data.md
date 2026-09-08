@@ -6,7 +6,7 @@
 
 Validation checks provider envelopes and symbol identity for both quotes and charts. Quotes require a finite price and valid observation time independently of optional intraday candles. Missing or malformed optional candles yield an empty sparkline, not a fabricated chart or a failed valid quote. Chart/history endpoints still require aligned arrays, finite closes, and ordered positive timestamps without future samples. Null candle slots are omitted; malformed numeric slots fail history requests. A partial quote refresh is labeled Partial Market Update rather than a lost connection. Optional missing/malformed metrics become null; reversed ranges become unavailable.
 
-Nasdaq-100 (`^NDX`) is distinct from Composite (`^IXIC`). Crypto aliases consistently map to USD pairs. AGG, GLD and USO are ETFs. Currency is preserved, indices display points, and the supported Treasury yield symbol displays percent.
+Nasdaq-100 (`^NDX`) is distinct from Composite (`^IXIC`). Crypto aliases consistently map to USD pairs. AGG, GLD and USO are ETFs. Provider-reported currency is preserved, including on index quotes; the supported Treasury yield symbol displays percent.
 
 ## Financial semantics
 
@@ -14,7 +14,7 @@ Nasdaq-100 (`^NDX`) is distinct from Composite (`^IXIC`). Crypto aliases consist
 - Change is price minus baseline. Percentage is that difference divided by a positive baseline, times 100. Missing, zero or negative baselines produce an unavailable percentage. Zero price, volume, dividend yield and P/E remain zero; negative P/E remains negative.
 - Intraday history uses reported previous close. Longer periods use their first sampled close. This is a sampled price return, not total return or a guaranteed period-opening execution price.
 - Charts preserve raw close precision and timestamps, including extended-session samples when supplied. They never overwrite history with the latest quote. High/low references are extrema of displayed sampled closes; the separate reported day-range metric has different semantics. These references describe sampled-close extrema, not intrabar extremes.
-- Axes use actual sample bounds and dated Eastern timezone formatting rather than fabricated 4 AM–8 PM sessions with a fixed UTC offset. A valid one-point history remains usable. No beacon claims trading is currently live.
+- Axes use actual sample bounds and dated Eastern timezone formatting rather than fabricated 4 AM–8 PM sessions with a fixed UTC offset. A valid one-point history remains usable. The header separately indicates scheduled U.S. equity sessions, not live quote freshness or halt monitoring; see [header activity](header-activity.md).
 - Analyst targets, ratings, counts, 52-week ranges and expenses are never estimated. Missing P/E does not imply an unprofitable company. Fundamental fields remain unavailable when their source is inaccessible.
 
 ## Failure and caching
@@ -40,17 +40,17 @@ npm run test:market:live
 npm run build
 ```
 
-Offline tests inject provider responses and time. They establish normalization, identity/malformed-data rejection, zero/null handling, return calculations, non-mutating history, failed/partial HTTP outcomes, and cache age/stale behavior for those cases. Browser tests intercept network calls to exercise missing metrics, one-point history, timeframe failure, retained stale quotes and missing live beacons in Chromium/WebKit. Existing Auth, seed-parity, telemetry and static-serving checks remain in place.
+Offline tests inject provider responses and time. They establish normalization, identity/malformed-data rejection, zero/null handling, return calculations, non-mutating history, failed/partial HTTP outcomes, and cache age/stale behavior for those cases. Browser tests intercept network calls to exercise missing metrics, one-point history, timeframe failure, retained stale quotes and honest provider-failure states in Chromium/WebKit. Existing Auth, seed-parity, telemetry and static-serving checks remain in place.
 
 The live command samples SPY, BTC-USD, ^NDX and AGG. It checks current HTTP availability and acceptance of response shapes, identities, timestamps and samples. It cannot establish price correctness against an independent provider. The optional fundamentals HTTP probe is reported separately; the running application no longer calls that endpoint.
 
-Local evidence for the six-metric slice: 20 offline checks and 32 browser checks passed. The coverage audit returned usable quote metrics and month/year history for all 88 curated symbols, with benchmark volume explicitly not applicable. Type checking and builds passed. Existing duplicate-logo cases and large-bundle warnings remain.
+The prior 88-symbol audit found usable quote metrics and month/year history, with benchmark volume not applicable. This was point-in-time evidence; rerun the coverage command to establish current availability. Do not reuse historical test totals as current verification.
 
 ## Remaining decisions and interview rationale
 
-The Yahoo endpoints used here have no versioned contract or SLA supplied to this project. Before launch, choose a provider/access arrangement suitable for intended use, confirm redistribution permissions/rate limits, The application now uses price/activity metrics rather than depending on inaccessible fundamentals. No privileged credentials were added.
+The Yahoo endpoints used here have no versioned contract or SLA supplied to this project. Before launch, choose a provider/access arrangement suitable for intended use, confirm redistribution permissions and rate limits. The application now uses price/activity metrics rather than depending on inaccessible fundamentals. No privileged credentials were added.
 
-Independent price reconciliation, full venue coverage, holiday calendars, corporate-action adjustment policy, total returns, load testing and distributed rate limiting remain unverified. An old provider observation can be legitimate on a closed market; stale here specifically indicates failed retrieval, not an assertion about every venue's trading calendar.
+Independent price reconciliation, full venue coverage, exchange halt/calendar integration beyond the scheduled header indicator, corporate-action adjustment policy, total returns, load testing and distributed rate limiting remain unverified. An old provider observation can be legitimate on a closed market; stale here specifically indicates failed retrieval, not an assertion about every venue's trading calendar.
 
 Defend these choices in an interview: validate before arithmetic; distinguish unknown from zero; keep price, baseline and session semantics consistent; preserve provenance through caches; test failures deterministically; and separate contract availability from financial correctness. A visually plausible fallback is not a valid test oracle.
 

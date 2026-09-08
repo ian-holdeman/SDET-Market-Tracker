@@ -29,7 +29,7 @@ npm start
 
 `lint` runs TypeScript checking. The build writes public Vite assets to `dist/client` and the private ESM server to `dist/server`. Only `dist/client` is served. Production paths resolve relative to the server bundle, not the working directory. Runtime deployment needs both directories, package manifests and production dependencies. `npm run preview` also starts the full server; only `npm run dev` enables Vite. Restart development after server changes.
 
-The server reads `.env.local`, then `.env`, without overriding existing process variables. `PORT` defaults to 3000. `/api/health` checks application availability, not provider availability. No hosting or deployment is configured by this slice.
+The server reads `.env.local`, then `.env`, without overriding existing process variables. `PORT` defaults to 3000. `/api/health` checks application availability, not provider availability. No application hosting configuration is committed.
 
 ## Verification
 
@@ -52,11 +52,15 @@ The offline suite covers server/configuration boundaries, provider validation, f
 
 GitHub Actions runs browser/offline and local database checks in parallel jobs of `.github/workflows/playwright.yml`. Only sanitized test evidence is uploaded, keyed by run ID and workflow attempt. Database-job failure prevents the overall workflow from appearing passed, even if browser tests passed. PR runs execute checks but are not accepted as portfolio telemetry.
 
-Configure server-only `TEST_HISTORY_REPOSITORY`, `TEST_HISTORY_BRANCH` and `TEST_HISTORY_TOKEN` to read trusted workflow history. The token needs Actions read access to that repository; there is no browser token or publishing endpoint. Leaving all three unset shows “No verified runs yet.” Configuration and publication have not been verified on GitHub until the updated workflow actually runs.
+Configure server-only `TEST_HISTORY_REPOSITORY`, `TEST_HISTORY_BRANCH` and `TEST_HISTORY_TOKEN` to read trusted workflow history. The token needs Actions read access to that repository; there is no browser token or publishing endpoint. Leaving all three unset shows “No verified runs yet.” Read-only retrieval of published GitHub evidence has been exercised locally. Verify the specific workflow run for each new commit; this is separate from hosted application configuration.
 
 `npm run test:e2e:ingest` writes local evidence only. `--github` is reserved for the Actions workflow. Missing/invalid reports produce incomplete evidence and exit nonzero. Failed reports remain failed even when validation succeeds. The dashboard never treats ingestion success as test success.
 
 See [telemetry architecture and evidence semantics](docs/test-telemetry.md) for retention, trust boundaries, latest-run ordering, failure states and setup requirements.
+
+## Project guidance and roadmap
+
+Start new development tasks with [AGENTS.md](AGENTS.md), the [project overview](docs/project-overview.md), and the [owner roadmap](docs/roadmap.md). Keep durable standards in AGENTS.md, implementation details in the domain guides, and planned work in the roadmap.
 
 ## Architecture and security references
 
@@ -65,4 +69,8 @@ See [telemetry architecture and evidence semantics](docs/test-telemetry.md) for 
 - [Searched-asset registration](docs/symbol-registration.md): trusted validation without curation privileges.
 - [Test telemetry](docs/test-telemetry.md): authoritative CI evidence and public-safe publication.
 
-Future work includes execution recordings, hosting/access decisions, distributed rate limits and independent market-data reconciliation. Visitors never trigger test runs.
+- [Header activity](docs/header-activity.md): trusted workflow activity and scheduled equity sessions.
+
+For immediate cold-load evidence, the server stores an ignored snapshot under `.telemetry/snapshots`. Set server-only `TEST_SNAPSHOT_DIRECTORY` to a private persistent volume for hosting; ephemeral filesystems cannot guarantee restart persistence. See the telemetry guide for limits and failure behavior.
+
+Future feature scope and maintenance considerations are tracked in the [roadmap](docs/roadmap.md). Visitors never trigger test runs.
