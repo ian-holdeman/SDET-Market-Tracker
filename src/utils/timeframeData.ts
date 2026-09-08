@@ -8,6 +8,7 @@ export interface ChartPoint {
 }
 
 export interface TimeframeSummary {
+  sessionSource?: 'provider' | 'samples';
   asOf?: string;
   fetchedAt?: string;
   stale?: boolean;

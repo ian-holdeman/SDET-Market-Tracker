@@ -129,3 +129,31 @@ test('quote metadata survives missing or malformed optional candles, but chart a
     assert.equal((await fetch(base + '/api/candles?symbol=%5EGDAXI')).status, 502);
   } finally { server.closeAllConnections(); await new Promise<void>(r => server.close(() => r())); }
 });
+
+ test('intraday charts retain provider session bounds across premarket and holiday handoffs', () => {
+  const c: any = validateChart(fixture(), 'SPY', now);
+  c.meta.currentTradingPeriod = {
+    pre: { start: Date.parse('2026-07-01T08:00:00Z') / 1000, end: Date.parse('2026-07-01T13:30:00Z') / 1000 },
+    regular: { start: Date.parse('2026-07-01T13:30:00Z') / 1000, end: Date.parse('2026-07-01T20:00:00Z') / 1000 },
+    post: { start: Date.parse('2026-07-01T20:00:00Z') / 1000, end: Date.parse('2026-07-02T00:00:00Z') / 1000 },
+  };
+  const day = normalizeCandles(c, 'SPY', '1D', now);
+  assert.equal(day.sessionStartUnix, Date.parse('2026-07-01T08:00:00Z'));
+  assert.equal(day.sessionEndUnix, Date.parse('2026-07-02T00:00:00Z'));
+  assert.equal(day.sessionSource, 'provider');
+  // A provider schedule for another day cannot relabel older observations.
+  for (const period of Object.values(c.meta.currentTradingPeriod) as any[]) { period.start += 86400; period.end += 86400; }
+  const old = normalizeCandles(c, 'SPY', '1D', now);
+  assert.equal(old.sessionSource, 'samples');
+  assert.equal(old.sessionEndUnix, old.points.at(-1).timestamp);
+  c.meta.currentTradingPeriod.regular.start = 'invalid';
+  assert.equal(normalizeCandles(c, 'SPY', '1D', now).sessionSource, 'samples');
+});
+
+test('daily trendlines include the opening sample instead of only the last 28 bars', () => {
+  const c: any = validateChart(fixture(), 'SPY', now);
+  c.indicators.quote[0].close = Array.from({ length: 80 }, (_, i) => 100 + i);
+  const trend = normalizeQuote(c, 'SPY', {}, now).sparkline;
+  assert.equal(trend[0], 100);
+  assert.equal(trend.at(-1), 179);
+});

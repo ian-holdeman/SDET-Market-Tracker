@@ -2,6 +2,8 @@
 
 This project serves two purposes: personal market monitoring and a public portfolio demonstrating Senior SDET skills. The audience should see useful functionality and inspect credible engineering evidence without needing an account. Production-quality behavior and a minimalist interface take priority over breadth. Infrastructure cost matters; do not infer a budget or provision paid services.
 
+Home, The Board, The Tests and The Logic are owner-accepted as initial version complete. Privacy/security review is the next feature; hosting selection and production verification remain open. See [milestones and remaining scope](roadmap.md).
+
 ## Architecture map
 
 | Area | Implementation and responsibility |
@@ -17,6 +19,7 @@ This project serves two purposes: personal market monitoring and a public portfo
 
 - Initial launch scope: Board, Tests, Logic, Home, and honest Privacy/Contact/Settings behavior. Visitors can explore all public content.
 - Accounts currently enable watchlists. Admin curation is separate from personal data; Google metadata cannot assign roles. See [accounts and authorization](../supabase/README.md).
+- Keep personal-data use limited to operating sign-in and private watchlists. The owner does not want analytics, advertising, subscriptions, behavioral tracking or secondary use. Review necessary Auth/storage/provider processing honestly; see [privacy direction](privacy-security.md).
 - The Board shows six price/activity metrics: previous close, day range, 52-week range, volume, one-month change and one-year change. Google Finance links provide deeper research; inaccessible fundamentals are not estimated. See [market data](market-data.md).
 - Searched assets can be registered through a trusted server path and saved under owner-only RLS. Registration does not curate an asset. See [symbol registration](symbol-registration.md).
 - GitHub is the authority for public test results. Curated local browser recordings provide visual demonstrations, with mocks and provenance disclosed; a separate historical pipeline replay uses revalidated GitHub job timing and a sanitized browser-results replay. Visitors must not execute tests. See [telemetry](test-telemetry.md) and [recordings](test-recordings.md), and [pipeline replay](pipeline-replay.md).

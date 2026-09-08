@@ -1,6 +1,6 @@
 # Parallel pipeline replay
 
-Status: initial draft complete and owner-accepted. This milestone covers the timeline and sanitized browser-results feed; it does not establish deployment or publication of the local changes.
+Status: initial version complete and owner-accepted. This milestone covers the timeline and sanitized browser-results feed; it does not establish deployment or publication of the local changes.
 
 The section beneath the recorded test monitor presents the two existing jobs from one selected successful GitHub Actions attempt. It is a historical job timeline, not live activity, a CI dispatcher, or a full-suite test-case report. A compact browser-results feed uses the same selected attempt. The Automation Dashboard remains the source for current suite results. No workflow restructuring or additional containers are part of this feature.
 

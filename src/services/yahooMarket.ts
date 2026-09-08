@@ -3,6 +3,7 @@ import { BoardTimeframe, WallStreetPriceTarget, AssetType } from '../types';
 import { ChartPoint, TimeframeSummary } from '../utils/timeframeData';
 
 export interface ProxyCandlesResponse {
+  sessionSource?: 'provider' | 'samples';
   asOf: string;
   fetchedAt: string;
   symbol: string;
@@ -56,6 +57,7 @@ export interface ProxyQuoteItem {
 }
 
 const candleMemoryCache = new Map<string, { timestamp: number; data: TimeframeSummary }>();
+const candlePending = new Map<string, Promise<TimeframeSummary | null>>();
 
 export function getCachedProxyCandles(
   symbol: string,
@@ -69,7 +71,17 @@ export function getCachedProxyCandles(
 /**
  * Fetch provider-reported market candles from backend Yahoo Finance proxy.
  */
-export async function fetchProxyCandles(
+export function fetchProxyCandles(symbol: string, timeframe: BoardTimeframe): Promise<TimeframeSummary | null> {
+  const key = `${symbol.toUpperCase()}_${timeframe}`;
+  const pending = candlePending.get(key);
+  if (pending) return pending;
+  if (candlePending.size >= 100) return Promise.resolve(getCachedProxyCandles(symbol, timeframe));
+  const request = loadProxyCandles(symbol, timeframe).finally(() => candlePending.delete(key));
+  candlePending.set(key, request);
+  return request;
+}
+
+async function loadProxyCandles(
   symbol: string,
   timeframe: BoardTimeframe
 ): Promise<TimeframeSummary | null> {
@@ -110,6 +122,9 @@ export async function fetchProxyCandles(
       low: data.low,
       sessionStartUnix: data.sessionStartUnix,
       sessionEndUnix: data.sessionEndUnix,
+      sessionSource: data.sessionSource === 'provider' && finite(data.sessionStartUnix) && finite(data.sessionEndUnix) &&
+        data.sessionStartUnix <= points[0].timeUnix! && data.sessionEndUnix >= points.at(-1)!.timeUnix! &&
+        data.sessionEndUnix > data.sessionStartUnix && data.sessionEndUnix - data.sessionStartUnix <= 36 * 3600000 ? 'provider' : 'samples',
     };
 
     if (candleMemoryCache.size >= 100) candleMemoryCache.delete(candleMemoryCache.keys().next().value!);

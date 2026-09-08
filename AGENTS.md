@@ -21,6 +21,7 @@ Start with git status and the relevant implementation; preserve staged and unsta
 - Preserve legitimate zero and negative values; distinguish unavailable values from zero. Never invent market data, successful operations, test results, activity or freshness.
 - Handle asynchronous races: late responses cannot overwrite newer state, requests have deadlines, duplicate work is coalesced, caches are bounded, and resource cleanup is explicit.
 - Keep provider observation time separate from retrieval time. Cached data retains its provenance and original timestamps; refresh failure must remain visible.
+- Preserve asset identity metadata through the full provider-to-UI path. External finance links need explicit provider identifier/venue translation; never guess a venue or rely on a bare ticker redirect. Cover newly searched assets as well as curated assets, and label unresolved destinations as searches.
 - Document material decisions and limits with the implementation. Do not claim production readiness, financial accuracy, compliance or CI success without evidence supporting that specific claim.
 
 ## UX and accessibility

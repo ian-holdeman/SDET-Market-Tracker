@@ -17,6 +17,7 @@ export function applyQuote(stock: BoardStock, quote: any): BoardStock {
   return { ...emptyStock(stock.symbol, stock.name, stock.assetType), ...stock, ...quote,
     name: stock.name === stock.symbol ? quote.name ?? stock.name : stock.name,
     assetType: quote.assetType ?? stock.assetType, dataStatus: 'available', lastUpdated: quote.asOf,
+    exchange: typeof quote.exchangeName === 'string' && quote.exchangeName.trim() ? quote.exchangeName.trim() : undefined,
     // Optional fields must be cleared on a new observation, never inherited from old fixtures/data.
     marketCap: quote.marketCap ?? null, peRatio: quote.peRatio ?? null, dividendYield: quote.dividendYield ?? null,
     expenseRatio: quote.expenseRatio ?? null, targetPrice1Y: quote.targetPrice1Y ?? null,

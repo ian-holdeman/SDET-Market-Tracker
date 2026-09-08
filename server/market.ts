@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { chartSession } from '../src/utils/chartSession';
 
 export const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const num = (v: unknown): number | null => finite(v) ? v : null;
@@ -60,7 +61,7 @@ export function normalizeQuote(c: any, symbol: string, rich: any = {}, now = Dat
     expenseRatio: null,
     targetPrice1Y: finite(rich.targetMeanPrice) ? { targetMean: rich.targetMeanPrice, targetHigh: num(rich.targetHighPrice), targetLow: num(rich.targetLowPrice), consensusRating: text(rich.recommendationKey), analystCount: nonnegative(rich.numberOfAnalystOpinions) } : null,
     currency: text(m.currency), exchangeName: text(m.exchangeName),
-    sparkline: c.indicators.quote[0].close.filter(finite).slice(-28),
+    sparkline: c.indicators.quote[0].close.filter(finite),
     asOf: new Date(m.regularMarketTime * 1000).toISOString(), fetchedAt: new Date(now).toISOString(), session: 'regular', source: 'Yahoo Finance',
   };
 }
@@ -84,7 +85,7 @@ export function normalizeCandles(c: any, symbol: string, timeframe: string, now 
   return { symbol, timeframe, points, startPrice, currentPrice, ...changeFrom(currentPrice, startPrice),
     // Sampled-close extrema, not intrabar high/low or a substituted current quote.
     high: Math.max(...prices), low: Math.min(...prices), previousClose: num(c.meta.previousClose) ?? num(c.meta.chartPreviousClose),
-    sessionStartUnix: points[0].timestamp, sessionEndUnix: points.at(-1).timestamp,
+    ...chartSession(timeframe === '1D' ? c.meta.currentTradingPeriod : null, points[0].timestamp, points.at(-1).timestamp),
     currency: text(c.meta.currency), source: 'Yahoo Finance', asOf: points.at(-1).date, fetchedAt: new Date(now).toISOString(), stale: false,
   };
 }

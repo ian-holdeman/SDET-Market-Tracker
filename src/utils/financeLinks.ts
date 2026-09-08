@@ -1,135 +1,41 @@
-import { BoardStock } from '../types';
+import type { BoardStock } from '../types';
 
-export interface CompanyProfile {
-  country?: string;
-  currency?: string;
-  exchange?: string;
-  name?: string;
-  ticker?: string;
-}
-
-/**
- * Standard exchange dictionary for known symbols to guarantee accurate routing.
- */
-export const KNOWN_SYMBOL_EXCHANGES: Record<string, string> = {
-  // Broad / Index ETFs
-  VTI: 'NYSEARCA',
-  VOO: 'NYSEARCA',
-  QQQM: 'NASDAQ',
-  SPMO: 'NYSEARCA',
-  SCHD: 'NYSEARCA',
-  VXUS: 'NASDAQ',
-  IWM: 'NYSEARCA',
-  DIA: 'NYSEARCA',
-  SPCX: 'NYSEARCA',
-
-  // Fidelity Sector ETFs (trade on NYSE Arca)
-  FCOM: 'NYSEARCA',
-  FDIS: 'NYSEARCA',
-  FSTA: 'NYSEARCA',
-  FENY: 'NYSEARCA',
-  FNCL: 'NYSEARCA',
-  FHLC: 'NYSEARCA',
-  FIDU: 'NYSEARCA',
-  FMAT: 'NYSEARCA',
-  FTEC: 'NYSEARCA',
-  FUTY: 'NYSEARCA',
-
-  // NYSE Stocks
-  IBM: 'NYSE',
-  ORCL: 'NYSE',
-  IONQ: 'NYSE',
-
-  // NASDAQ Stocks / ETFs
-  GOOGL: 'NASDAQ',
-  GOOG: 'NASDAQ',
-  NVDA: 'NASDAQ',
-  AMD: 'NASDAQ',
-  AMZN: 'NASDAQ',
-  MSFT: 'NASDAQ',
-  AAPL: 'NASDAQ',
-  TSLA: 'NASDAQ',
-  META: 'NASDAQ',
-  MU: 'NASDAQ',
-  MRVL: 'NASDAQ',
-  SNDK: 'NASDAQ',
-  WDC: 'NASDAQ',
-  CRWD: 'NASDAQ',
-  PANW: 'NASDAQ',
-  SOFI: 'NASDAQ',
-  HOOD: 'NASDAQ',
-  COIN: 'NASDAQ',
-  AIRJ: 'NASDAQ',
-  FBIO: 'NASDAQ',
-  ISRG: 'NASDAQ',
-  INTC: 'NASDAQ',
-  RKLB: 'NASDAQ',
-  SYM: 'NASDAQ',
-  IREN: 'NASDAQ',
-  FLNC: 'NASDAQ',
-  MRNA: 'NASDAQ',
-  JMKE: 'NASDAQ',
+// Yahoo venue codes are not Google Finance venue codes. Do not pass unknown codes through.
+const venues: Record<string, string> = {
+  NMS: 'NASDAQ', NGM: 'NASDAQ', NCM: 'NASDAQ', NGS: 'NASDAQ', NASDAQ: 'NASDAQ',
+  'NASDAQGS': 'NASDAQ', 'NASDAQGM': 'NASDAQ', 'NASDAQCM': 'NASDAQ',
+  NYQ: 'NYSE', NYS: 'NYSE', NYSE: 'NYSE', 'NEW YORK STOCK EXCHANGE': 'NYSE',
+  PCX: 'NYSEARCA', 'NYSE ARCA': 'NYSEARCA', NYSEARCA: 'NYSEARCA',
+  ASE: 'NYSEAMERICAN', 'NYSE AMERICAN': 'NYSEAMERICAN', NYSEAMERICAN: 'NYSEAMERICAN',
+  BATS: 'BATS', BZX: 'BATS', 'CBOE BZX': 'BATS',
+  PNK: 'OTCMKTS', OQX: 'OTCMKTS', OQB: 'OTCMKTS', OTCMKTS: 'OTCMKTS',
 };
-
-/**
- * Normalizes Finnhub or raw exchange strings to Google Finance format:
- * Google Finance expects 'NYSEARCA', 'NYSE', 'NASDAQ', 'BATS', or 'OTCMKTS'.
- */
-export function normalizeExchangeForGoogleFinance(exchangeStr?: string): string | null {
-  if (!exchangeStr) return null;
-  const upper = exchangeStr.toUpperCase();
-
-  if (upper.includes('ARCA') || upper.includes('NYSE ARCA') || upper.includes('PACIFIC')) {
-    return 'NYSEARCA';
-  }
-  if (upper.includes('NEW YORK') || upper.includes('NYSE') || upper === 'NYS') {
-    return 'NYSE';
-  }
-  if (upper.includes('NASDAQ') || upper.includes('NMS') || upper.includes('NGS') || upper.includes('NCM')) {
-    return 'NASDAQ';
-  }
-  if (upper.includes('BATS') || upper.includes('CBOE') || upper.includes('BZX')) {
-    return 'BATS';
-  }
-  if (upper.includes('OTC') || upper.includes('PINK')) {
-    return 'OTCMKTS';
-  }
-
-  return null;
+const indices: Record<string, string> = {
+  '^GSPC': '.INX:INDEXSP', SPX: '.INX:INDEXSP', SP500: '.INX:INDEXSP',
+  '^NDX': 'NDX:INDEXNASDAQ', NDX: 'NDX:INDEXNASDAQ',
+  '^IXIC': '.IXIC:INDEXNASDAQ', COMP: '.IXIC:INDEXNASDAQ',
+  '^DJI': '.DJI:INDEXDJX', DJI: '.DJI:INDEXDJX', DOW: '.DJI:INDEXDJX',
+  '^RUT': 'RUT:INDEXRUSSELL', RUT: 'RUT:INDEXRUSSELL',
+  '^FTSE': 'UKX:INDEXFTSE', '^N225': 'NI225:INDEXNIKKEI', '^GDAXI': 'DAX:INDEXDB',
+};
+export function normalizeExchangeForGoogleFinance(exchange: unknown): string | null {
+  return typeof exchange === 'string' ? venues[exchange.trim().toUpperCase()] ?? null : null;
 }
 
-/**
- * Generates the most accurate Google Finance URL for any given stock/ETF.
- *
- * @param stock The BoardStock item
- * @param profile Optional Finnhub company profile fetched dynamically
- * @returns Fully qualified Google Finance quote URL
- */
-export function getGoogleFinanceQuoteUrl(
-  stock: Pick<BoardStock, 'symbol' | 'exchange'>,
-  profile?: CompanyProfile | null
-): string {
-  const sym = stock.symbol.trim().toUpperCase();
-
-  // 1. Check known dictionary mapping
-  if (KNOWN_SYMBOL_EXCHANGES[sym]) {
-    return `https://www.google.com/finance/quote/${sym}:${KNOWN_SYMBOL_EXCHANGES[sym]}`;
+export function getGoogleFinanceQuoteUrl(stock: Pick<BoardStock, 'symbol' | 'exchange' | 'name' | 'assetType'>): string {
+  const symbol = stock.symbol.trim().toUpperCase();
+  let identity: string | undefined;
+  if (stock.assetType === 'Index') identity = indices[symbol];
+  else if (stock.assetType === 'Crypto' && /^(BTC|ETH|SOL|DOGE|XRP|ADA|AVAX|LINK)(-USD)?$/.test(symbol)) {
+    identity = symbol.endsWith('-USD') ? symbol : `${symbol}-USD`;
+  } else if (stock.assetType === 'Stock' || stock.assetType === 'ETF') {
+    const venue = normalizeExchangeForGoogleFinance(stock.exchange);
+    // Class-share spelling differs between Yahoo and Google. Other punctuation/suffixes need a separate mapping.
+    const ticker = /^BRK-[AB]$/.test(symbol) ? symbol.replace('-', '.') : symbol;
+    if (venue && /^[A-Z0-9]+(?:\.[A-Z])?$/.test(ticker)) identity = `${ticker}:${venue}`;
   }
-
-  // 2. Check stock's explicit exchange property
-  if (stock.exchange) {
-    const norm = normalizeExchangeForGoogleFinance(stock.exchange) || stock.exchange.toUpperCase();
-    return `https://www.google.com/finance/quote/${sym}:${norm}`;
-  }
-
-  // 3. Check dynamic Finnhub company profile exchange
-  if (profile?.exchange) {
-    const norm = normalizeExchangeForGoogleFinance(profile.exchange);
-    if (norm) {
-      return `https://www.google.com/finance/quote/${sym}:${norm}`;
-    }
-  }
-
-  // 4. Default fallback: Clean symbol without forcing NASDAQ so Google Finance redirects accurately
-  return `https://www.google.com/finance/quote/${sym}`;
+  if (identity) return `https://www.google.com/finance/quote/${identity}`;
+  // An explicit search is safer than a bare ticker redirect or an invented exchange.
+  const query = ['site:google.com/finance/quote', symbol, stock.name, typeof stock.exchange === 'string' ? stock.exchange : ''].filter(Boolean).join(' ');
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 }

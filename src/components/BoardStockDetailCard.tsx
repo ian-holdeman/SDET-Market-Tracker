@@ -1,5 +1,6 @@
 import { finite, fixed, priceLabel, fullPriceLabel, rangePriceLabel } from '../utils/marketValues';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { hasRecentSessionSample } from '../utils/chartSession';
 import {
   TrendingUp,
   TrendingDown,
@@ -199,6 +200,20 @@ function getEvenXAxisTicks(
 }
 
 export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stock, onClose }) => {
+  const financeUrl = getGoogleFinanceQuoteUrl(stock);
+  const financeSearch = financeUrl.startsWith('https://www.google.com/search?');
+  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  const [chartNow, setChartNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setChartNow(Date.now()), 15000);
+    return () => clearInterval(timer);
+  }, []);
   const { user, isAdmin, isSymbolInWatchlist, toggleWatchlistSymbol, openAuthModal } = useAuth();
   const { addWatchlistStock, removeWatchlistStock, curatedSymbols, changeCuration } = useMarket();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -282,11 +297,14 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const [candleError, setCandleError] = useState<string | null>(null);
 
   const candleGeneration = useRef(0);
+  const candleSummaryRef = useRef(liveCandleSummary);
+  candleSummaryRef.current = liveCandleSummary;
   const loadCandleData = useCallback(async () => {
     const generation = ++candleGeneration.current;
-    setIsLoadingCandles(true);
+    setIsLoadingCandles(!candleSummaryRef.current);
     const data = await fetchProxyCandles(stock.symbol, selectedTimeframe);
     if (generation !== candleGeneration.current) return;
+    setChartNow(Date.now());
     setLiveCandleSummary(data);
     setCandleError(!data ? 'Historical data unavailable for this period.' : data.stale ? 'Chart update failed. Showing stale historical data.' : null);
     setIsLoadingCandles(false);
@@ -720,6 +738,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   key={tf}
                   id={`btn-timeframe-${stock.symbol.toLowerCase()}-${tf.toLowerCase()}`}
                   onClick={() => {
+                    if (tf === selectedTimeframe) return;
                     ++candleGeneration.current;
                     setLiveCandleSummary(null);
                     setSelectedTimeframe(tf);
@@ -745,6 +764,10 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         {candleError && <p className="text-xs text-slate-400" role="status">{candleError}</p>}
         {/* Dedicated Timestamp Track above graph (Ensures 0 overlap with High Y-axis price badge) */}
         <div className="h-5 sm:h-6 relative w-full flex items-center select-none">
+          {!activeCoord && is1D && points.length > 0 && <span data-testid="market-chart-session" className="text-[10px] sm:text-xs text-slate-400">
+            {new Date(points[0].timeUnix!).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' })}
+            {' · '}{new Date(points.at(-1)!.timeUnix!).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === new Date(chartNow).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) ? 'Intraday samples' : 'Previous session'}
+          </span>}
           {activeCoord && (
             <div
               className="absolute top-1/2 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-30 px-3 py-0.5 rounded-full bg-slate-800 text-xs sm:text-sm font-mono font-bold text-slate-100 shadow-md whitespace-nowrap border border-slate-700/60"
@@ -883,6 +906,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
             {/* High-Resolution Bold Trendline Path (Crisp, High-Resolution SoFi Style) */}
             <path
               d={pathD}
+              data-testid="market-chart-line"
               fill="none"
               stroke={strokeColor}
               strokeWidth="3.4"
@@ -890,7 +914,15 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               strokeLinejoin="round"
             />
 
-            {/* Pulsing Beacon at Current Price Tip only when this specific asset is actively trading */}
+            {coords.length > 0 && <g data-testid="market-chart-endpoint">
+              <circle cx={coords.at(-1)!.x} cy={coords.at(-1)!.y} r="4" fill={strokeColor} />
+              {hasRecentSessionSample(timeframeData, selectedTimeframe, chartNow) && !reducedMotion &&
+                <circle data-testid="market-chart-pulse" cx={coords.at(-1)!.x} cy={coords.at(-1)!.y} r="4" fill={strokeColor} opacity="0">
+                  <title>Recent sample during the provider’s trading session. Data may be delayed.</title>
+                  <animate attributeName="r" values="4;14" dur="1.8s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.65;0" dur="1.8s" repeatCount="indefinite" />
+                </circle>}
+            </g>}
             {/* Active Hover Point Circle on Trendline */}
             {activeCoord && (
               <>
@@ -922,12 +954,13 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         {/* Chart Window Bottom Bar with Google Finance Link */}
         <div className="flex items-center justify-end pt-1">
           <a
-            href={getGoogleFinanceQuoteUrl(stock)}
+            href={financeUrl}
+            title={financeSearch ? `Search Google Finance for ${stock.name} (${stock.symbol}); direct listing unavailable` : `${stock.name} (${stock.symbol}) on Google Finance`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-mono text-slate-400 hover:text-blue-400 inline-flex items-center gap-1.5 transition-colors font-medium hover:underline underline-offset-2 py-0.5 px-1.5 rounded hover:bg-slate-800/40"
           >
-            <span>Google Finance</span>
+            <span>{financeSearch ? 'Google Finance search' : 'Google Finance'}</span>
             <ExternalLink className="w-3 h-3 text-slate-400" />
           </a>
         </div>

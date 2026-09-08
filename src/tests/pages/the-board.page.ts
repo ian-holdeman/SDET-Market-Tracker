@@ -22,4 +22,28 @@ export class TheBoardPage extends BasePage {
     await this.header.navBoardBtn.click();
     await this.pageHeading.waitFor({ state: 'visible' });
   }
+
+  async searchAsset(query: string): Promise<void> {
+    if (!await this.searchInput.isVisible()) {
+      await this.page.getByRole('button', { name: 'Search market assets', exact: true }).click();
+    }
+    await this.searchInput.fill(query);
+  }
+
+  assetRow(symbol: string): Locator {
+    return this.page.locator(`#board-row-${symbol.toLowerCase()}`);
+  }
+
+  chart(symbol: string) {
+    const card = this.page.locator(`#drilldown-card-${symbol.toLowerCase()}`);
+    return {
+      card,
+      financeLink: card.getByRole('link', { name: /^Google Finance/ }),
+      line: card.getByTestId('market-chart-line'),
+      endpoint: card.getByTestId('market-chart-endpoint').locator('circle').first(),
+      pulse: card.getByTestId('market-chart-pulse'),
+      session: card.getByTestId('market-chart-session'),
+      timeframe: (name: string) => card.getByRole('button', { name, exact: true }),
+    };
+  }
 }

@@ -1,212 +1,132 @@
 import React from 'react';
-import { motion } from 'motion/react';
-import {
-  Brain,
-  Layers,
-  Terminal,
-  Cpu,
-  ShieldCheck,
-  Workflow,
-  CheckCircle2,
-  ArrowRight,
-  Code2,
-  Gauge,
-  Sparkles,
-  GitBranch,
-  Search,
-  Database
-} from 'lucide-react';
+import { Brain, ArrowRight } from 'lucide-react';
 import { PageView } from '../types';
 
 interface TheLogicProps {
   onNavigate: (page: PageView) => void;
 }
 
-export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => {
-  return (
-    <div className="w-full max-w-5xl mx-auto space-y-12 sm:space-y-16 py-4">
-      {/* 1. Page Header with Brain Icon */}
-      <div className="text-center max-w-3xl mx-auto space-y-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/60 border border-blue-800/60 text-blue-400 text-xs font-semibold">
-          <Brain className="w-4 h-4 text-blue-400" />
-          <span>System Philosophy & SDET Craft</span>
+const card = 'bg-[#0F141E]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-8 space-y-5';
+const heading = 'text-xl sm:text-2xl font-bold text-white';
+const focus = 'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-400';
+const sourceRoot = 'https://github.com/ian-holdeman/SDET-Market-Tracker/blob/main/';
+
+const evidence = [
+  {
+    title: 'Price calculation tests', path: 'scripts/tests/price-activity.test.ts',
+    text: 'Injected prices and dates exercise month-end, weekends, leap days, zero baselines and short histories. These check the calculation rules; they do not independently reconcile Yahoo prices or corporate actions.',
+  },
+  {
+    title: 'Market recovery scenarios', path: 'src/tests/specs/board/market-data.spec.ts',
+    text: 'Mocked browser requests check that a failed refresh preserves the last price with a stale warning and that missing history stays unavailable. They establish presentation behavior, not provider uptime.',
+  },
+  {
+    title: 'Asset registration scenarios', path: 'src/tests/specs/auth/auth.spec.ts',
+    text: 'Mocked registration failure shows an error, leaves the asset unwatched and makes no watchlist write. Successful registration saves under the user UUID without granting curation. These browser checks do not prove database authorization.',
+  },
+  {
+    title: 'Database ownership tests', path: 'supabase/tests/authorization.test.sql',
+    text: 'Transactional pgTAP checks exercise grants and row-level security, including cross-user access, admin isolation and forged metadata. They test database policies, not Google sign-in.',
+  },
+  {
+    title: 'Account deletion integration', path: 'scripts/auth-tests/deletion.test.ts',
+    text: 'Disposable local Auth accounts exercise the real deletion endpoint and database cascades. Reusing an email creates a new UUID with no old watchlist or admin role. This uses password Auth locally, not Google OAuth or a hosted deployment.',
+  },
+  {
+    title: 'Reporting integrity tests', path: 'scripts/tests/telemetry.test.ts',
+    text: 'Controlled reports and GitHub responses exercise retries, missing cases, invalid provenance and expired artifacts. Passing ingestion is never substituted for passing tests. These fixtures do not establish current GitHub availability.',
+  },
+];
+
+export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => (
+  <article aria-labelledby="logic-title" className="w-full max-w-5xl mx-auto space-y-8 sm:space-y-10 py-4 text-sm sm:text-base text-slate-300 leading-relaxed">
+    <header className="text-center max-w-3xl mx-auto space-y-4">
+      <Brain aria-hidden="true" className="w-6 h-6 text-blue-400 mx-auto" />
+      <h1 id="logic-title" className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">The Logic</h1>
+      <div className="h-[2px] w-32 sm:w-48 bg-gradient-to-r from-transparent via-blue-500/70 to-transparent rounded-full mx-auto" />
+      <p className="text-slate-400">The project, the decisions behind it, and how I check the work.</p>
+    </header>
+
+    <section aria-labelledby="logic-why" className={card}>
+      <h2 id="logic-why" className={heading}>Why I built this</h2>
+      <p className="max-w-3xl">I wanted a market tracker that put the assets I care about and their most relevant information in one clean, easy-to-use view. As I learned more about investing, I developed a clearer idea of what I wanted to follow and how I wanted to see it. This app gives me a place to organize that information, sort through it, and maintain my own watchlist. It’s not my perfect tracker due to financial constraints, but each asset includes a Google Finance link so users can dive deeper.</p>
+      <p className="max-w-3xl">The other (and more financially responsible) reason I built this app was to show off my skills as an engineer. I’ve had a long career in tech, but I haven’t done a personal project like this since college. Recent developments in tech and AI have reinvigorated my passion for the industry, and I want to show employers that I have the skills they’re looking for in an engineer. Over the course of a month, I designed and built the initial version of this app and its automation framework from the ground up. I intend to keep adding features and developing my skills as time goes on.</p>
+    </section>
+
+    <section aria-labelledby="logic-architecture" className={card}>
+      <h2 id="logic-architecture" className={heading}>How the app works</h2>
+      <p className="max-w-3xl">The browser brings together market data, private watchlists and published test evidence. Each has a different source of authority. Visitors can explore the Board, Tests and Logic without an account; Google sign-in enables a private watchlist.</p>
+      <figure className="space-y-3" aria-labelledby="logic-flow-title">
+        <figcaption id="logic-flow-title" className="text-sm font-semibold text-white">Data flow</figcaption>
+        <div className="space-y-3">
+          {[
+            ['Market data', 'Yahoo', 'Express validation', 'React Board & charts'],
+            ['Private watchlists', 'React + user session', 'Supabase Auth & API', 'PostgreSQL ownership rules'],
+            ['Test evidence', 'GitHub Actions artifacts', 'Express evidence validation', 'React Tests & Home'],
+          ].map(([label, ...steps]) => (
+            <div key={label} className="rounded-xl bg-[#121824] border border-slate-800/70 p-4">
+              <p className="text-xs font-semibold text-blue-300 mb-3">{label}</p>
+              <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                {steps.map((step, index) => <li key={step} className="flex items-center gap-2 min-w-0">
+                  {index > 0 && <ArrowRight aria-hidden="true" className="w-4 h-4 shrink-0 text-slate-500 rotate-90 sm:rotate-0" />}
+                  <span><span className="sr-only">{index + 1}. </span>{step}</span>
+                </li>)}
+              </ol>
+            </div>
+          ))}
         </div>
-
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-          The Logic
-        </h1>
-
-        {/* Subtle dual-accent gradient underline */}
-        <div className="h-[2px] w-32 sm:w-48 bg-gradient-to-r from-transparent via-blue-500/70 via-emerald-400/70 to-transparent rounded-full mx-auto my-2" />
-
-        <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          Why this platform is built the way it is. A breakdown of intentional engineering, market-data validation, and the rigorous SDET testing framework designed to detect regressions.
-        </p>
+      </figure>
+      <div className="space-y-3 max-w-3xl">
+        <p>Market responses are validated before use. Missing values stay unavailable, and a failed refresh labels retained observations stale. Provider observation time stays separate from retrieval time, including through caches.</p>
+        <p>Watchlists belong to an authenticated UUID. Database grants and row-level security enforce ownership; hiding a button cannot grant or remove permission. Admin curation is separate from private watchlists. Registration and account deletion use server-side identity verification.</p>
+        <p>GitHub supplies published test evidence. The server validates its source and retains a private snapshot for cold starts, then rechecks upstream evidence. Local runs cannot publish to the dashboard, and visitors cannot start tests.</p>
       </div>
-
-      {/* 2. Core Pillars Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Pillar 1: Dual Purpose Architecture */}
-        <div className="bg-[#0F141E] border border-slate-800/90 rounded-2xl p-6 flex flex-col justify-between hover:border-blue-500/40 transition-colors">
-          <div>
-            <div className="w-10 h-10 rounded-xl bg-blue-950/60 border border-blue-800/50 flex items-center justify-center text-blue-400 mb-4">
-              <Layers className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Dual-Purpose Vision</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Combining a live financial market surveillance engine with an interactive, transparent SDET test telemetry suite — showing evidence of frontend behavior and backend authorization.
-            </p>
-          </div>
-          <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center text-blue-400 text-xs font-semibold">
-            <span>Market Surveillance + Quality Assurance</span>
-          </div>
-        </div>
-
-        {/* Pillar 2: SDET Testing Excellence */}
-        <div className="bg-[#0F141E] border border-slate-800/90 rounded-2xl p-6 flex flex-col justify-between hover:border-emerald-500/40 transition-colors">
-          <div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-950/60 border border-emerald-800/50 flex items-center justify-center text-emerald-400 mb-4">
-              <Terminal className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">SDET-First Engineering</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Testing is not an afterthought; it is built into the core. Strict Page Object Models (POM), contract validation, deterministic fixtures, and validated GitHub Actions evidence.
-            </p>
-          </div>
-          <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center text-emerald-400 text-xs font-semibold">
-            <span>Playwright POM • Zero Flakiness</span>
-          </div>
-        </div>
-
-        {/* Pillar 3: Intentional UI/UX Design */}
-        <div className="bg-[#0F141E] border border-slate-800/90 rounded-2xl p-6 flex flex-col justify-between hover:border-purple-500/40 transition-colors">
-          <div>
-            <div className="w-10 h-10 rounded-xl bg-purple-950/60 border border-purple-800/50 flex items-center justify-center text-purple-400 mb-4">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Intentional Minimalism</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Every layout, font pairing, status indicator, and transition has a mathematical purpose. High-contrast typography and real-time feedback without visual clutter.
-            </p>
-          </div>
-          <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center text-purple-400 text-xs font-semibold">
-            <span>Clean Contrast • Accessible Polish</span>
-          </div>
-        </div>
+      <div className="border-t border-slate-800 pt-5 space-y-3">
+        <h3 className="font-semibold text-white">Tools and workflow</h3>
+        <p className="text-sm text-slate-400">The interface was developed with a mobile-first mindset. Try both mobile and desktop views to see how the layout adapts.</p>
+        <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+          {[
+            ['Interface', 'React · TypeScript · Vite · Tailwind'],
+            ['API and data', 'Node.js · Express · Supabase Auth · PostgreSQL'],
+            ['Verification', 'Node test runner · Playwright · pgTAP'],
+            ['Delivery checks', 'GitHub Actions · Docker / local Supabase'],
+          ].map(([purpose, tools]) => <div key={purpose}><dt className="text-white font-medium">{purpose}</dt><dd className="text-slate-400 mt-1">{tools}</dd></div>)}
+        </dl>
+        <p className="text-sm text-slate-400">The repository workflow starts behavior changes with a failing test or reproduction, then implementation and focused checks. CI separates browser/offline checks from database/Auth checks. Docker runs the local Supabase stack; application hosting is still undecided.</p>
       </div>
-
-      {/* 3. Deep-Dive Section 1: The SDET Testing Strategy */}
-      <div className="bg-[#0F141E]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-950/60 border border-emerald-800/50 flex items-center justify-center text-emerald-400">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white">
-              The Test Automation Framework & Quality Strategy
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Crossing every 't' and dotting every 'i' in end-to-end reliability.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
-          <div className="bg-[#121824] border border-slate-800/70 rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold">
-              <Code2 className="w-4 h-4" />
-              <span>Strict Page Object Model (POM)</span>
-            </div>
-            <p className="text-slate-400 leading-relaxed">
-              Decoupling locators from test logic ensures high maintainability. Page classes represent UI surfaces cleanly, preventing brittle tests and simplifying future refactors.
-            </p>
-          </div>
-
-          <div className="bg-[#121824] border border-slate-800/70 rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold">
-              <Workflow className="w-4 h-4" />
-              <span>Automated Telemetry Ingestion</span>
-            </div>
-            <p className="text-slate-400 leading-relaxed">
-              Every Playwright execution ingests real-time JSON test results directly into the UI dashboard via custom ingestion scripts (`scripts/ingest-test-results.ts`), providing instant visual status.
-            </p>
-          </div>
-
-          <div className="bg-[#121824] border border-slate-800/70 rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold">
-              <Gauge className="w-4 h-4" />
-              <span>Deterministic Assertions</span>
-            </div>
-            <p className="text-slate-400 leading-relaxed">
-              Avoiding arbitrary sleep delays by relying on state-based wait assertions (`waitFor`, `toBeVisible`, and network boundary signals) to eliminate flaky test runs.
-            </p>
-          </div>
-
-          <div className="bg-[#121824] border border-slate-800/70 rounded-xl p-4 space-y-2">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold">
-              <GitBranch className="w-4 h-4" />
-              <span>Continuous Integration Ready</span>
-            </div>
-            <p className="text-slate-400 leading-relaxed">
-              Engineered to run seamlessly across headless CI pipelines, local headed runs, and interactive UI visualizers with standard npm scripts (`npm run test:e2e`).
-            </p>
-          </div>
-        </div>
+      <div className="flex flex-wrap gap-3 pt-1">
+        <button onClick={() => onNavigate('board')} className={`px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold cursor-pointer ${focus}`}>The Board</button>
+        <button onClick={() => onNavigate('tests')} className={`px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold cursor-pointer ${focus}`}>The Tests</button>
       </div>
+    </section>
 
-      {/* 4. Deep-Dive Section 2: Market Data Architecture */}
-      <div className="bg-[#0F141E]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-950/60 border border-blue-800/50 flex items-center justify-center text-blue-400">
-            <Cpu className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white">
-              Data Ingestion & State Architecture
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400">
-              High-throughput market feeds with resilient fallback mechanisms.
-            </p>
-          </div>
+    <section aria-labelledby="logic-testing" className={card}>
+      <h2 id="logic-testing" className={heading}>How I test it</h2>
+      <p className="max-w-3xl">A valuable test makes sure your code does what it says it’s doing. The core features have to work: the Board has to load, users need to be able to save watchlists and add new assets, and the Tests dashboard needs to report results accurately. Those features need testable outputs, not just a page that looks like it worked.</p>
+      <p className="max-w-3xl">That also means testing what happens when something goes wrong. If a market request fails, the app should clearly label retained data as stale. If a new asset can’t be validated, the app should explain the failure and leave the watchlist unchanged. And if a test passes only after a retry, the dashboard should show it as flaky rather than a clean pass.</p>
+      <p className="max-w-3xl">The checks run at different levels. Controlled inputs test calculations and API failure handling. Browser tests check user workflows with mocked services. Local database and Auth tests check ownership, permissions, and account deletion against real services. Each covers a different part of the application; browser mocks alone can’t establish that the database keeps users’ data separate.</p>
+      <details className="border-t border-slate-800 pt-4 text-sm">
+        <summary className={`cursor-pointer text-blue-300 rounded-sm ${focus}`}>Evidence and coverage boundaries</summary>
+        <div data-testid="logic-evidence" className="pt-5 space-y-5">
+          {evidence.map(item => <div key={item.path} className="space-y-1">
+            <a href={sourceRoot + item.path} className={`text-blue-300 underline underline-offset-4 rounded-sm ${focus}`}>{item.title}</a>
+            <p className="text-slate-400 max-w-3xl">{item.text}</p>
+          </div>)}
+          <p className="text-slate-400">Source links describe test scenarios on the main branch, not a current passing run. The Tests page separates published browser-case results, curated recordings with mocked services, and a historical CI timeline. Database job status does not supply database case counts.</p>
+          <p className="text-slate-400">Pass Rate counts first-attempt passes over all collected browser test-project cases. A passing retry stays flaky; missing evidence is unavailable, never a perfect score.</p>
+          <p className="text-slate-400">Independent market reconciliation, load testing, hosted configuration and physical-device checks remain gaps. Test duration is not application performance. No benchmark is claimed here.</p>
         </div>
+      </details>
 
-        <div className="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
-          <p>
-            The Board polls a server-side Yahoo Finance proxy. Responses are validated before use; regular-session quotes and historical samples retain provider timestamps. Missing metrics remain unavailable, and failed refreshes mark retained observations stale. Provider data may be delayed.
-          </p>
-          <p className="text-slate-400">
-            All market updates, test histories, and watchlist favorites are managed through reactive React 19 hooks and local state caches, ensuring instant page navigation with zero layout shift.
-          </p>
-        </div>
-      </div>
+    </section>
 
-      {/* 5. Navigation Call to Action */}
-      <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-blue-950/40 via-slate-900 to-emerald-950/40 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div>
-          <h4 className="text-base font-bold text-white">Experience the System Live</h4>
-          <p className="text-xs text-slate-400 mt-1">
-            Explore the real-time stock board or inspect published test execution evidence.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button
-            onClick={() => onNavigate('board')}
-            className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-blue-950/50"
-          >
-            <Layers className="w-4 h-4" />
-            <span>The Board</span>
-          </button>
-
-          <button
-            onClick={() => onNavigate('tests')}
-            className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-950/50"
-          >
-            <Terminal className="w-4 h-4" />
-            <span>The Tests</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+    <section aria-labelledby="logic-ai" className={card}>
+      <h2 id="logic-ai" className={heading}>AI and what comes next</h2>
+      <p className="max-w-3xl">I started this project in Google AI Studio with Gemini and GitHub Copilot. Compared with learning Python in IDLE, I could already see how useful AI could be for building software. But I also spent a lot of time correcting mistakes and checking claims about functionality that didn’t hold up when I tested it. Iterating helped, though I still regularly needed to re-prompt or fix things myself.</p>
+      <p className="max-w-3xl">Working with Astra has felt more like collaborating with a coworker I can give a task to and check in with along the way. I still draft and design the features before handing over implementation, then review each code slice as I would a junior developer’s pull request. Once the automated tests pass, I run a visual regression check of the site and manually test the new behavior where needed.</p>
+      <p className="max-w-3xl">That workflow has helped me be more productive while keeping me involved in the decisions and verification. I appreciate being able to spend more time shaping the application, but I still need to understand what changed and check that it works.</p>
+      <p className="max-w-3xl">I’d want to help a QA team stay up to date with the models available and learn where they’re useful. The most important thing I’ve learned is to take the work in bite-sized chunks. Don’t give the AI too much to handle at once. Give it clear rules and restrictions, keep a consistent design philosophy, and validate its outputs as you would any other developer’s work.</p>
+      <p className="max-w-3xl">Don’t commit code you don’t understand, and keep your own skills sharp. A tool is only as strong as the person wielding it.</p>
+    </section>
+  </article>
+);
