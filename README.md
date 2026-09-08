@@ -48,6 +48,8 @@ Playwright launches an isolated production server on `127.0.0.1:3100`, with fake
 
 The offline suite covers server/configuration boundaries, provider validation, financial calculations, ownership endpoints and telemetry integrity. Opt-in `npm run test:market:live` and `npm run test:market:coverage` access Yahoo; they establish point-in-time availability rather than independent financial correctness. HTML reports, traces and recordings are local diagnostic artifacts and are not published by CI.
 
+The Tests showcase separately includes curated, reviewed local recordings in public client assets. Use `npm run record:showcase` to capture the selected browser scenarios; see [recording preparation, review, and playback limits](docs/test-recordings.md). These demonstrations use mocked services and do not establish current CI outcomes.
+
 ## Published test history
 
 GitHub Actions runs browser/offline and local database checks in parallel jobs of `.github/workflows/playwright.yml`. Only sanitized test evidence is uploaded, keyed by run ID and workflow attempt. Database-job failure prevents the overall workflow from appearing passed, even if browser tests passed. PR runs execute checks but are not accepted as portfolio telemetry.

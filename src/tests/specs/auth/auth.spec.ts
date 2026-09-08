@@ -1,4 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { fulfillShowcaseMarket } from '../../fixtures/showcase-market';
+import { test, expect } from '../../fixtures/showcase-test';
 
 const id = '44444444-4444-4444-8444-444444444444';
 const identity = { id, aud: 'authenticated', role: 'authenticated', email: 'browser@example.invalid',
@@ -63,6 +65,7 @@ async function mockApp(page: Page, authenticated = false, admin = false) {
         ? route.fulfill({ status: 502, json: { error: 'Account deletion was not confirmed. Check your session before retrying.' } })
         : route.fulfill({ status: 204 });
     }
+    if (process.env.SHOWCASE_CAPTURE === '1' && await fulfillShowcaseMarket(route)) return;
     if (url.pathname.startsWith('/api/')) return route.fulfill({ json: url.pathname === '/api/quotes' ? { quotes: [] } : { points: [], results: [] } });
     return route.continue();
   });
@@ -164,6 +167,12 @@ for (const collapse of ['card', 'all'] as const) {
     await mockApp(page, true);
     await page.goto('/board?symbol=AAPL');
     await expect(page.locator('#header-username-display')).toHaveText('Test Member');
+    if (process.env.SHOWCASE_CAPTURE === '1') {
+      await expect(page.locator('#board-row-aapl')).toHaveAttribute('data-market-status', 'available');
+      await expect(page.locator('#card-previous-close-aapl')).toContainText('$200.00');
+      await expect(page.locator('#card-1m-change-aapl')).toContainText('+2.00%');
+      await expect(page.locator('#drilldown-card-aapl')).not.toContainText('Historical data unavailable');
+    }
     await page.locator('#watchlist-star-btn-aapl').click();
     await expect(page.locator('#watching-tag-aapl')).toBeVisible();
     if (collapse === 'all') await page.locator('#board-expand-all-btn').click();

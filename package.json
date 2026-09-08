@@ -25,7 +25,9 @@
     "test:auth": "tsx --test scripts/auth-tests/*.test.ts",
     "build:e2e": "node scripts/build-browser-tests.mjs",
     "test:market:live": "tsx scripts/check-market-provider.ts",
-    "test:market:coverage": "tsx scripts/check-market-coverage.ts"
+    "test:market:coverage": "tsx scripts/check-market-coverage.ts",
+    "record:showcase": "node scripts/capture-showcase.mjs",
+    "record:showcase:prepare": "tsx scripts/prepare-showcase.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "recordings": [
+    {
+      "id": "watchlist",
+      "src": "/recordings/watchlist-425f35c6fba3.mp4",
+      "poster": "/recordings/watchlist-425f35c6fba3.png",
+      "sha256": "425f35c6fba3275cf9f511dd611508f8c76779766f3bd3231016e9e07a55aae3",
+      "originalSha256": "37957db9330bd3851767687b499130f0d9e4cb5032a8162966408d79f774fa10",
+      "testTitle": "A saved watchlist does not reopen a card after card collapse and Google re-login",
+      "sourceFile": "src/tests/specs/auth/auth.spec.ts",
+      "sourceFileSha256": "770474a69770aab9c3484b05e3d1d78b9c3485b50bdf1403642cd28b48b9abe0",
+      "commit": "964fb55963c8705b048cb3e16a3d4902753c5d14",
+      "sourceDigest": "90c744a55c1371185508e79cfd091cef87f291f183dba822586b54fbd31ff726",
+      "workingTreeModified": true,
+      "capturedAt": "2026-09-08T09:53:27.848Z",
+      "browser": "WebKit · iPhone 13 emulation · Windows",
+      "viewport": "390 × 664",
+      "node": "v22.23.2",
+      "playwright": "1.62.1",
+      "outcome": "passed",
+      "durationMs": 6378,
+      "videoDurationSeconds": 7.16,
+      "attempts": [
+        {
+          "retry": 0,
+          "status": "passed",
+          "durationMs": 6378
+        }
+      ]
+    },
+    {
+      "id": "cold-start",
+      "src": "/recordings/cold-start-7a5a4882d53d.mp4",
+      "poster": "/recordings/cold-start-7a5a4882d53d.png",
+      "sha256": "7a5a4882d53db10f9da07fc8ec40f0d9e5018bff2a2178fe6bc054999f268c97",
+      "originalSha256": "b1f612744d079334991752136a4e2d6ee5d339034ae24a621313792e49345a39",
+      "testTitle": "cold skeleton and saved snapshot stay mounted until a verified refresh arrives",
+      "sourceFile": "src/tests/specs/telemetry/history.spec.ts",
+      "sourceFileSha256": "a224735cc6510242569f69d4366da8d4ff2a0e9195f94fa5fad9116071e27907",
+      "commit": "964fb55963c8705b048cb3e16a3d4902753c5d14",
+      "sourceDigest": "90c744a55c1371185508e79cfd091cef87f291f183dba822586b54fbd31ff726",
+      "workingTreeModified": true,
+      "capturedAt": "2026-09-08T09:53:40.513Z",
+      "browser": "Chromium · Windows",
+      "viewport": "1440 × 900",
+      "node": "v22.23.2",
+      "playwright": "1.62.1",
+      "outcome": "passed",
+      "durationMs": 6146,
+      "videoDurationSeconds": 6.96,
+      "attempts": [
+        {
+          "retry": 0,
+          "status": "passed",
+          "durationMs": 6146
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "src": "/recordings/history-2fbea022b85d.mp4",
+      "poster": "/recordings/history-2fbea022b85d.png",
+      "sha256": "2fbea022b85da842d0fab1c02e0046c01f9abba5a2bd251ffc1076572e2ddd56",
+      "originalSha256": "cc51962ac502d860ed6f832f43107432ad7e472175bb9c050a1d4f655bd76ff8",
+      "testTitle": "recent results hides empty runs while history paginates and nested details restore focus",
+      "sourceFile": "src/tests/specs/telemetry/history.spec.ts",
+      "sourceFileSha256": "a224735cc6510242569f69d4366da8d4ff2a0e9195f94fa5fad9116071e27907",
+      "commit": "964fb55963c8705b048cb3e16a3d4902753c5d14",
+      "sourceDigest": "90c744a55c1371185508e79cfd091cef87f291f183dba822586b54fbd31ff726",
+      "workingTreeModified": true,
+      "capturedAt": "2026-09-08T09:53:38.505Z",
+      "browser": "Chromium · Windows",
+      "viewport": "1440 × 900",
+      "node": "v22.23.2",
+      "playwright": "1.62.1",
+      "outcome": "passed",
+      "durationMs": 1996,
+      "videoDurationSeconds": 2.44,
+      "attempts": [
+        {
+          "retry": 0,
+          "status": "passed",
+          "durationMs": 1996
+        }
+      ]
+    },
+    {
+      "id": "deletion",
+      "src": "/recordings/deletion-f2a3c8f78322.mp4",
+      "poster": "/recordings/deletion-f2a3c8f78322.png",
+      "sha256": "f2a3c8f783229d9fe9fba4c4e34bae65cb6e20f1dfff862d247cd98560fcee5f",
+      "originalSha256": "8a71bb8b0b3af48afee94ff64db9a77a8d620b06c2095643bfd0ebadeadc3fd5",
+      "testTitle": "Deletion errors retain the account; confirmed deletion clears the browser session",
+      "sourceFile": "src/tests/specs/auth/auth.spec.ts",
+      "sourceFileSha256": "770474a69770aab9c3484b05e3d1d78b9c3485b50bdf1403642cd28b48b9abe0",
+      "commit": "964fb55963c8705b048cb3e16a3d4902753c5d14",
+      "sourceDigest": "90c744a55c1371185508e79cfd091cef87f291f183dba822586b54fbd31ff726",
+      "workingTreeModified": true,
+      "capturedAt": "2026-09-08T09:53:34.938Z",
+      "browser": "Chromium · Windows",
+      "viewport": "1440 × 900",
+      "node": "v22.23.2",
+      "playwright": "1.62.1",
+      "outcome": "passed",
+      "durationMs": 2159,
+      "videoDurationSeconds": 2.28,
+      "attempts": [
+        {
+          "retry": 0,
+          "status": "passed",
+          "durationMs": 2159
+        }
+      ]
+    }
+  ]
+}

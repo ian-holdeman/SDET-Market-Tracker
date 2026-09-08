@@ -1,6 +1,6 @@
 import { HomePage } from "../../pages/home.page";
 import { TheTestsPage } from "../../pages/the-tests.page";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../fixtures/showcase-test";
 import { evidence, published, feed } from "../../fixtures/testEvidence";
 function varied(
   number: number,

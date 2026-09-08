@@ -19,7 +19,7 @@ This project serves two purposes: personal market monitoring and a public portfo
 - Accounts currently enable watchlists. Admin curation is separate from personal data; Google metadata cannot assign roles. See [accounts and authorization](../supabase/README.md).
 - The Board shows six price/activity metrics: previous close, day range, 52-week range, volume, one-month change and one-year change. Google Finance links provide deeper research; inaccessible fundamentals are not estimated. See [market data](market-data.md).
 - Searched assets can be registered through a trusted server path and saved under owner-only RLS. Registration does not curate an asset. See [symbol registration](symbol-registration.md).
-- GitHub is the authority for public test results. Recordings are the planned visual demonstrations; visitors must not execute tests. See [telemetry](test-telemetry.md).
+- GitHub is the authority for public test results. Curated local browser recordings provide visual demonstrations, with mocks and provenance disclosed; visitors must not execute tests. See [telemetry](test-telemetry.md) and [recordings](test-recordings.md).
 - Header dots indicate an in-progress trusted GitHub workflow and scheduled U.S. equity hours, respectively. The market dot excludes crypto and does not establish live prices or absence of halts. See [activity indicators](header-activity.md).
 
 ## Environment and evidence boundaries

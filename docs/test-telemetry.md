@@ -1,5 +1,7 @@
 # Trustworthy test telemetry
 
+Curated local browser recordings are a separate demonstration feature; see [recording selection, reproduction, and public media policy](test-recordings.md). Their media and outcomes never enter the authoritative GitHub telemetry feed described here.
+
 ## Publication and storage choice
 
 GitHub Actions artifacts are the storage layer: no additional database, write endpoint, CI secrets or paid service is introduced. Small JSON artifacts use the repository's existing Actions storage allowance. The server reads GitHub's workflow metadata and matching sanitized artifacts. Public visitors never call Actions APIs directly and cannot trigger execution.

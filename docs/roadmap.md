@@ -12,7 +12,7 @@ Owner-provided roadmap, recorded 2026-09-08. These are future tasks, not authori
 
 ## The Tests
 
-1. First feature beneath the dashboard: replace the current layout with one monitor for recorded test execution and multiple “best test” tabs.
+1. Completed: one recorded-execution monitor with four featured-test tabs (watchlist re-login, cold-start recovery, history recovery, and safe deletion), real local captures with populated market fixtures, accessible 0.5×/1×/2× playback, concise scenario details, and disclosed provenance/mocks. See [recording workflow and limits](test-recordings.md).
 2. Second feature beneath the monitor: replace the current section with a demonstration of parallel containerized pipeline execution without headed browser playback.
 
 For both features, preserve visitor access and use real, attributable evidence. No visitor-triggered execution or fake live status. Define recording selection, artifact handling, playback/accessibility, and the source of pipeline evidence when scoping each feature. Do not assume a public display requires new paid execution infrastructure.
