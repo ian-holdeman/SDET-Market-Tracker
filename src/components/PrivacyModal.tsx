@@ -39,7 +39,7 @@ export const PrivacyModal: React.FC<PrivacyModalProps> = ({ isOpen, onClose }) =
               <div>
                 <h3 className="text-lg font-bold text-white">Privacy & Data Notice</h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Strict client-side privacy, zero tracker cookies, and read-only data feeds.
+                  How sign-in, watchlists, and market data are handled.
                 </p>
               </div>
             </div>
@@ -68,10 +68,10 @@ export const PrivacyModal: React.FC<PrivacyModalProps> = ({ isOpen, onClose }) =
             <div className="p-3.5 rounded-xl bg-[#121824] border border-slate-800/80 space-y-1.5">
               <div className="flex items-center gap-2 text-white font-semibold">
                 <Lock className="w-4 h-4 text-emerald-400" />
-                <span>Pseudonymous Client Storage</span>
+                <span>Google Sign-in and Personal Watchlists</span>
               </div>
               <p className="text-slate-400 leading-relaxed">
-                User watchlists and custom board preferences are stored locally in your browser session or securely tied pseudonymously to your chosen username.
+                Google provides identity information to Supabase Auth when you sign in. Watchlists are stored under your authentication ID; ordinary users and app admins cannot read another user’s watchlist. This browser stores your sign-in session and caches market data. Deleting an account removes its live Auth identity, watchlist, and admin assignment, but does not delete your Google account. Provider backups and logs have separate retention policies.
               </p>
             </div>
 

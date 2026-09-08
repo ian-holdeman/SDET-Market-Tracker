@@ -226,8 +226,10 @@ function getEvenXAxisTicks(
 }
 
 export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stock, onClose }) => {
-  const { user, isSymbolInWatchlist, toggleWatchlistSymbol, openAuthModal } = useAuth();
-  const { addWatchlistStock, removeWatchlistStock } = useMarket();
+  const { user, isAdmin, isSymbolInWatchlist, toggleWatchlistSymbol, openAuthModal } = useAuth();
+  const { addWatchlistStock, removeWatchlistStock, curatedSymbols, changeCuration } = useMarket();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionPending, setActionPending] = useState(false);
   const isWatching = isSymbolInWatchlist(stock.symbol);
 
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -262,6 +264,8 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       openAuthModal('login', 'You must be logged in to add items to your watchlist.');
       return;
     }
+    setActionError(null); setActionPending(true);
+    try {
     const added = await toggleWatchlistSymbol(stock.symbol);
     if (added) {
       addWatchlistStock(stock);
@@ -271,6 +275,8 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         onClose();
       }
     }
+    } catch (err) { setActionError(err instanceof Error ? err.message : 'The change was not confirmed.'); }
+    finally { setActionPending(false); }
   };
 
   // Format volume helper
@@ -709,6 +715,14 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       id={`drilldown-card-${stock.symbol.toLowerCase()}`}
       className="p-1.5 sm:p-3.5 bg-[#0B0F17] space-y-1.5 sm:space-y-2.5 max-w-full overflow-hidden"
     >
+      {actionError && <p role="alert" className="text-sm text-rose-300">{actionError}</p>}
+      {isAdmin && <button disabled={actionPending} className="rounded-lg border border-blue-700 px-3 py-2 text-xs text-blue-300 disabled:opacity-50"
+        onClick={async () => {
+          setActionError(null); setActionPending(true);
+          try { await changeCuration(stock.symbol, !curatedSymbols.includes(stock.symbol)); }
+          catch (err) { setActionError(err instanceof Error ? err.message : 'The change was not confirmed.'); }
+          finally { setActionPending(false); }
+        }}>{curatedSymbols.includes(stock.symbol) ? 'Remove from curated Board' : 'Add to curated Board'}</button>}
       {/* Top Header & Controls: Left (Identity + Live Price/Return), Right (Timeframe Tabs & Sync) */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 sm:gap-4 pb-0.5">
         
@@ -754,6 +768,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   id={`watchlist-star-btn-${stock.symbol.toLowerCase()}`}
                   type="button"
                   onClick={handleWatchToggle}
+                  disabled={actionPending}
                   aria-label={isWatching ? `Remove ${stock.symbol} from Watchlist` : `Add ${stock.symbol} to Watchlist`}
                   title={isWatching ? `Watching ${stock.symbol} - Click to remove from watchlist` : `Add ${stock.symbol} to Watchlist`}
                   className={`p-1.5 rounded-lg transition-all duration-150 inline-flex items-center justify-center shrink-0 active:scale-90 cursor-pointer ${

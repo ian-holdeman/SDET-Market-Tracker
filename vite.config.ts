@@ -1,9 +1,15 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
+import { readSupabaseConfig } from './src/lib/supabaseConfig';
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
+  if (Object.entries(env).some(([name, value]) => value.startsWith('sb_secret_') || /VITE_.*(?:SERVICE_ROLE|SUPABASE_SECRET)/.test(name))) {
+    throw new Error('Privileged Supabase keys must not use VITE_ variables.');
+  }
+  if (env.VITE_SUPABASE_URL || env.VITE_SUPABASE_PUBLISHABLE_KEY) readSupabaseConfig(env);
   return {
     plugins: [react(), tailwindcss()],
     resolve: {

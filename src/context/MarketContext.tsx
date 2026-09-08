@@ -1,15 +1,19 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { BoardStock } from '../types';
 import { INITIAL_BOARD_STOCKS } from '../data/marketData';
 import { fetchProxyQuotes, ProxyQuoteItem, preloadProxyCandles } from '../services/yahooMarket';
 import { preloadTickerLogos } from '../components/TickerLogo';
 import { useAuth } from './AuthContext';
+import { getSupabase } from '../lib/supabase';
 
 export type SocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 export type FeedMode = 'synced_rest' | 'offline_error';
 
 export interface MarketContextType {
   stocks: BoardStock[];
+  curatedSymbols: string[];
+  curationError: string | null;
+  changeCuration: (symbol: string, add: boolean) => Promise<void>;
   socketStatus: SocketStatus;
   feedMode: FeedMode;
   lastSyncTime: string | null;
@@ -51,6 +55,38 @@ function getInitialCachedStocks(): BoardStock[] {
 
 export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const [curatedSymbols, setCuratedSymbols] = useState(INITIAL_BOARD_STOCKS.map((s) => s.symbol));
+  const [curationError, setCurationError] = useState<string | null>(null);
+  const curatedStocks = useMemo(() => curatedSymbols.map((symbol): BoardStock =>
+    INITIAL_BOARD_STOCKS.find((s) => s.symbol === symbol) || {
+      symbol, name: symbol, assetType: 'Stock', price: 0, change: 0, changePercent: 0,
+      prevClose: 0, open: 0, dayHigh: 0, dayLow: 0, fiftyTwoWeekHigh: 0,
+      fiftyTwoWeekLow: 0, volume: 0, sparkline: [], lastUpdated: '', tickCount: 0,
+    }), [curatedSymbols]);
+  const reloadCuration = useCallback(async () => {
+    const result = await getSupabase().from('curated_assets').select('symbol').order('symbol');
+    if (result.error) throw new Error('Curated Board membership could not be loaded. Displaying the last available list.');
+    setCuratedSymbols(result.data.map((row) => row.symbol));
+    setCurationError(null);
+  }, []);
+  useEffect(() => {
+    try { getSupabase(); } catch { return; }
+    const refresh = () => { void reloadCuration().catch((err) => setCurationError(err.message)); };
+    refresh();
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [reloadCuration]);
+  const changeCuration = async (symbol: string, add: boolean) => {
+    const client = getSupabase();
+    const result = add
+      ? await client.from('curated_assets').insert({ symbol }).select('symbol')
+      : await client.from('curated_assets').delete().eq('symbol', symbol).select('symbol');
+    if (result.error || result.data?.length !== 1) throw new Error('Curated membership change was not confirmed. Check your permissions and whether the asset is in the catalog.');
+    await reloadCuration();
+  };
+  const universe = useMemo(() => ({}), [curatedStocks, user?.id, JSON.stringify(user?.watchlist)]);
+  const universeRef = useRef(universe);
+  universeRef.current = universe;
   const [stocks, setStocks] = useState<BoardStock[]>(getInitialCachedStocks);
   const [socketStatus, setSocketStatus] = useState<SocketStatus>('connected');
   const [feedMode, setFeedMode] = useState<FeedMode>('synced_rest');
@@ -72,15 +108,17 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     setIsLoadingLiveMetrics(true);
+    const currentUniverse = universe;
     const startTime = Date.now();
     const symbols = Array.from(new Set([
-      ...INITIAL_BOARD_STOCKS.map((s) => s.symbol),
+      ...curatedStocks.map((s) => s.symbol),
       ...(user?.watchlist || []),
     ]));
 
     try {
       // 1. Fetch real batch quotes from server Yahoo Finance proxy
       const proxyQuotes: ProxyQuoteItem[] | null = await fetchProxyQuotes(symbols);
+      if (universeRef.current !== currentUniverse) return;
       const measuredLatency = Date.now() - startTime;
       setLatencyMs(measuredLatency);
 
@@ -102,8 +140,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Reconcile and atomic state update containing quotes
       setStocks((prevStocks) => {
         const prevMap = new Map(prevStocks.map((s) => [s.symbol, s]));
-        // Reconcile with INITIAL_BOARD_STOCKS as authoritative base
-        const baseStocks = INITIAL_BOARD_STOCKS.map((init) => prevMap.get(init.symbol) || init);
+        // Reconcile with curatedStocks as authoritative base
+        const baseStocks = curatedStocks.map((init) => prevMap.get(init.symbol) || init);
         // Also preserve any active custom watchlist symbols for the current user
         if (user && Array.isArray(user.watchlist)) {
           user.watchlist.forEach((sym) => {
@@ -152,6 +190,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           return {
             ...stock,
+            name: stock.name === stock.symbol ? live.name || stock.name : stock.name,
             price: currentPrice,
             change,
             changePercent,
@@ -174,7 +213,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         // Cache in sessionStorage only for the curated 50
         try {
-          const baseOnly = updated.filter((s) => INITIAL_BOARD_STOCKS.some((b) => b.symbol === s.symbol));
+          const baseOnly = updated.filter((s) => curatedStocks.some((b) => b.symbol === s.symbol));
           sessionStorage.setItem(CACHE_KEY, JSON.stringify(baseOnly));
         } catch {
           // Ignore storage overflow
@@ -209,7 +248,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isFetchingRef.current = false;
       setIsLoadingLiveMetrics(false);
     }
-  }, [user?.watchlist]);
+  }, [user?.watchlist, curatedStocks, universe]);
 
   // Fetch a single asset quote on demand from the universal proxy without mutating board state
   const fetchSingleAssetQuote = useCallback(async (symbol: string): Promise<BoardStock | null> => {
@@ -272,86 +311,32 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Remove a custom asset from board stocks (when un-watchlisted)
   const removeWatchlistStock = useCallback((symbol: string) => {
-    const isBaseStock = INITIAL_BOARD_STOCKS.some((b) => b.symbol === symbol);
+    const isBaseStock = curatedStocks.some((b) => b.symbol === symbol);
     if (isBaseStock) return; // Never remove curated base stocks
     setStocks((prev) => prev.filter((s) => s.symbol !== symbol));
-  }, []);
+  }, [curatedStocks]);
 
-  // Synchronize custom watchlisted stocks whenever user changes or watchlist updates
+  // Cancel late quote responses when the authenticated UUID or membership changes.
   useEffect(() => {
-    if (!user || !Array.isArray(user.watchlist) || user.watchlist.length === 0) {
-      // User is logged out or has empty watchlist: prune any non-base stocks
-      setStocks((prev) => prev.filter((s) => INITIAL_BOARD_STOCKS.some((b) => b.symbol === s.symbol)));
-      return;
-    }
-
-    const customSymbols = user.watchlist.filter(
-      (sym) => !INITIAL_BOARD_STOCKS.some((b) => b.symbol === sym)
-    );
-
-    // Prune custom stocks that are no longer in user's watchlist
-    setStocks((prev) =>
-      prev.filter((s) => INITIAL_BOARD_STOCKS.some((b) => b.symbol === s.symbol) || user.watchlist.includes(s.symbol))
-    );
-
-    // Fetch quotes for any missing custom watchlist stocks
-    if (customSymbols.length > 0) {
+    let active = true;
+    const wanted = new Set([...curatedSymbols, ...(user?.watchlist || [])]);
+    setStocks((prev) => prev.filter((stock) => wanted.has(stock.symbol)));
+    const custom = (user?.watchlist || []).filter((symbol) => !curatedSymbols.includes(symbol));
+    void Promise.all(custom.map(fetchSingleAssetQuote)).then((quotes) => {
+      if (!active) return;
       setStocks((prev) => {
-        const missingSymbols = customSymbols.filter((sym) => !prev.some((s) => s.symbol === sym));
-        if (missingSymbols.length > 0) {
-          fetchProxyQuotes(missingSymbols).then((quotes) => {
-            if (quotes && quotes.length > 0) {
-              const nowTimeStr = new Date().toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true,
-              });
-              const newStocks: BoardStock[] = quotes.map((q) => ({
-                symbol: q.symbol,
-                name: q.name || q.symbol,
-                assetType: q.assetType || 'Stock',
-                category: q.assetType === 'Crypto' ? 'Cryptocurrency' : q.assetType === 'ETF' ? 'Exchange Traded Fund' : q.assetType === 'Index' ? 'Index Benchmark' : 'Equities',
-                price: q.price,
-                change: q.change,
-                changePercent: q.changePercent,
-                prevClose: q.prevClose,
-                open: q.open,
-                dayHigh: q.dayHigh,
-                dayLow: q.dayLow,
-                fiftyTwoWeekHigh: q.fiftyTwoWeekHigh || Number((q.price * 1.2).toFixed(2)),
-                fiftyTwoWeekLow: q.fiftyTwoWeekLow || Number((q.price * 0.8).toFixed(2)),
-                volume: q.volume,
-                peRatio: q.peRatio,
-                marketCap: q.marketCap || '—',
-                dividendYield: q.dividendYield || 0,
-                sparkline: q.sparkline && q.sparkline.length > 0 ? q.sparkline : [q.prevClose, q.price],
-                lastUpdated: nowTimeStr,
-                tickCount: 0,
-                targetPrice1Y: q.targetPrice1Y,
-              }));
-
-              setStocks((current) => {
-                const combined = [...current];
-                newStocks.forEach((ns) => {
-                  if (!combined.some((c) => c.symbol === ns.symbol)) {
-                    combined.push(ns);
-                  }
-                });
-                return combined;
-              });
-            }
-          });
-        }
-        return prev;
+        const next = new Map(prev.map((stock) => [stock.symbol, stock]));
+        quotes.forEach((stock) => { if (stock && wanted.has(stock.symbol)) next.set(stock.symbol, stock); });
+        return [...next.values()];
       });
-    }
-  }, [user?.username, JSON.stringify(user?.watchlist)]);
+    });
+    return () => { active = false; };
+  }, [user?.id, JSON.stringify(user?.watchlist), curatedSymbols, fetchSingleAssetQuote]);
 
   // Initial root mount and continuous background refresh (15s interval)
   useEffect(() => {
     // Eagerly preload all ticker logo assets across the board universe into the browser cache
-    preloadTickerLogos(INITIAL_BOARD_STOCKS.map(s => s.symbol));
+    preloadTickerLogos(curatedStocks.map(s => s.symbol));
 
     fetchLiveMarketData();
 
@@ -367,6 +352,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const value: MarketContextType = {
     stocks,
+    curatedSymbols, curationError, changeCuration,
     socketStatus,
     feedMode,
     lastSyncTime,

@@ -124,7 +124,7 @@ export const UserSettings: React.FC<UserSettingsProps> = ({ onNavigate }) => {
                 <span>Account Identity</span>
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Your pseudonymous username used for saving watchlists and personal preference sync.
+                Your Google display name. Watchlist ownership uses your unique authentication ID, not your name or email.
               </p>
             </div>
 
@@ -166,7 +166,7 @@ export const UserSettings: React.FC<UserSettingsProps> = ({ onNavigate }) => {
                 <span>Delete Account</span>
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Permanently delete your account, saved watchlist items, and cloud data. This action is irreversible.
+                Delete your app sign-in identity and saved watchlist. Shared assets remain. A later sign-in creates a fresh account.
               </p>
             </div>
 
@@ -239,13 +239,13 @@ export const UserSettings: React.FC<UserSettingsProps> = ({ onNavigate }) => {
                     What will be deleted:
                   </p>
                   <ul className="list-disc pl-4 space-y-1 text-slate-300 text-[11px]">
-                    <li>All saved watchlist preferences and customized tickers</li>
-                    <li>Account credentials and user profile records</li>
-                    <li>Local session state across your devices</li>
+                    <li>All personal watchlist items</li>
+                    <li>Your app authentication identity and any app admin assignment</li>
+                    <li>The sign-in session stored in this browser</li>
                   </ul>
                 </div>
                 <p className="text-slate-400 text-[11px] italic">
-                  This action cannot be undone.
+                  This does not delete your Google account or shared Board assets. Provider backups and security logs follow provider retention policies; immediate erasure from those systems is not guaranteed.
                 </p>
               </div>
 

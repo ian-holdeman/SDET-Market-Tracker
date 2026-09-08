@@ -2,6 +2,10 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
+import dotenv from 'dotenv';
+import { configuredAccountRouter } from './server/account';
+
+dotenv.config({ path: ['.env.local', '.env'], quiet: true });
 
 interface CachedData {
   timestamp: number;
@@ -161,6 +165,7 @@ async function startServer() {
   }
 
   app.use(express.json());
+  app.use(configuredAccountRouter(process.env));
 
   // Health check
   app.get("/api/health", (_req, res) => {
@@ -202,7 +207,7 @@ async function startServer() {
 
             const meta = chart?.meta || {};
             const quote = chart?.indicators?.quote?.[0] || {};
-            const closes: (number | null)[] = (quote.close || []).filter((c: any) => typeof c === 'number' && c !== null);
+            const closes: number[] = (quote.close || []).filter((c: unknown): c is number => typeof c === 'number');
 
             const prevClose = richQuote?.regularMarketPreviousClose || meta.chartPreviousClose || meta.previousClose || (closes.length > 0 ? closes[0] : 0);
             const latestClose = closes.length > 0 ? closes[closes.length - 1] : prevClose;

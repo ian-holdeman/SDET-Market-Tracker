@@ -10,6 +10,7 @@ export type Timeframe = '1D' | '1W' | '1M' | '1Y' | 'ALL';
 export type UserRole = 'admin' | 'user';
 
 export interface UserProfile {
+  id: string;
   username: string;
   watchlist: string[];
   role: UserRole;

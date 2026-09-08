@@ -149,3 +149,13 @@ Next decisions: Firebase Auth/RBAC design, an emulator or disposable development
 database, free hosting constraints, live market reliability checks, and a budgeted
 architecture for user-triggered headed execution. No live-runner/container
 infrastructure or broader UI redesign is included here.
+
+## Supabase accounts
+
+Google sign-in, private UUID-owned watchlists, curated membership and account deletion
+use Supabase. Firebase configuration now applies only to legacy test history.
+See [Supabase setup](supabase/README.md#google-sign-in-and-frontend-integration) for
+local configuration, exact OAuth URLs, Google provider setup, permission boundaries
+and verification commands. No hosted project or Google OAuth client is configured yet.
+Use `npm run build:e2e` before browser tests and `npm run build` afterwards to restore
+the normal local build.

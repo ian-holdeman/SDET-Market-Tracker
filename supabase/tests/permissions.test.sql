@@ -1,0 +1,20 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(5);
+set local role anon;
+select throws_ok('select public.current_user_is_admin()', '42501', 'permission denied for function current_user_is_admin', 'visitor cannot call authenticated permission lookup');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}', true);
+select is(public.current_user_is_admin(), true, 'trusted admin sees permission');
+select set_config('request.jwt.claims', '{"sub":"22222222-2222-4222-8222-222222222222","role":"authenticated","user_metadata":{"role":"admin"}}', true);
+select is(public.current_user_is_admin(), false, 'editable role metadata grants nothing');
+select throws_ok('select public.current_user_is_admin(''11111111-1111-4111-8111-111111111111''::uuid)', '42883', null, 'lookup accepts no target UUID');
+reset role;
+delete from private.admin_users where user_id='11111111-1111-4111-8111-111111111111';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}', true);
+select is(public.current_user_is_admin(), false, 'revocation is visible without minting another token');
+reset role;
+select * from finish();
+rollback;
+

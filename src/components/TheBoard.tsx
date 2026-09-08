@@ -31,7 +31,7 @@ import { searchProxyAssets } from '../services/yahooMarket';
 
 interface TheBoardProps {
   initialExpandedSymbol?: string;
-  onSelectStock?: (symbol: string) => void;
+  onSelectStock?: (symbol?: string) => void;
 }
 
 const CATEGORY_OPTIONS: { id: 'ALL' | AssetType; label: string; shortLabel: string }[] = [
@@ -319,7 +319,7 @@ BoardTableRow.displayName = 'BoardTableRow';
 
 export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSelectStock }) => {
   const { 
-    stocks, 
+    stocks, curationError,
     latencyMs,
     lastSyncTime,
     totalTicks,
@@ -540,29 +540,22 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
   // Toggle single stock drilldown expansion
   const toggleExpand = useCallback((symbol: string) => {
-    // Record symbol so internal clicks on existing pill don't trigger external initialExpandedSymbol reset
-    initialHandledRef.current = symbol;
-    setExpandedSymbols(prev => {
-      const next = new Set(prev);
-      if (next.has(symbol)) {
-        next.delete(symbol);
-      } else {
-        next.add(symbol);
-      }
-      return next;
-    });
-    if (onSelectStock) {
-      onSelectStock(symbol);
-    }
-  }, [onSelectStock]);
+    const next = new Set(expandedSymbols);
+    if (next.has(symbol)) next.delete(symbol);
+    else next.add(symbol);
+    // The route describes an open card, never the last card that was closed.
+    const selected = [...next].at(-1);
+    initialHandledRef.current = selected ?? null;
+    setExpandedSymbols(next);
+    onSelectStock?.(selected);
+  }, [expandedSymbols, onSelectStock]);
 
-  // Toggle all stocks expansion (Collapse All if any card is currently open; Expand All if none are open)
+  // Bulk expansion has no single-card destination; clear any stale deep link.
   const toggleExpandAll = () => {
-    if (expandedSymbols.size > 0) {
-      setExpandedSymbols(new Set());
-    } else {
-      setExpandedSymbols(new Set(processedStocks.map(s => s.symbol)));
-    }
+    setExpandedSymbols(expandedSymbols.size > 0
+      ? new Set() : new Set(processedStocks.map(s => s.symbol)));
+    initialHandledRef.current = null;
+    onSelectStock?.(undefined);
   };
 
   // Handle manual refresh click
@@ -723,6 +716,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
   return (
     <div id="the-board-page" className="w-full space-y-5">
+      {curationError && <p role="alert" className="text-sm text-amber-300">{curationError}</p>}
       
       {/* Top Header & Surveillance Telemetry Bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

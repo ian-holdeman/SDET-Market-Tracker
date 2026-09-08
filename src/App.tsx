@@ -60,7 +60,7 @@ function AppContent() {
         onNavigate={(page) => handleNavigate(page)}
       />
 
-      {/* Auth Modal for Pseudonymous Sign-in & Registration */}
+      {/* Google sign-in */}
       <AuthModal />
 
       {/* Horizontal Market Ticker Ribbon (Only on The Board) */}

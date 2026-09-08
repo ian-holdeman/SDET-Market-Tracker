@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "db:start": "supabase start",
-    "db:stop": "supabase stop",
-    "db:reset": "supabase db reset --local",
-    "db:test": "supabase test db --local",
-    "db:lint": "supabase db lint --local --schema public,private --level warning --fail-on warning",
+    "db:start": "node scripts/supabase.mjs start",
+    "db:stop": "node scripts/supabase.mjs stop",
+    "db:reset": "node scripts/supabase.mjs db reset --local",
+    "db:test": "node scripts/supabase.mjs test db --local",
+    "db:lint": "node scripts/supabase.mjs db lint --local --schema public,private --level warning --fail-on warning",
     "dev": "tsx server.ts --development",
     "build": "npm run clean && vite build --outDir dist/client && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server/server.mjs",
     "start": "node dist/server/server.mjs",
@@ -20,9 +20,13 @@
     "test:e2e:ingest": "tsx scripts/ingest-test-results.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "auth:setup:local": "node scripts/setup-local-auth.mjs",
+    "test:auth": "tsx --test scripts/auth-tests/*.test.ts",
+    "build:e2e": "node scripts/build-browser-tests.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.116.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "firebase": "^12.18.0",

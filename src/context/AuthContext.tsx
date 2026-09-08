@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { UserProfile, loginUser, signUpUser, saveUserWatchlist, deleteUserAccount, getUserRole } from '../services/authService';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { type UserProfile, signInWithGoogle, completeOAuth, loadProfile, changeWatchlist, deleteUserAccount } from '../services/authService';
+import { getSupabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -7,13 +8,10 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   isAuthModalOpen: boolean;
-  authModalMode: 'login' | 'signup';
   openAuthModal: (mode?: 'login' | 'signup', initialError?: string) => void;
   closeAuthModal: () => void;
-  setAuthModalMode: (mode: 'login' | 'signup') => void;
-  login: (username: string, passcode: string) => Promise<void>;
-  signup: (username: string, passcode: string) => Promise<void>;
-  logout: () => void;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   toggleWatchlistSymbol: (symbol: string) => Promise<boolean>;
   isSymbolInWatchlist: (symbol: string) => boolean;
@@ -21,179 +19,107 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const LOCAL_STORAGE_KEY = 'imt_active_user_session';
+const message = (error: unknown) => error instanceof Error ? error.message : 'The account request failed. Please try again.';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          ...parsed,
-          role: getUserRole(parsed.username || ''),
-        };
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+  const generation = useRef(0);
+  const mutation = useRef(false);
 
-  // Sync session changes to localStorage
   useEffect(() => {
-    try {
-      if (user) {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(user));
-      } else {
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-      }
-    } catch {
-      // Ignore localStorage errors
-    }
-  }, [user]);
+    localStorage.removeItem('imt_active_user_session');
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let client: ReturnType<typeof getSupabase>;
+    try { client = getSupabase(); }
+    catch { setLoading(false); return; } // Public browsing remains usable without account configuration.
+    const refresh = async () => {
+      const current = ++generation.current;
 
-  const openAuthModal = useCallback((mode: 'login' | 'signup' = 'login', initialError?: string) => {
-    setAuthModalMode(mode);
+      try {
+        const { data: session } = await client.auth.getSession();
+        if (!session.session) { if (!disposed && current === generation.current) setUser(null); return; }
+        const { data, error: authError } = await client.auth.getUser();
+        if (authError || !data.user) throw new Error('Your session could not be verified. Please sign in again.');
+        const profile = await loadProfile(data.user);
+        if (!disposed && current === generation.current) setUser(profile);
+      } catch (err) {
+        if (!disposed && current === generation.current) { setUser(null); setError(message(err)); setIsAuthModalOpen(true); }
+      } finally {
+        if (!disposed && current === generation.current) setLoading(false);
+      }
+    };
+    // Supabase calls must run outside the auth callback's internal lock.
+    const { data: subscription } = client.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') setUser(null);
+      ++generation.current;
+      clearTimeout(timer);
+      timer = setTimeout(() => { void refresh(); }, 0);
+    });
+    void completeOAuth().then(() => {
+      if (!disposed) void refresh();
+    }).catch((err) => {
+      if (!disposed) { setError(message(err)); setIsAuthModalOpen(true); setLoading(false); }
+    });
+    const onFocus = () => { void refresh(); };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      disposed = true;
+      ++generation.current;
+      clearTimeout(timer);
+      subscription.subscription.unsubscribe();
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
+
+  const openAuthModal = useCallback((_mode: 'login' | 'signup' = 'login', initialError?: string) => {
     setError(initialError || null);
     setIsAuthModalOpen(true);
   }, []);
-
-  const closeAuthModal = useCallback(() => {
-    setIsAuthModalOpen(false);
-    setError(null);
-  }, []);
-
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  const login = useCallback(async (username: string, passcode: string) => {
+  const closeAuthModal = useCallback(() => { setIsAuthModalOpen(false); setError(null); }, []);
+  const login = async () => {
+    setLoading(true); setError(null);
+    try { await signInWithGoogle(); }
+    catch (err) { setError(message(err)); setLoading(false); }
+  };
+  const logout = async () => {
+    try {
+      const { error: signOutError } = await getSupabase().auth.signOut({ scope: 'local' });
+      if (signOutError) throw signOutError;
+      ++generation.current; setUser(null); setError(null);
+    } catch { setError('Sign-out was not confirmed. Please try again.'); setIsAuthModalOpen(true); }
+  };
+  const deleteAccount = async () => {
+    if (!user) throw new Error('Sign in again before deleting your account.');
     setLoading(true);
-    setError(null);
+    try { await deleteUserAccount(); ++generation.current; setUser(null); setError(null); }
+    finally { setLoading(false); }
+  };
+  const toggleWatchlistSymbol = async (symbol: string) => {
+    if (!user) throw new Error('Sign in before changing your watchlist.');
+    if (mutation.current) throw new Error('Please wait for the previous watchlist change.');
+    mutation.current = true;
+    const id = user.id;
+    const add = !user.watchlist.includes(symbol);
     try {
-      const profile = await loginUser(username, passcode);
-      setUser(profile);
-      setIsAuthModalOpen(false);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to login.');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      await changeWatchlist(id, symbol, add);
+      setUser((current) => current?.id === id ? { ...current, watchlist: add
+        ? [...new Set([...current.watchlist, symbol])] : current.watchlist.filter((item) => item !== symbol) } : current);
+      return add;
+    } finally { mutation.current = false; }
+  };
 
-  const signup = useCallback(async (username: string, passcode: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const profile = await signUpUser(username, passcode);
-      setUser(profile);
-      setIsAuthModalOpen(false);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to create account.');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const logout = useCallback(() => {
-    setUser(null);
-    setError(null);
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-  }, []);
-
-  const deleteAccount = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await deleteUserAccount(user.username);
-      setUser(null);
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to delete account.');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  const toggleWatchlistSymbol = useCallback(async (symbol: string): Promise<boolean> => {
-    if (!user) {
-      openAuthModal('login');
-      return false;
-    }
-
-    const currentList = user.watchlist || [];
-    const exists = currentList.includes(symbol);
-    const updatedList = exists
-      ? currentList.filter((s) => s !== symbol)
-      : [...currentList, symbol];
-
-    const updatedProfile: UserProfile = {
-      ...user,
-      watchlist: updatedList,
-    };
-
-    setUser(updatedProfile);
-
-    try {
-      await saveUserWatchlist(user.username, updatedList);
-    } catch (err) {
-      console.error('Failed to sync watchlist to database:', err);
-    }
-
-    return !exists;
-  }, [user, openAuthModal]);
-
-  const isSymbolInWatchlist = useCallback((symbol: string): boolean => {
-    if (!user || !user.watchlist) return false;
-    return user.watchlist.includes(symbol);
-  }, [user]);
-
-  const isAdmin = useMemo(() => {
-    if (!user) return false;
-    return user.role === 'admin' || getUserRole(user.username) === 'admin';
-  }, [user]);
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAdmin,
-        loading,
-        error,
-        isAuthModalOpen,
-        authModalMode,
-        openAuthModal,
-        closeAuthModal,
-        setAuthModalMode,
-        login,
-        signup,
-        logout,
-        deleteAccount,
-        toggleWatchlistSymbol,
-        isSymbolInWatchlist,
-        clearError,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{
+    user, isAdmin: user?.role === 'admin', loading, error, isAuthModalOpen,
+    openAuthModal, closeAuthModal, login, logout, deleteAccount, toggleWatchlistSymbol,
+    isSymbolInWatchlist: (symbol) => !!user?.watchlist.includes(symbol), clearError: () => setError(null),
+  }}>{children}</AuthContext.Provider>;
 };
-
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }
