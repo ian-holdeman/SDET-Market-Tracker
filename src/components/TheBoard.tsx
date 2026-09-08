@@ -1,3 +1,4 @@
+import { finite, fixed, priceLabel, fullPriceLabel, rangePriceLabel } from '../utils/marketValues';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -63,8 +64,8 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
   const isPositive = stock.change >= 0;
 
   // Calculate percentage position of current price within 52-week range
-  const fiftyTwoLow = Math.min(stock.fiftyTwoWeekLow, stock.price);
-  const fiftyTwoHigh = Math.max(stock.fiftyTwoWeekHigh, stock.price);
+  const fiftyTwoLow = stock.fiftyTwoWeekLow;
+  const fiftyTwoHigh = stock.fiftyTwoWeekHigh;
   const fiftyTwoSpan = fiftyTwoHigh - fiftyTwoLow;
   const fiftyTwoWeekPct = fiftyTwoSpan > 0 
     ? Math.max(0, Math.min(100, ((stock.price - fiftyTwoLow) / fiftyTwoSpan) * 100))
@@ -74,13 +75,8 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
   // Visual stability: Anchor vertical bounds using dayLow, dayHigh, prevClose/open, and a minimum percentage buffer
   // so individual penny ticks do not cause the SVG curve to jump drastically.
   const todayTrendData = useMemo(() => {
-    const rawPoints = stock.sparkline && stock.sparkline.length > 0 ? stock.sparkline : [stock.price];
-    // Anchor point: if prevClose is available and distinct from rawPoints[0], ensure prevClose is at the start of points
-    const points = stock.prevClose && stock.prevClose > 0 && Math.abs(rawPoints[0] - stock.prevClose) > 0.001
-      ? [stock.prevClose, ...rawPoints]
-      : rawPoints;
-
-    const allValues = [...points, stock.dayLow, stock.dayHigh, stock.price].filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+    const points = (stock.sparkline ?? []).filter(finite);
+    const allValues = [...points, stock.dayLow, stock.dayHigh, stock.price].filter(v => finite(v));
     const refLow = Math.min(...allValues);
     const refHigh = Math.max(...allValues);
     
@@ -107,7 +103,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
     });
 
     return {
-      pathD: coords.length > 1 ? `M ${coords.join(' L ')}` : `M 0,${height / 2} L ${width},${height / 2}`,
+      pathD: coords.length > 1 ? `M ${coords.join(' L ')}` : '',
       lastCoord: (coords[coords.length - 1] || `${width / 2},${height / 2}`).split(','),
       strokeColor: isPositive ? '#10B981' : '#EF4444',
     };
@@ -120,6 +116,8 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         role="button"
         tabIndex={0}
         aria-label={`${stock.symbol} ${stock.name} details`}
+        data-market-status={stock.dataStatus}
+        title={stock.dataStatus === 'stale' ? 'Stale market data: update failed' : stock.dataStatus === 'unavailable' ? 'Market data unavailable' : undefined}
         onClick={() => onToggleExpand(stock.symbol)}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`group cursor-pointer select-none transition-colors duration-150 border-l-2 outline-none focus:outline-none scroll-mt-28 sm:scroll-mt-32 ${
@@ -189,7 +187,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
               <circle
                 cx={todayTrendData.lastCoord[0]}
                 cy={todayTrendData.lastCoord[1]}
-                r="2.5"
+                r={stock.sparkline?.length ? "2.5" : "0"}
                 fill={todayTrendData.strokeColor}
                 className="transition-all duration-300 ease-out"
               />
@@ -201,7 +199,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-right ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
           <div className="inline-flex flex-col items-end">
             <span className="font-mono text-base sm:text-lg font-bold sm:font-extrabold text-white">
-              ${stock.price.toFixed(2)}
+              <span title={fullPriceLabel(stock.price, stock.currency, stock.assetType)}>{priceLabel(stock.price, stock.currency, stock.assetType)}</span>
             </span>
           </div>
         </td>
@@ -213,12 +211,12 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
             <span className={`font-mono text-base sm:text-lg font-bold sm:font-extrabold ${
               isPositive ? 'text-emerald-400' : 'text-rose-400'
             }`}>
-              ${stock.price.toFixed(2)}
+              <span title={fullPriceLabel(stock.price, stock.currency, stock.assetType)}>{priceLabel(stock.price, stock.currency, stock.assetType)}</span>
             </span>
             <span className={`inline-flex items-center font-mono text-xs font-semibold mt-0.5 ${
               isPositive ? 'text-emerald-400/90' : 'text-rose-400/90'
             }`}>
-              {isPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
+              {isPositive ? '+' : ''}{fixed(stock.changePercent)}%
             </span>
           </div>
 
@@ -232,7 +230,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
                     : 'bg-rose-950/70 text-rose-300 border-rose-800/50'
                 }`}
               >
-                {isPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                {isPositive ? '+' : ''}{fixed(stock.changePercent)}%
               </span>
 
               <div className="mt-1 w-full text-right pr-0.5">
@@ -241,7 +239,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
                     isPositive ? 'text-emerald-400' : 'text-rose-400'
                   }`}
                 >
-                  {isPositive ? '+' : '-'}${Math.abs(stock.change).toFixed(2)}
+                  <span title={fullPriceLabel(stock.change, stock.currency, stock.assetType)}>{priceLabel(stock.change, stock.currency, stock.assetType)}</span>
                 </span>
               </div>
             </div>
@@ -252,9 +250,9 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-center ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
           <div className="flex flex-col items-center max-w-[175px] mx-auto">
             <div className="w-full grid grid-cols-3 items-center text-[11px] font-mono mb-1">
-              <span className="font-semibold text-slate-200 text-left">${fiftyTwoLow.toFixed(2)}</span>
+              <span className="font-semibold text-slate-200 text-left"><span title={fullPriceLabel(fiftyTwoLow, stock.currency, stock.assetType)}>{rangePriceLabel(fiftyTwoLow, stock.currency, stock.assetType)}</span></span>
               <span className="text-[10px] text-slate-400 text-center tracking-wide">52W</span>
-              <span className="font-semibold text-slate-200 text-right">${fiftyTwoHigh.toFixed(2)}</span>
+              <span className="font-semibold text-slate-200 text-right"><span title={fullPriceLabel(fiftyTwoHigh, stock.currency, stock.assetType)}>{rangePriceLabel(fiftyTwoHigh, stock.currency, stock.assetType)}</span></span>
             </div>
             {/* Range track */}
             <div className="w-full h-1.5 bg-slate-800/90 rounded-full overflow-hidden relative">
@@ -265,7 +263,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
               {/* Marker */}
               <div
                 className="absolute top-0 bottom-0 w-2 bg-blue-400 rounded-full shadow-sm transition-all duration-300 ease-out"
-                style={{ left: `calc(${fiftyTwoWeekPct}% - 4px)` }}
+                style={{ visibility: finite(fiftyTwoLow) && finite(fiftyTwoHigh) && finite(stock.price) ? 'visible' : 'hidden', left: `calc(${fiftyTwoWeekPct}% - 4px)` }}
               />
             </div>
           </div>
@@ -333,6 +331,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
   const { user, isSymbolInWatchlist, isAdmin, openAuthModal } = useAuth();
 
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isSearchingUniverse, setIsSearchingUniverse] = useState(false);
@@ -361,6 +360,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
     const timer = setTimeout(async () => {
       try {
+        setSearchError(null);
         // 1. Direct exact ticker lookup if typed format matches
         if (cleanUpper.length <= 10 && /^[A-Z0-9.\-^=]+$/.test(cleanUpper)) {
           const directQuote = await fetchSingleAssetQuote(cleanUpper);
@@ -383,6 +383,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
             const topMatch = results.find((r) => r.symbol.toUpperCase() === cleanUpper) || results[0];
             if (topMatch && !stocks.some((s) => s.symbol === topMatch.symbol)) {
               const quote = await fetchSingleAssetQuote(topMatch.symbol);
+              if (!quote) throw new Error('Quote unavailable');
               if (!isCancelled && quote) {
                 setEphemeralSearchResults((prev) => {
                   const filtered = prev.filter((p) => p.symbol !== quote.symbol);
@@ -393,7 +394,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           }
         }
       } catch (err) {
-        console.warn('Search lookup error:', err);
+        if (!isCancelled) setSearchError('Asset search or quote data is unavailable. Please retry.');
       } finally {
         if (!isCancelled) {
           setIsSearchingUniverse(false);
@@ -595,7 +596,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         setTestResult({
           success: true,
           latency: elapsed,
-          message: `Pure Yahoo Backend Engine is operational! Verified S&P 500 (SPY) quote at $${data[0].price.toFixed(2)} with ${elapsed}ms round-trip latency.`,
+          message: `Yahoo returned a quote for SPY at $${data[0].price.toFixed(2)} with ${elapsed}ms round-trip latency.`,
         });
       } else {
         setTestResult({
@@ -678,8 +679,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         }
 
         if (sortField === 'name' || sortField === 'symbol') {
-          const valA = a.name || a.symbol;
-          const valB = b.name || b.symbol;
+          const valA = sortField === 'symbol' ? a.symbol : a.name;
+          const valB = sortField === 'symbol' ? b.symbol : b.name;
           return sortDirection === 'asc' 
             ? valA.localeCompare(valB) 
             : valB.localeCompare(valA);
@@ -694,7 +695,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         const valA: any = a[sortField];
         const valB: any = b[sortField];
 
-        if (typeof valA === 'number' && typeof valB === 'number') {
+        if (!finite(valA)) return finite(valB) ? 1 : 0;
+        if (!finite(valB)) return -1;
+        if (finite(valA) && finite(valB)) {
           return sortDirection === 'asc' ? valA - valB : valB - valA;
         }
 
@@ -729,6 +732,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           </div>
         </div>
 
+        {searchError && <p role="alert" className="text-xs text-amber-400">{searchError}</p>}
         {/* Live Stream Telemetry Pill & Refresh Action */}
         <div className="flex items-center space-x-2.5 self-start md:self-auto flex-wrap">
           {/* Feed Status Display: Clickable diagnostic button for all users */}
@@ -753,7 +757,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
             ) : (
               <>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-emerald-400 font-semibold">Live Synced</span>
+                <span className="text-emerald-400 font-semibold">{lastSyncTime ? 'Provider data • may be delayed' : 'Awaiting data'}</span>
                 {lastSyncTime && (
                   <>
                     <span className="text-slate-600">|</span>
@@ -789,7 +793,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
             <div>
               <span className="font-bold text-rose-300">Connection Interrupted: </span>
               <span className="text-slate-300">
-                {errorMessage || 'Market feed disconnected.'} Displaying last confirmed market data{lastSyncTime ? ` from ${lastSyncTime}` : ''}.
+                {errorMessage || 'Market update unavailable.'}
               </span>
             </div>
           </div>
@@ -1315,7 +1319,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                     <Radio className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white font-mono">Market Feed & Live Sync</h3>
+                    <h3 className="text-base font-bold text-white font-mono">Market Provider Polling</h3>
                     <p className="text-xs text-slate-400">Yahoo Finance Backend Engine</p>
                   </div>
                 </div>
@@ -1338,14 +1342,14 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                       isOffline ? 'text-rose-400' : 'text-emerald-400'
                     }`}>
                       <span className={`w-2 h-2 rounded-full shrink-0 ${isOffline ? 'bg-rose-500' : 'bg-emerald-400 animate-pulse'}`} />
-                      <span>{isOffline ? 'Offline' : 'Yahoo Proxy Active'}</span>
+                      <span>{isOffline ? 'Update failed' : lastSyncTime ? 'Yahoo proxy responded' : 'Awaiting data'}</span>
                     </span>
                   </div>
 
                   <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
                     <span className="text-[10px] uppercase font-mono text-slate-500 block">Round-Trip Latency</span>
                     <span className="font-mono font-bold text-white text-xs sm:text-sm sm:mt-1">
-                      {latencyMs ? `${latencyMs}ms` : '38ms'}
+                      {finite(latencyMs) ? `${latencyMs}ms` : 'Unavailable'}
                     </span>
                   </div>
 

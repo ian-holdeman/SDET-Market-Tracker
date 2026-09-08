@@ -14,7 +14,7 @@ async function mockApp(page: Page, authenticated = false, admin = false) {
       sessionStorage.setItem('test-session-initialized', 'yes');
     }
   }, session);
-  const state = { catalogAvailable: true, curated: ['AAPL', 'MSFT'], googleEnabled: true, failDeletion: true, watchlist: [] as string[], writes: [] as unknown[], exchanges: 0 };
+  const state = { failRegistration: true, catalogAvailable: true, curated: ['AAPL', 'MSFT'], googleEnabled: true, failDeletion: true, watchlist: [] as string[], writes: [] as unknown[], exchanges: 0 };
   await page.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -48,6 +48,13 @@ async function mockApp(page: Page, authenticated = false, admin = false) {
       throw new Error('Unexpected Supabase request: ' + url.pathname);
     }
     if (url.origin !== 'http://127.0.0.1:3100') return route.abort();
+    if (url.pathname === '/api/assets/register') {
+      expect(request.headers().authorization).toBe('Bearer ' + token);
+      expect(request.postDataJSON()).toEqual({ symbol: 'AAPL' });
+      if (state.failRegistration) return route.fulfill({ status: 502, json: { error: 'Yahoo could not validate this symbol.' } });
+      state.catalogAvailable = true;
+      return route.fulfill({ json: { symbol: 'AAPL' } });
+    }
     if (url.pathname === '/api/account') {
       expect(request.method()).toBe('DELETE'); expect(request.headers().authorization).toBe('Bearer ' + token);
       expect(request.postData()).toBeNull();
@@ -131,9 +138,21 @@ test('An unregistered asset is not silently added to the watchlist', async ({ pa
   await page.goto('/board?symbol=AAPL');
   await expect(page.locator('#header-username-display')).toHaveText('Test Member');
   await page.locator('#watchlist-star-btn-aapl').click();
-  await expect(page.getByRole('alert')).toContainText('not in the supported catalog');
+  await expect(page.getByRole('alert')).toContainText('Yahoo could not validate');
   await expect(page.locator('#watching-tag-aapl')).toHaveCount(0);
   expect(state.writes).toEqual([]);
+});
+
+test('Validated searched assets save to the owner watchlist without curation', async ({ page }) => {
+  const state = await mockApp(page, true);
+  state.catalogAvailable = false; state.failRegistration = false;
+  await page.goto('/board?symbol=AAPL');
+  await expect(page.locator('#header-username-display')).toHaveText('Test Member');
+  await page.locator('#watchlist-star-btn-aapl').click();
+  await expect(page.locator('#watching-tag-aapl')).toBeVisible();
+  expect(state.writes).toEqual([{ user_id: id, symbol: 'AAPL' }]);
+  expect(state.curated).toEqual(['AAPL', 'MSFT']);
+  await expect(page.getByRole('button', { name: 'Remove from curated Board' })).toHaveCount(0);
 });
 
 for (const collapse of ['card', 'all'] as const) {

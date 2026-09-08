@@ -1,3 +1,4 @@
+import { finite, fixed, priceLabel, fullPriceLabel } from '../utils/marketValues';
 import React from 'react';
 import { useHourlyMovers } from '../hooks/useHourlyMovers';
 
@@ -41,14 +42,14 @@ export const MarketTickerTape: React.FC<MarketTickerTapeProps> = ({ onSelectSymb
                   }`}
                 >
                   <span className="font-mono font-bold text-slate-200">{item.symbol}</span>
-                  <span className="font-mono text-slate-300">${item.price.toFixed(2)}</span>
+                  <span className="font-mono text-slate-300"><span title={fullPriceLabel(item.price, item.currency, item.assetType)}>{priceLabel(item.price, item.currency, item.assetType)}</span></span>
                   <span
                     className={`font-mono text-[11px] font-semibold flex items-center ${
                       isPos ? 'text-emerald-400' : 'text-rose-400'
                     }`}
                   >
                     {isPos ? '+' : ''}
-                    {item.changePercent.toFixed(2)}%
+                    {fixed(item.changePercent)}%
                   </span>
                 </div>
               );

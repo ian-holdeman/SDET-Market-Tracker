@@ -32,12 +32,12 @@ export function accountRouter(auth: AuthAdmin | null, appOrigin: string | null) 
   return router;
 }
 
-export function configuredAccountRouter(env: NodeJS.ProcessEnv) {
+export function serverSupabase(env: NodeJS.ProcessEnv) {
   const { SUPABASE_URL: url, SUPABASE_SECRET_KEY: key, VITE_AUTH_REDIRECT_URL: redirect } = env;
-  if (!url && !key && !redirect) return accountRouter(null, null);
+  if (!url && !key && !redirect) return null;
   if (!url || !key || !redirect) {
-    console.warn('Account deletion disabled: set SUPABASE_URL, SUPABASE_SECRET_KEY and VITE_AUTH_REDIRECT_URL.');
-    return accountRouter(null, null);
+    console.warn('Trusted account and asset operations disabled: set SUPABASE_URL, SUPABASE_SECRET_KEY and VITE_AUTH_REDIRECT_URL.');
+    return null;
   }
   let callback: URL;
   let project: URL;
@@ -58,5 +58,10 @@ export function configuredAccountRouter(env: NodeJS.ProcessEnv) {
   }
   const client = createClient(project.origin, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }) } });
-  return accountRouter(client.auth, origin);
+  return { client, origin };
+}
+
+export function configuredAccountRouter(env: NodeJS.ProcessEnv) {
+  const config = serverSupabase(env);
+  return accountRouter(config?.client.auth ?? null, config?.origin ?? null);
 }

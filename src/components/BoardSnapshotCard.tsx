@@ -1,3 +1,4 @@
+import { finite, fixed, priceLabel, fullPriceLabel } from '../utils/marketValues';
 import React, { useMemo, useState, useEffect } from 'react';
 import { 
   TrendingUp, 
@@ -9,7 +10,7 @@ import { useMarket } from '../context/MarketContext';
 import { TickerLogo } from './TickerLogo';
 import { BoardStock } from '../types';
 import { getAssetShorthandName } from '../utils/shorthandNames';
-import { isUSMarketOpen } from '../utils/marketHours';
+
 import { formatMarketUpdateTime } from '../utils/timeFormat';
 
 interface BoardSnapshotCardProps {
@@ -17,29 +18,18 @@ interface BoardSnapshotCardProps {
 }
 
 export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreBoard }) => {
-  const { stocks, lastSyncTime } = useMarket();
-  const [isMarketOpen, setIsMarketOpen] = useState(() => isUSMarketOpen());
-
-  // Periodically re-check market hours
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIsMarketOpen(isUSMarketOpen());
-    }, 30000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Dynamically derive live top 5 risers and fallers from WebSocket / quote feed
+  const { stocks, lastSyncTime, isOffline } = useMarket();
   const risers = useMemo(() => {
     return [...stocks]
-      .filter((s) => typeof s.changePercent === 'number' && !isNaN(s.changePercent))
-      .sort((a, b) => b.changePercent - a.changePercent)
+      .filter((s) => s.dataStatus === 'available' && finite(s.price) && finite(s.changePercent))
+      .filter(s => s.changePercent > 0).sort((a, b) => b.changePercent - a.changePercent)
       .slice(0, 5);
   }, [stocks]);
 
   const fallers = useMemo(() => {
     return [...stocks]
-      .filter((s) => typeof s.changePercent === 'number' && !isNaN(s.changePercent))
-      .sort((a, b) => a.changePercent - b.changePercent)
+      .filter((s) => s.dataStatus === 'available' && finite(s.price) && finite(s.changePercent))
+      .filter(s => s.changePercent < 0).sort((a, b) => a.changePercent - b.changePercent)
       .slice(0, 5);
   }, [stocks]);
 
@@ -47,7 +37,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
     onExploreBoard(symbol);
   };
 
-  const isLiveTrading = isMarketOpen;
+  const isLiveTrading = false;
   const displayUpdateTime = formatMarketUpdateTime(lastSyncTime);
 
   return (
@@ -127,14 +117,14 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
 
                   <div className="text-right shrink-0">
                     <div className="font-mono text-xs sm:text-sm font-semibold text-slate-200">
-                      ${item.price.toFixed(2)}
+                      <span title={fullPriceLabel(item.price, item.currency, item.assetType)}>{priceLabel(item.price, item.currency, item.assetType)}</span>
                     </div>
                     <div className={`font-mono text-xs sm:text-sm font-bold inline-flex items-center px-1.5 py-0.5 rounded ${
                       isPos 
                         ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' 
                         : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
                     }`}>
-                      {isPos ? '+' : ''}{item.changePercent.toFixed(2)}%
+                      {isPos ? '+' : ''}{fixed(item.changePercent)}%
                     </div>
                   </div>
                 </div>
@@ -181,14 +171,14 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
 
                   <div className="text-right shrink-0">
                     <div className="font-mono text-xs sm:text-sm font-semibold text-slate-200">
-                      ${item.price.toFixed(2)}
+                      <span title={fullPriceLabel(item.price, item.currency, item.assetType)}>{priceLabel(item.price, item.currency, item.assetType)}</span>
                     </div>
                     <div className={`font-mono text-xs sm:text-sm font-bold inline-flex items-center px-1.5 py-0.5 rounded ${
                       isPos 
                         ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' 
                         : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
                     }`}>
-                      {isPos ? '+' : ''}{item.changePercent.toFixed(2)}%
+                      {isPos ? '+' : ''}{fixed(item.changePercent)}%
                     </div>
                   </div>
                 </div>
@@ -209,7 +199,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
             <span className={`relative inline-flex rounded-full h-2 w-2 ${isLiveTrading ? 'bg-emerald-500' : 'bg-emerald-500/80'}`} />
           </span>
           <span className="text-slate-300 font-medium truncate">
-            {isLiveTrading ? 'LIVE Market Feed' : 'Market Closed'}
+            {isOffline ? 'Market update failed' : lastSyncTime ? 'Provider data • may be delayed' : 'Awaiting data'}
           </span>
         </div>
 

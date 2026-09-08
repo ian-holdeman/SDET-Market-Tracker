@@ -1,7 +1,8 @@
+import { finite, fixed, priceLabel, fullPriceLabel, rangePriceLabel } from '../utils/marketValues';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  TrendingUp,
+  TrendingDown,
   ExternalLink,
   Loader2,
   AlertTriangle,
@@ -10,14 +11,13 @@ import {
   Star
 } from 'lucide-react';
 import { BoardStock, BoardTimeframe } from '../types';
-import { 
-  buildConfirmedStockTimeframeData, 
-  ChartPoint, 
-  TimeframeSummary, 
-  isMarketTradingActive,
-  isAssetActivelyTrading
+import {
+  EMPTY_TIMEFRAME,
+  ChartPoint,
+  TimeframeSummary,
+
 } from '../utils/timeframeData';
-import { fetchProxyCandles, getCachedProxyCandles } from '../services/yahooMarket';
+import { fetchPriceActivity, PriceActivity, fetchProxyCandles, getCachedProxyCandles } from '../services/yahooMarket';
 import { TickerLogo } from './TickerLogo';
 import { useAuth } from '../context/AuthContext';
 import { useMarket } from '../context/MarketContext';
@@ -39,24 +39,22 @@ function computeEvenYAxis(prices: number[]): {
   paddedMin: number;
   paddedMax: number;
   step: number;
-  formatTick: (val: number) => string;
 } {
   if (!prices || prices.length === 0) {
     return {
-      ticks: [0, 25, 50, 75, 100],
+      ticks: [],
       paddedMin: 0,
       paddedMax: 100,
       step: 25,
-      formatTick: (v) => `$${v}`,
     };
   }
 
   const rawMin = Math.min(...prices);
   const rawMax = Math.max(...prices);
-  const rawSpan = Math.max(0.04, rawMax - rawMin);
+  const rawSpan = Math.max(Math.abs(rawMax) * 0.001, 0.00000001, rawMax - rawMin);
 
   // Add 16% vertical padding to provide a zoomed-out, breathing view like SoFi
-  const paddedMinCandidate = Math.max(0, rawMin - rawSpan * 0.16);
+  const paddedMinCandidate = rawMin - rawSpan * 0.16;
   const paddedMaxCandidate = rawMax + rawSpan * 0.16;
   const targetSpan = paddedMaxCandidate - paddedMinCandidate;
 
@@ -79,7 +77,7 @@ function computeEvenYAxis(prices: number[]): {
   const ticks: number[] = [];
 
   for (let val = startTick; ; val += step) {
-    const rounded = Number(val.toFixed(2));
+    const rounded = Number(val.toPrecision(12));
     ticks.push(rounded);
     if (rounded >= rawMax && ticks.length >= 4) {
       break;
@@ -89,29 +87,18 @@ function computeEvenYAxis(prices: number[]): {
 
   // Ensure minimum 4 ticks
   while (ticks.length < 4) {
-    const nextVal = Number((ticks[ticks.length - 1] + step).toFixed(2));
+    const nextVal = Number((ticks[ticks.length - 1] + step).toPrecision(12));
     ticks.push(nextVal);
   }
 
   const paddedMin = ticks[0];
   const paddedMax = ticks[ticks.length - 1];
 
-  const formatTick = (val: number) => {
-    if (step >= 1 && Number.isInteger(val)) {
-      return `$${Math.round(val)}`;
-    }
-    if (step >= 0.5 && Number.isInteger(val * 2)) {
-      return `$${val.toFixed(2)}`;
-    }
-    return `$${val.toFixed(2)}`;
-  };
-
   return {
     ticks,
     paddedMin,
     paddedMax,
     step,
-    formatTick,
   };
 }
 
@@ -140,7 +127,7 @@ export function getEasternTimezoneAbbr(date: Date = new Date()): 'EST' | 'EDT' {
  * dynamically derived from the real dataset points and their authentic Eastern Time timestamps.
  */
 function getEvenXAxisTicks(
-  timeframe: BoardTimeframe, 
+  timeframe: BoardTimeframe,
   points: ChartPoint[],
   sessionStartUnix?: number,
   sessionEndUnix?: number,
@@ -158,28 +145,14 @@ function getEvenXAxisTicks(
     let sStart = sessionStartUnix;
     let sEnd = sessionEndUnix;
 
-    if (!sStart || !sEnd || sEnd <= sStart) {
-      const sessionDate = new Date(firstTime).toLocaleDateString('en-US', {
-        timeZone: 'America/New_York',
-      });
-      sStart = new Date(`${sessionDate} 04:00:00 GMT-0400`).getTime();
-      sEnd = new Date(`${sessionDate} 20:00:00 GMT-0400`).getTime();
-    }
+    if (!sStart || !sEnd || sEnd <= sStart) { sStart = firstTime; sEnd = lastTime; }
 
     if (firstTime < sStart) sStart = firstTime;
     if (lastTime > sEnd) sEnd = lastTime;
 
-    const milestones = [
-      { frac: 0.0, label: '4:00 AM' },
-      { frac: 0.25, label: '8:00 AM' },
-      { frac: 0.50, label: '12:00 PM' },
-      { frac: 0.75, label: '4:00 PM' },
-      { frac: 1.0, label: `8:00 PM ${tz}` },
-    ];
-
-    return milestones.map((m) => ({
-      label: m.label,
-      x: paddingLeft + m.frac * effectiveWidth,
+    return [0, .25, .5, .75, 1].map(frac => ({
+      label: new Date(sStart + frac * (sEnd - sStart)).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }),
+      x: paddingLeft + frac * effectiveWidth,
     }));
   }
 
@@ -281,119 +254,51 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
 
   // Format volume helper
   const formatVolume = (vol: number) => {
-    if (!vol) return '—';
+    if (!finite(vol)) return '—';
     if (vol >= 1_000_000_000) return `${(vol / 1_000_000_000).toFixed(2)}B`;
     if (vol >= 1_000_000) return `${(vol / 1_000_000).toFixed(2)}M`;
     if (vol >= 1_000) return `${(vol / 1_000).toFixed(1)}K`;
     return vol.toLocaleString();
   };
 
-  // Format expense ratio helper for ETFs
-  const formatExpenseRatio = (expRatio?: number, symbol?: string) => {
-    if (typeof expRatio === 'number') {
-      const decimals = expRatio < 0.1 && (expRatio * 100) % 1 !== 0 ? 3 : 2;
-      return `${expRatio.toFixed(decimals)}%`;
-    }
-    const knownRatios: Record<string, number> = {
-      VTI: 0.03,
-      VOO: 0.03,
-      QQQM: 0.15,
-      SPMO: 0.13,
-      SCHD: 0.06,
-      VXUS: 0.08,
-      FCOM: 0.084,
-      FDIS: 0.084,
-      FSTA: 0.084,
-      FENY: 0.084,
-      FNCL: 0.084,
-      FHLC: 0.084,
-      FIDU: 0.084,
-      FMAT: 0.084,
-      FTEC: 0.084,
-      FUTY: 0.084,
-      IWM: 0.19,
-      DIA: 0.16,
-      SPY: 0.09,
-      QQQ: 0.20,
-      IVV: 0.03,
-      VT: 0.07,
-      VEA: 0.06,
-      VWO: 0.08,
-      BND: 0.03,
-      AGG: 0.03,
-      SMH: 0.35,
-      XBI: 0.35,
-      IBIT: 0.25,
-      VNQ: 0.13,
-      GLD: 0.40,
-      IAU: 0.25,
+  const [activity, setActivity] = useState<PriceActivity | null>(null);
+  const [activityLoading, setActivityLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    setActivity(null); setActivityLoading(true);
+    const update = async () => {
+      const result = await fetchPriceActivity(stock.symbol);
+      if (active) { setActivity(result); setActivityLoading(false); }
     };
-    if (symbol && knownRatios[symbol.toUpperCase()] !== undefined) {
-      const val = knownRatios[symbol.toUpperCase()];
-      const decimals = val < 0.1 && (val * 100) % 1 !== 0 ? 3 : 2;
-      return `${val.toFixed(decimals)}%`;
-    }
-    return '0.03%';
-  };
+    void update();
+    const timer = setInterval(() => void update(), 300000);
+    return () => { active = false; clearInterval(timer); };
+  }, [stock.symbol]);
+  const percentage = (value: number | null | undefined) => finite(value) ? (value > 0 ? '+' : '') + fixed(value) + '%' : '—';
+  const historyTitle = (period: 'month' | 'year') => activityLoading ? 'Loading price history' : !activity ? 'Price history unavailable' :
+    (activity.stale ? 'Stale history: refresh failed. ' : '') + 'Provider daily-close price change; not total return. ' +
+    (activity[period].baselineDate ? 'From ' + activity[period].baselineDate.slice(0, 10) + ' through ' + activity.asOf.slice(0, 10) : 'Insufficient history for this period');
 
   const [candleError, setCandleError] = useState<string | null>(null);
 
-  // Fetch real market candles from backend Yahoo Finance proxy
+  const candleGeneration = useRef(0);
   const loadCandleData = useCallback(async () => {
+    const generation = ++candleGeneration.current;
     setIsLoadingCandles(true);
-    setCandleError(null);
-
-    try {
-      // 1. Try server-side Yahoo Finance Proxy (100% real historical & 5m data)
-      const proxyData = await fetchProxyCandles(stock.symbol, selectedTimeframe);
-
-      if (proxyData && proxyData.points && proxyData.points.length > 2) {
-        if (stock.price > 0) {
-          proxyData.points[proxyData.points.length - 1].price = stock.price;
-          proxyData.currentPrice = stock.price;
-          proxyData.change = Number((stock.price - proxyData.startPrice).toFixed(2));
-          proxyData.changePercent = Number((((stock.price - proxyData.startPrice) / (proxyData.startPrice || 1)) * 100).toFixed(2));
-        }
-        setLiveCandleSummary(proxyData);
-        setCandleError(null);
-        return;
-      }
-
-      // 2. Reliable fallback based on confirmed stock timeframe metrics
-      const fallbackSummary = buildConfirmedStockTimeframeData(stock, selectedTimeframe);
-      if (fallbackSummary && fallbackSummary.points.length > 0) {
-        setLiveCandleSummary(fallbackSummary);
-        setCandleError(null);
-      } else {
-        setLiveCandleSummary(null);
-        setCandleError(`Historical chart feed unavailable for ${stock.symbol} (${selectedTimeframe}). Showing confirmed quote metrics.`);
-      }
-    } catch (err: any) {
-      console.warn(`Could not load candles for ${stock.symbol}:`, err);
-      const fallbackSummary = buildConfirmedStockTimeframeData(stock, selectedTimeframe);
-      if (fallbackSummary) {
-        setLiveCandleSummary(fallbackSummary);
-        setCandleError(null);
-      } else {
-        setLiveCandleSummary(null);
-        setCandleError(`Connection interrupted. Showing last confirmed market quote.`);
-      }
-    } finally {
-      setIsLoadingCandles(false);
-    }
-  }, [stock, selectedTimeframe]);
-
+    const data = await fetchProxyCandles(stock.symbol, selectedTimeframe);
+    if (generation !== candleGeneration.current) return;
+    setLiveCandleSummary(data);
+    setCandleError(!data ? 'Historical data unavailable for this period.' : data.stale ? 'Chart update failed. Showing stale historical data.' : null);
+    setIsLoadingCandles(false);
+  }, [stock.symbol, selectedTimeframe]);
   useEffect(() => {
-    loadCandleData();
+    setLiveCandleSummary(null);
+    setHoverIndex(null);
+    void loadCandleData();
+    const timer = setInterval(() => void loadCandleData(), 30000);
+    return () => { ++candleGeneration.current; clearInterval(timer); };
   }, [loadCandleData]);
-
-  // Use real candles or fall back to confirmed quote baseline (NO theoretical synthetic waves)
-  const timeframeData = useMemo(() => {
-    if (liveCandleSummary && liveCandleSummary.points.length > 5) {
-      return liveCandleSummary;
-    }
-    return buildConfirmedStockTimeframeData(stock, selectedTimeframe);
-  }, [stock, selectedTimeframe, liveCandleSummary]);
+  const timeframeData = liveCandleSummary ?? EMPTY_TIMEFRAME;
 
   const { points, startPrice, currentPrice } = timeframeData;
 
@@ -401,20 +306,20 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const isHovering = hoverIndex !== null && hoverIndex >= 0 && hoverIndex < points.length;
   const displayedPoint = isHovering ? points[hoverIndex] : (points[points.length - 1] || null);
   const activePrice = displayedPoint ? displayedPoint.price : currentPrice;
-  const activeChange = activePrice - startPrice;
-  const activeChangePercent = startPrice > 0 ? (activeChange / startPrice) * 100 : 0;
+  const activeChange = finite(activePrice) && finite(startPrice) ? activePrice - startPrice : null;
+  const activeChangePercent = finite(activeChange) && startPrice > 0 ? (activeChange / startPrice) * 100 : null;
   const isPeriodPositive = activeChange >= 0;
 
   // Compute Even Y-Axis Ticks with startPrice included for balanced baseline framing
   const yAxisConfig = useMemo(() => {
     const prices = points.map((p) => p.price);
-    if (startPrice && startPrice > 0) {
+    if (finite(startPrice)) {
       prices.push(startPrice);
     }
     return computeEvenYAxis(prices);
   }, [points, startPrice]);
 
-  const { ticks, paddedMin, paddedMax, formatTick } = yAxisConfig;
+  const { ticks, paddedMin, paddedMax } = yAxisConfig;
   const totalRange = paddedMax - paddedMin || 1;
 
   // SVG dimensions with responsive edge-to-edge margins for mobile
@@ -429,36 +334,24 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const effectiveWidth = chartWidth - paddingLeft - paddingRight;
 
   // Single Dotted Horizontal Baseline Y calculation (Day's Open / Previous Close / Period Start)
-  const baselinePrice = startPrice > 0 ? startPrice : (points[0]?.price || 0);
-  const baselineY = baselinePrice > 0 && totalRange > 0
+  const baselinePrice = startPrice;
+  const baselineY = finite(baselinePrice) && totalRange > 0
     ? paddingTop + effectiveHeight - ((baselinePrice - paddedMin) / totalRange) * effectiveHeight
     : null;
 
   // Period High, Open/Start, and Low metrics for SoFi-style interactive reference lines
-  const periodHigh = useMemo(() => {
-    if (timeframeData.high && timeframeData.high > 0) return timeframeData.high;
-    const prices = points.map(p => p.price);
-    if (selectedTimeframe === '1D' && stock.dayHigh && stock.dayHigh > 0) prices.push(stock.dayHigh);
-    return prices.length > 0 ? Math.max(...prices) : stock.price;
-  }, [timeframeData.high, points, selectedTimeframe, stock.dayHigh, stock.price]);
-
-  const periodLow = useMemo(() => {
-    if (timeframeData.low && timeframeData.low > 0) return timeframeData.low;
-    const prices = points.map(p => p.price);
-    if (selectedTimeframe === '1D' && stock.dayLow && stock.dayLow > 0) prices.push(stock.dayLow);
-    const valid = prices.filter(p => p > 0);
-    return valid.length > 0 ? Math.min(...valid) : stock.price;
-  }, [timeframeData.low, points, selectedTimeframe, stock.dayLow, stock.price]);
+  const periodHigh = timeframeData.high;
+  const periodLow = timeframeData.low;
 
   const periodOpen = baselinePrice;
 
-  const highY = periodHigh > 0 && totalRange > 0
+  const highY = finite(periodHigh) && totalRange > 0
     ? paddingTop + effectiveHeight - ((periodHigh - paddedMin) / totalRange) * effectiveHeight
     : null;
 
   const openY = baselineY;
 
-  const lowY = periodLow > 0 && totalRange > 0
+  const lowY = finite(periodLow) && totalRange > 0
     ? paddingTop + effectiveHeight - ((periodLow - paddedMin) / totalRange) * effectiveHeight
     : null;
 
@@ -478,13 +371,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       let sStart = timeframeData.sessionStartUnix;
       let sEnd = timeframeData.sessionEndUnix;
 
-      if (!sStart || !sEnd || sEnd <= sStart) {
-        const sessionDate = new Date(firstTime).toLocaleDateString('en-US', {
-          timeZone: 'America/New_York',
-        });
-        sStart = new Date(`${sessionDate} 04:00:00 GMT-0400`).getTime();
-        sEnd = new Date(`${sessionDate} 20:00:00 GMT-0400`).getTime();
-      }
+      if (!sStart || !sEnd || sEnd <= sStart) { sStart = firstTime; sEnd = lastTime; }
 
       if (firstTime < sStart) sStart = firstTime;
       if (lastTime > sEnd) sEnd = lastTime;
@@ -526,11 +413,11 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const xTicks = useMemo(() => {
     if (coords.length === 0) return [];
     return getEvenXAxisTicks(
-      selectedTimeframe, 
-      points, 
-      timeframeData.sessionStartUnix, 
-      timeframeData.sessionEndUnix, 
-      paddingLeft, 
+      selectedTimeframe,
+      points,
+      timeframeData.sessionStartUnix,
+      timeframeData.sessionEndUnix,
+      paddingLeft,
       effectiveWidth
     );
   }, [coords, points, selectedTimeframe, timeframeData.sessionStartUnix, timeframeData.sessionEndUnix, paddingLeft, effectiveWidth]);
@@ -636,16 +523,6 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
     return adjusted;
   }, [activeCoord, highY, openY, lowY, periodHigh, periodOpen, periodLow, selectedTimeframe, isMobile, chartHeight]);
 
-  // Wall Street 1Y Price Target for the first metric card
-  const targetData = stock.targetPrice1Y;
-  const targetMean = targetData?.targetMean || (stock.price * 1.12);
-  const targetUpside = ((targetMean - stock.price) / stock.price) * 100;
-  const isTargetPositive = targetUpside >= 0;
-
-  // 52W Range calculations
-  const fiftyTwoLow = stock.fiftyTwoWeekLow || (stock.dayLow * 0.82);
-  const fiftyTwoHigh = stock.fiftyTwoWeekHigh || (stock.dayHigh * 1.18);
-
   // Format floating timestamp badge with explicit EST/EDT clarity for intraday and weekly views
   const formatFloatingTimestamp = (point: ChartPoint, tf: BoardTimeframe): string => {
     if (!point) return '';
@@ -711,7 +588,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   };
 
   return (
-    <div 
+    <div
       id={`drilldown-card-${stock.symbol.toLowerCase()}`}
       className="p-1.5 sm:p-3.5 bg-[#0B0F17] space-y-1.5 sm:space-y-2.5 max-w-full overflow-hidden"
     >
@@ -725,16 +602,16 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         }}>{curatedSymbols.includes(stock.symbol) ? 'Remove from curated Board' : 'Add to curated Board'}</button>}
       {/* Top Header & Controls: Left (Identity + Live Price/Return), Right (Timeframe Tabs & Sync) */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 sm:gap-4 pb-0.5">
-        
+
         {/* Left: Ticker & Asset details + Price / Return */}
         <div className="flex flex-col space-y-1 min-w-0">
           {/* Top row: Logo + Ticker + Watch Tag + Star */}
           <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
-            <TickerLogo 
-              symbol={stock.symbol} 
-              assetType={stock.assetType} 
-              logoUrl={stock.logoUrl} 
-              size="md" 
+            <TickerLogo
+              symbol={stock.symbol}
+              assetType={stock.assetType}
+              logoUrl={stock.logoUrl}
+              size="md"
             />
             <div className="min-w-0 flex-1 flex flex-col justify-center">
               <div className="flex items-center space-x-1.5 sm:space-x-2 flex-wrap gap-y-1">
@@ -757,7 +634,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 </span>
 
                 {isWatching && (
-                  <span 
+                  <span
                     id={`watching-tag-${stock.symbol.toLowerCase()}`}
                     className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider bg-purple-950/90 text-purple-400 border border-purple-800/60"
                   >
@@ -794,7 +671,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
           {/* Selected Period Value & Return (Stacked directly under asset details on the left) */}
           <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap pt-0.5">
             <span className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
-              ${activePrice.toFixed(2)}
+              <span title={fullPriceLabel(activePrice, stock.currency, stock.assetType)}>{priceLabel(activePrice, stock.currency, stock.assetType)}</span>
             </span>
             <span className={`inline-flex items-center font-mono text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-lg ${
               isPeriodPositive
@@ -806,9 +683,9 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               ) : (
                 <TrendingDown className="w-3.5 h-3.5 mr-1 shrink-0" />
               )}
-              {isPeriodPositive ? '+' : ''}{activeChangePercent.toFixed(2)}%
+              {isPeriodPositive ? '+' : ''}{fixed(activeChangePercent, 2)}%
               <span className="ml-1 text-[10px] sm:text-[11px] font-normal opacity-90">
-                ({isPeriodPositive ? '+' : '-'}${Math.abs(activeChange).toFixed(2)})
+                (<span title={fullPriceLabel(activeChange, stock.currency, stock.assetType)}>{priceLabel(activeChange, stock.currency, stock.assetType)}</span>)
               </span>
             </span>
           </div>
@@ -843,10 +720,8 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   key={tf}
                   id={`btn-timeframe-${stock.symbol.toLowerCase()}-${tf.toLowerCase()}`}
                   onClick={() => {
-                    const cached = getCachedProxyCandles(stock.symbol, tf);
-                    if (cached) {
-                      setLiveCandleSummary(cached);
-                    }
+                    ++candleGeneration.current;
+                    setLiveCandleSummary(null);
                     setSelectedTimeframe(tf);
                     setHoverIndex(null);
                   }}
@@ -866,11 +741,12 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
 
       {/* Main Focus: Big Multi-Timeframe Interactive Trendline */}
       <div className="space-y-1 relative">
-        
+
+        {candleError && <p className="text-xs text-slate-400" role="status">{candleError}</p>}
         {/* Dedicated Timestamp Track above graph (Ensures 0 overlap with High Y-axis price badge) */}
         <div className="h-5 sm:h-6 relative w-full flex items-center select-none">
           {activeCoord && (
-            <div 
+            <div
               className="absolute top-1/2 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-30 px-3 py-0.5 rounded-full bg-slate-800 text-xs sm:text-sm font-mono font-bold text-slate-100 shadow-md whitespace-nowrap border border-slate-700/60"
               style={{
                 left: `${Math.max(14, Math.min(86, (activeCoord.x / chartWidth) * 100))}%`
@@ -883,7 +759,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
 
         {/* Big Trendline SVG Canvas with Expanded Vertical Room & Clean Open Backdrop */}
         <div className="relative w-full h-[240px] sm:h-[240px] select-none touch-pan-x">
-          
+
           {/* Crisp HTML Y-Axis Hover Price Labels (Right-aligned, no boxes, slate-300, bold & legible) */}
           {activeCoord && (
             <div className="pointer-events-none absolute inset-0 z-20 overflow-visible">
@@ -894,7 +770,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   className="absolute right-2 sm:right-4 transform -translate-y-full -mt-1 text-sm font-mono font-bold text-slate-300 select-none whitespace-nowrap leading-none"
                   style={{ top: `${(highY / chartHeight) * 100}%` }}
                 >
-                  ${periodHigh.toFixed(2)}
+                  <span title={fullPriceLabel(periodHigh, stock.currency, stock.assetType)}>{priceLabel(periodHigh, stock.currency, stock.assetType)}</span>
                 </div>
               )}
 
@@ -914,7 +790,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                     }`}
                     style={{ top: `${(openY / chartHeight) * 100}%` }}
                   >
-                    ${periodOpen.toFixed(2)}
+                    <span title={fullPriceLabel(periodOpen, stock.currency, stock.assetType)}>{priceLabel(periodOpen, stock.currency, stock.assetType)}</span>
                   </div>
                 );
               })()}
@@ -926,7 +802,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   className="absolute right-2 sm:right-4 transform translate-y-0 mt-1.5 text-sm font-mono font-bold text-slate-300 select-none whitespace-nowrap leading-none"
                   style={{ top: `${(lowY / chartHeight) * 100}%` }}
                 >
-                  ${periodLow.toFixed(2)}
+                  <span title={fullPriceLabel(periodLow, stock.currency, stock.assetType)}>{priceLabel(periodLow, stock.currency, stock.assetType)}</span>
                 </div>
               )}
             </div>
@@ -952,15 +828,15 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
             {/* 1D Open Line (Only drawn if Open sits strictly between Low and High) */}
             {isOpenBetweenBounds && openY !== null && openY >= paddingTop - 10 && openY <= chartHeight - paddingBottom + 10 && (
               <g id={`open-reference-line-${stock.symbol.toLowerCase()}`}>
-                <line 
-                  x1={paddingLeft} 
-                  y1={openY} 
-                  x2={chartWidth - paddingRight} 
-                  y2={openY} 
-                  stroke="#475569" 
-                  strokeDasharray="4 4" 
-                  strokeWidth="1.25" 
-                  strokeOpacity="0.75" 
+                <line
+                  x1={paddingLeft}
+                  y1={openY}
+                  x2={chartWidth - paddingRight}
+                  y2={openY}
+                  stroke="#475569"
+                  strokeDasharray="4 4"
+                  strokeWidth="1.25"
+                  strokeOpacity="0.75"
                 />
               </g>
             )}
@@ -999,64 +875,22 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
             )}
 
             {/* Area Fill */}
-            <path 
-              d={areaD} 
-              fill={`url(#trend-grad-${stock.symbol}-${selectedTimeframe})`} 
+            <path
+              d={areaD}
+              fill={`url(#trend-grad-${stock.symbol}-${selectedTimeframe})`}
             />
 
             {/* High-Resolution Bold Trendline Path (Crisp, High-Resolution SoFi Style) */}
-            <path 
-              d={pathD} 
-              fill="none" 
-              stroke={strokeColor} 
-              strokeWidth="3.4" 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
+            <path
+              d={pathD}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="3.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
 
             {/* Pulsing Beacon at Current Price Tip only when this specific asset is actively trading */}
-            {isAssetActivelyTrading(
-              selectedTimeframe,
-              points[points.length - 1]?.timeUnix,
-              stock.assetType,
-              stock.symbol
-            ) && coords.length > 0 && (
-              <g 
-                id={`live-trading-beacon-${stock.symbol.toLowerCase()}`}
-                className="pointer-events-none"
-              >
-                {/* Expanding, fading radar ripple ring */}
-                <circle
-                  cx={coords[coords.length - 1].x}
-                  cy={coords[coords.length - 1].y}
-                  r="5"
-                  fill={strokeColor}
-                >
-                  <animate
-                    attributeName="r"
-                    values="4;15;20"
-                    keyTimes="0;0.7;1"
-                    dur="1.8s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="opacity"
-                    values="0.75;0.2;0"
-                    keyTimes="0;0.7;1"
-                    dur="1.8s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-                {/* Solid red or green indicator dot */}
-                <circle
-                  cx={coords[coords.length - 1].x}
-                  cy={coords[coords.length - 1].y}
-                  r="4"
-                  fill={strokeColor}
-                />
-              </g>
-            )}
-
             {/* Active Hover Point Circle on Trendline */}
             {activeCoord && (
               <>
@@ -1099,233 +933,23 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         </div>
       </div>
 
-      {/* Core Statistics Grid: 1Y Target, P/E Ratio, 52W Range, Day's Range, Dividend Yield, Volume (Smooth borderless panels) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 pt-1">
-        {/* 1. 1Y Target (for Equities/ETFs) / 24H Volume (for Crypto) / Benchmark (for Indices) */}
-        <div 
-          id={`card-wallst-target-${stock.symbol.toLowerCase()}`}
-          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
-        >
-          {stock.assetType === 'Crypto' ? (
-            <>
-              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-                24H Volume
-              </span>
-              <div className="mt-1.5 flex items-baseline justify-between">
-                <span className="text-sm sm:text-base font-mono font-black text-white">
-                  {formatVolume(stock.volume)}
-                </span>
-                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-                  24/7 Market
-                </span>
-              </div>
-            </>
-          ) : stock.assetType === 'Index' ? (
-            <>
-              <span className="text-[11px] sm:text-xs font-mono text-blue-400 font-bold uppercase tracking-wider">
-                Index Type
-              </span>
-              <div className="mt-1.5 flex items-baseline justify-between">
-                <span className="text-sm sm:text-base font-mono font-black text-white">
-                  Benchmark
-                </span>
-                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-                  US Market
-                </span>
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="text-[11px] sm:text-xs font-mono text-blue-400 font-bold uppercase tracking-wider">
-                1Y Target
-              </span>
-              <div className="mt-1.5 flex items-baseline justify-between">
-                <span className="text-sm sm:text-base font-mono font-black text-white">
-                  ${targetMean.toFixed(2)}
-                </span>
-                <span className={`text-xs font-mono font-bold ${
-                  isTargetPositive ? 'text-emerald-400' : 'text-rose-400'
-                }`}>
-                  {isTargetPositive ? '+' : ''}{targetUpside.toFixed(1)}%
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* 2. P/E Ratio (for Stocks/ETFs) / Asset Class (for Crypto/Index/Commodity) */}
-        <div 
-          id={`card-pe-ratio-${stock.symbol.toLowerCase()}`}
-          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
-        >
-          {stock.assetType === 'Crypto' ? (
-            <>
-              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-                Asset Class
-              </span>
-              <div className="mt-1.5 flex items-baseline justify-between">
-                <span className="text-sm sm:text-base font-mono font-black text-white">
-                  Crypto
-                </span>
-                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-                  Decentralized
-                </span>
-              </div>
-            </>
-          ) : stock.assetType === 'Index' ? (
-            <>
-              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-                Asset Class
-              </span>
-              <div className="mt-1.5 flex items-baseline justify-between">
-                <span className="text-sm sm:text-base font-mono font-black text-white">
-                  Index
-                </span>
-                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-                  Market Cap
-                </span>
-              </div>
-            </>
-          ) : stock.assetType === 'Commodity' ? (
-            <>
-              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-                Asset Class
-              </span>
-              <div className="mt-1.5 flex items-baseline justify-between">
-                <span className="text-sm sm:text-base font-mono font-black text-white">
-                  Commodity
-                </span>
-                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-                  Spot / Futures
-                </span>
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-                P/E Ratio
-              </span>
-              <div className="mt-1.5 flex items-baseline justify-between">
-                <span className="text-sm sm:text-base font-mono font-black text-white">
-                  {typeof stock.peRatio === 'number' && stock.peRatio > 0 ? `${stock.peRatio.toFixed(1)}x` : 'N/A'}
-                </span>
-                <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-                  {typeof stock.peRatio === 'number' && stock.peRatio > 0
-                    ? 'TTM'
-                    : stock.assetType === 'ETF'
-                    ? 'ETF Blend'
-                    : 'Unprofitable'}
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* 3. 52W Range */}
-        <div 
-          id={`card-52w-range-${stock.symbol.toLowerCase()}`}
-          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
-        >
-          <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-            52W Range
-          </span>
-          <div className="mt-1.5 flex items-center justify-between text-xs sm:text-sm font-mono font-bold text-slate-100">
-            <span>${fiftyTwoLow.toFixed(2)}</span>
-            <span className="text-slate-500 font-normal px-1">-</span>
-            <span>${fiftyTwoHigh.toFixed(2)}</span>
-          </div>
-        </div>
-
-        {/* 4. Day's Range / 24H Range */}
-        <div 
-          id={`card-day-range-${stock.symbol.toLowerCase()}`}
-          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
-        >
-          <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-            {stock.assetType === 'Crypto' ? '24H Range' : "Day's Range"}
-          </span>
-          <div className="mt-1.5 flex items-center justify-between text-xs sm:text-sm font-mono font-bold text-slate-100">
-            <span>${stock.dayLow.toFixed(2)}</span>
-            <span className="text-slate-500 font-normal px-1">-</span>
-            <span>${stock.dayHigh.toFixed(2)}</span>
-          </div>
-        </div>
-
-        {/* 5. Dividend Yield / Staking Yield */}
-        <div 
-          id={`card-dividend-yield-${stock.symbol.toLowerCase()}`}
-          className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
-        >
-          <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-            {stock.assetType === 'Crypto' ? 'Staking Yield' : 'Dividend Yield'}
-          </span>
-          <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-sm sm:text-base font-mono font-black text-emerald-400">
-              {stock.assetType === 'Crypto' || stock.assetType === 'Index'
-                ? 'N/A'
-                : stock.dividendYield !== undefined && stock.dividendYield > 0
-                ? `${stock.dividendYield.toFixed(2)}%`
-                : '0.00%'}
-            </span>
-            <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-              {stock.assetType === 'Crypto' ? 'Native' : stock.assetType === 'Index' ? 'Index' : 'Annual'}
-            </span>
-          </div>
-        </div>
-
-        {/* 6. Market Cap (for Stocks/Crypto) / Expense Ratio (for ETFs) / Category (for Indices) */}
-        {stock.assetType === 'ETF' ? (
-          <div 
-            id={`card-expense-ratio-${stock.symbol.toLowerCase()}`}
-            className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
-          >
-            <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-              Expense Ratio
-            </span>
-            <div className="mt-1.5 flex items-baseline justify-between">
-              <span className="text-sm sm:text-base font-mono font-black text-slate-100">
-                {formatExpenseRatio(stock.expenseRatio, stock.symbol)}
-              </span>
-              <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-                Annual
-              </span>
+      {/* Six price/activity metrics; preserve the existing responsive grid and spacing. */}
+      <div id={`price-activity-${stock.symbol.toLowerCase()}`} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 pt-1">
+        {[
+          { id: 'previous-close', label: 'Previous Close', value: priceLabel(stock.prevClose, stock.currency, stock.assetType), title: 'Previous close: ' + fullPriceLabel(stock.prevClose, stock.currency, stock.assetType) },
+          { id: 'day-range', label: 'Day Range', value: <><span><span title={fullPriceLabel(stock.dayLow, stock.currency, stock.assetType)}>{rangePriceLabel(stock.dayLow, stock.currency, stock.assetType)}</span></span><span className="text-slate-500 font-normal px-1">–</span><span><span title={fullPriceLabel(stock.dayHigh, stock.currency, stock.assetType)}>{rangePriceLabel(stock.dayHigh, stock.currency, stock.assetType)}</span></span></>, title: 'Day range: ' + fullPriceLabel(stock.dayLow, stock.currency, stock.assetType) + ' – ' + fullPriceLabel(stock.dayHigh, stock.currency, stock.assetType) },
+          { id: '52w-range', label: '52W Range', value: <><span><span title={fullPriceLabel(stock.fiftyTwoWeekLow, stock.currency, stock.assetType)}>{rangePriceLabel(stock.fiftyTwoWeekLow, stock.currency, stock.assetType)}</span></span><span className="text-slate-500 font-normal px-1">–</span><span><span title={fullPriceLabel(stock.fiftyTwoWeekHigh, stock.currency, stock.assetType)}>{rangePriceLabel(stock.fiftyTwoWeekHigh, stock.currency, stock.assetType)}</span></span></>, title: '52-week range: ' + fullPriceLabel(stock.fiftyTwoWeekLow, stock.currency, stock.assetType) + ' – ' + fullPriceLabel(stock.fiftyTwoWeekHigh, stock.currency, stock.assetType) },
+          { id: 'volume', label: 'Volume', value: stock.assetType === 'Index' || stock.assetType === 'Bond Yield' ? 'N/A' : formatVolume(stock.volume), title: stock.assetType === 'Crypto' ? 'Provider-reported cryptocurrency volume; units are not assumed to be shares' : stock.assetType === 'Index' || stock.assetType === 'Bond Yield' ? 'This benchmark does not trade as shares' : 'Provider-reported trading volume' },
+          { id: '1m-change', label: '1M Change', value: percentage(activity?.month.changePercent), title: historyTitle('month'), change: activity?.month.changePercent, stale: activity?.stale },
+          { id: '1y-change', label: '1Y Change', value: percentage(activity?.year.changePercent), title: historyTitle('year'), change: activity?.year.changePercent, stale: activity?.stale },
+        ].map(metric => (
+          <div key={metric.id} id={`card-${metric.id}-${stock.symbol.toLowerCase()}`} title={metric.title} className="min-w-0 p-3 rounded-xl bg-[#111724] flex flex-col justify-between">
+            <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">{metric.label}</span>
+            <div className={`mt-1.5 flex items-center justify-between font-mono ${metric.id.endsWith('range') ? 'text-xs sm:text-sm font-bold' : 'text-sm sm:text-base font-black'} ${metric.stale ? 'text-amber-400' : finite(metric.change) ? metric.change >= 0 ? 'text-emerald-400' : 'text-rose-400' : 'text-slate-100'}`}>
+              {metric.value}{metric.stale && <AlertTriangle className="w-3 h-3 shrink-0" aria-label="Stale historical data" />}
             </div>
           </div>
-        ) : stock.assetType === 'Index' ? (
-          <div 
-            id={`card-category-${stock.symbol.toLowerCase()}`}
-            className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
-          >
-            <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-              Category
-            </span>
-            <div className="mt-1.5 flex items-baseline justify-between">
-              <span className="text-sm sm:text-base font-mono font-black text-slate-100">
-                Large Cap
-              </span>
-              <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-                Benchmark
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div 
-            id={`card-market-cap-${stock.symbol.toLowerCase()}`}
-            className="p-3 rounded-xl bg-[#111724] flex flex-col justify-between"
-          >
-            <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">
-              Market Cap
-            </span>
-            <div className="mt-1.5 flex items-baseline justify-between">
-              <span className="text-sm sm:text-base font-mono font-black text-slate-100">
-                {stock.marketCap || '—'}
-              </span>
-              <span className="text-[10px] sm:text-xs font-mono font-medium text-slate-400">
-                USD
-              </span>
-            </div>
-          </div>
-        )}
+        ))}
       </div>
     </div>
   );

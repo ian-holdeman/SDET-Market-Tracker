@@ -1,0 +1,71 @@
+# Board market-data contract
+
+## Pipeline
+
+`server/market.ts` owns the Yahoo HTTP boundary, normalization and bounded in-process caches. `server.ts` mounts the routes. Responses flow through `src/services/yahooMarket.ts`, `MarketContext`, and the existing Board/detail components. The local catalog now contains identities only, with no seeded prices, volume, ranges, fundamentals or synthetic sparklines. Curated symbols and database records are unchanged.
+
+Validation checks required chart envelopes, requested/provider symbol identity, finite closes, aligned arrays, ordered positive timestamps, and future timestamps. Invalid required quote price or observation time fails that symbol. Null candle slots are omitted; malformed numeric slots fail the response. Optional missing/malformed metrics become null; reversed ranges become unavailable.
+
+Nasdaq-100 (`^NDX`) is distinct from Composite (`^IXIC`). Crypto aliases consistently map to USD pairs. AGG, GLD and USO are ETFs. Currency is preserved, indices display points, and the supported Treasury yield symbol displays percent.
+
+## Financial semantics
+
+- Board quotes use regular-session price and previous close. They do not combine extended-session price with regular-session change.
+- Change is price minus baseline. Percentage is that difference divided by a positive baseline, times 100. Missing, zero or negative baselines produce an unavailable percentage. Zero price, volume, dividend yield and P/E remain zero; negative P/E remains negative.
+- Intraday history uses reported previous close. Longer periods use their first sampled close. This is a sampled price return, not total return or a guaranteed period-opening execution price.
+- Charts preserve raw close precision and timestamps, including extended-session samples when supplied. They never overwrite history with the latest quote. High/low references are extrema of displayed sampled closes; the separate reported day-range metric has different semantics. These references describe sampled-close extrema, not intrabar extremes.
+- Axes use actual sample bounds and dated Eastern timezone formatting rather than fabricated 4 AM–8 PM sessions with a fixed UTC offset. A valid one-point history remains usable. No beacon claims trading is currently live.
+- Analyst targets, ratings, counts, 52-week ranges and expenses are never estimated. Missing P/E does not imply an unprofitable company. Fundamental fields remain unavailable when their source is inaccessible.
+
+## Failure and caching
+
+Quotes carry separate `asOf` (provider observation) and `fetchedAt` (server retrieval) timestamps. Cache hits preserve both. Observation timestamps stay in the data contract; the feed says data may be delayed. Visible per-row timestamps were removed to preserve the original row sizing. An HTTP success is not evidence of a recent trade.
+
+Invalid parameters return 400. Partial batches return explicit `partial` status and an `unavailable` symbol list. Total quote failure, chart failure and search failure return 502. A valid empty search result stays a successful empty result. Provider error payloads are not exposed to the browser.
+
+Failed refreshes retain previous quotes with a global failure message and row hover explanation, and exclude them from mover rankings. Never-received assets show unavailable values. Historical fallback is explicitly stale and specific to symbol/timeframe. Without cached history, the chart shows an error, not daily data disguised as another period. Generation checks discard late timeframe responses.
+
+Server requests have a 12-second deadline, ten concurrent chart requests per batch, at most 100 requested symbols, 256 cache entries and 128 in-flight cache keys. Successful quote/chart entries expire after 15 seconds; searches after 60 seconds. Cache work is deduplicated. HTTP responses use `no-store`. The client has a 15-second request timeout and 100-entry candle cache (30 seconds intraday, five minutes otherwise). Expanded charts refresh every 30 seconds; all-symbol chart prewarming was removed. These are single-process safeguards, not a distributed rate limiter or capacity guarantee.
+
+## Checks and evidence
+
+```sh
+npm run lint
+npm run build:e2e
+npm run test:baseline
+npm run test:e2e
+# Opt-in external check, excluded from offline CI:
+npm run test:market:live
+# Restore the normal configured build:
+npm run build
+```
+
+Offline tests inject provider responses and time. They establish normalization, identity/malformed-data rejection, zero/null handling, return calculations, non-mutating history, failed/partial HTTP outcomes, and cache age/stale behavior for those cases. Browser tests intercept network calls to exercise missing metrics, one-point history, timeframe failure, retained stale quotes and missing live beacons in Chromium/WebKit. Existing Auth, seed-parity, telemetry and static-serving checks remain in place.
+
+The live command samples SPY, BTC-USD, ^NDX and AGG. It checks current HTTP availability and acceptance of response shapes, identities, timestamps and samples. It cannot establish price correctness against an independent provider. The optional fundamentals HTTP probe is reported separately; the running application no longer calls that endpoint.
+
+Local evidence for the six-metric slice: 20 offline checks and 32 browser checks passed. The coverage audit returned usable quote metrics and month/year history for all 88 curated symbols, with benchmark volume explicitly not applicable. Type checking and builds passed. Existing duplicate-logo cases and large-bundle warnings remain.
+
+## Remaining decisions and interview rationale
+
+The Yahoo endpoints used here have no versioned contract or SLA supplied to this project. Before launch, choose a provider/access arrangement suitable for intended use, confirm redistribution permissions/rate limits, The application now uses price/activity metrics rather than depending on inaccessible fundamentals. No privileged credentials were added.
+
+Independent price reconciliation, full venue coverage, holiday calendars, corporate-action adjustment policy, total returns, load testing and distributed rate limiting remain unverified. An old provider observation can be legitimate on a closed market; stale here specifically indicates failed retrieval, not an assertion about every venue's trading calendar.
+
+Defend these choices in an interview: validate before arithmetic; distinguish unknown from zero; keep price, baseline and session semantics consistent; preserve provenance through caches; test failures deterministically; and separate contract availability from financial correctness. A visually plausible fallback is not a valid test oracle.
+
+Primary references: [Yahoo exchange delays](https://help.yahoo.com/kb/SLN2310.html), [Nasdaq-100 identity](https://finance.yahoo.com/quote/%5ENDX/), [Nasdaq Composite identity](https://ca.finance.yahoo.com/quote/%5EIXIC/), and [iShares AGG identity](https://www.ishares.com/us/products/239458/ishares-core-total-us-bond-market-etf).
+
+## Six expanded-card metrics
+
+The unchanged six-cell responsive grid now shows previous close, day range, 52-week range, reported volume, one-month price change, and one-year price change. Indices and bond-yield benchmarks display N/A for volume. The Google Finance link remains available for deeper research.
+
+GET /api/price-activity?symbol=AMD fetches two years of daily Yahoo closes once and computes both periods. The function is independent of React and the database. Any validated symbol, including a searched symbol outside the catalog, uses this same read-only endpoint; it does not register an asset or grant watchlist/curation privileges.
+
+Periods are anchored to the latest daily sample's UTC calendar date. Subtract one or twelve calendar months, clamp month-end (including leap days), and use the latest close on or before that boundary, up to seven calendar days earlier. A shorter listing history or longer missing-data gap produces null, rather than mislabeling an inception return as a full-year return. These are provider-close price changes, not dividend-reinvested returns. A current daily bar can still be in progress. Yahoo's corporate-action adjustments are not independently reconciled.
+
+Both server calculations and client results cache for five minutes with bounded entry counts and in-flight deduplication. Only expanded cards fetch this history. Cached results survive failed refreshes with a small amber warning and tooltip; no extra timestamp row is added. Server failures remain 502, and insufficient period history is a successful response containing an unavailable metric. Currency and quote metrics continue to use the existing quote path. The obsolete optional v7 fundamentals request was removed from quote fetching.
+
+Run npm run test:market:coverage for the opt-in 88-symbol audit. It writes docs/market-coverage.json with per-field availability, not market prices or credentials. This is a point-in-time availability check, not a financial-accuracy guarantee. The deterministic tests cover month-end, weekends, leap-day anniversaries, zero baselines, short histories, missing bars, cache expiry/deduplication, and failures. Browser tests cover the same six-card grid on desktop/mobile and searched assets, including cache reuse after re-expansion.
+
+Market-price displays share compact formatting at magnitudes of 10,000 and above (for example, $12.3K). Four-digit prices retain cents in single-value displays and round to whole currency units in paired range cells. Provider-reported currency symbols are retained, including for index quotes. Full formatted prices remain in hover tooltips; source values, sorting and calculations retain their original precision. Bond yields retain percentage formatting. Browser regression checks cover large table ranges and expanded metric bounds on desktop/mobile.

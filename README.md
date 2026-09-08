@@ -159,3 +159,11 @@ local configuration, exact OAuth URLs, Google provider setup, permission boundar
 and verification commands. No hosted project or Google OAuth client is configured yet.
 Use `npm run build:e2e` before browser tests and `npm run build` afterwards to restore
 the normal local build.
+
+## Board market-data validation
+
+The Board uses validated Yahoo proxy responses and an identity-only initial catalog. Missing values stay unavailable; failed refreshes mark retained data stale. Quotes show regular-session observation timestamps, while historical charts retain their sampled closes, including extended hours when supplied. Data may be delayed. No estimated analyst targets, ranges, expenses or synthetic chart fallbacks are used.
+
+See [the market-data contract](docs/market-data.md) for financial semantics, failure/cache behavior, verification results, provider limitations and interview rationale. `npm run test:baseline` includes deterministic market checks; `npm run test:market:live` is a separate opt-in read-only provider check and does not prove price accuracy.
+
+Searched assets can now be registered through authenticated Yahoo validation before saving an owner-only watchlist item. See [symbol registration setup and security tests](docs/symbol-registration.md).

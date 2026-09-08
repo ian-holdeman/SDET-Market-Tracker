@@ -5,7 +5,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import { MarketIndexData, Timeframe, ChartDataPoint } from '../types';
-import { isAssetActivelyTrading } from '../utils/timeframeData';
+
 
 interface VtiSnapshotCardProps {
   data: MarketIndexData;
@@ -243,33 +243,7 @@ export const VtiSnapshotCard: React.FC<VtiSnapshotCardProps> = ({ data, onExplor
           )}
 
           {/* Pulsing Beacon at Tip of Line only when VTI is actively trading */}
-          {isAssetActivelyTrading(
-            selectedTimeframe,
-            activeSeries && activeSeries.length > 0 ? activeSeries[activeSeries.length - 1].timestamp : undefined,
-            'ETF',
-            'VTI'
-          ) && activeSeries && activeSeries.length > 0 && (
-            (() => {
-              const spanX = svgWidth - paddingX * 2;
-              const spanY = svgHeight - paddingY * 2;
-              const priceRange = maxPrice - minPrice || 1;
-              const lastPt = activeSeries[activeSeries.length - 1];
-              const lx = paddingX + spanX;
-              const ly = svgHeight - paddingY - ((lastPt.price - minPrice) / priceRange) * spanY;
-              const beaconColor = isPositive ? '#10B981' : '#EF4444';
 
-              return (
-                <g className="pointer-events-none" id="vti-live-beacon">
-                  <circle cx={lx} cy={ly} r="4" fill={beaconColor}>
-                    <animate attributeName="r" values="3;12;16" keyTimes="0;0.7;1" dur="1.8s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.75;0.2;0" keyTimes="0;0.7;1" dur="1.8s" repeatCount="indefinite" />
-                  </circle>
-                  <circle cx={lx} cy={ly} r="3" fill={beaconColor} />
-                  <circle cx={lx} cy={ly} r="1.5" fill="#FFFFFF" />
-                </g>
-              );
-            })()
-          )}
 
           {/* Hover Crosshair Point */}
           {hoveredPoint && activeSeries.length > 1 && (

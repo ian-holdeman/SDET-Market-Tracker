@@ -57,7 +57,18 @@ export async function changeWatchlist(userId: string, symbol: string, add: boole
   if (add) {
     const catalog = await client.from('assets').select('symbol').eq('symbol', symbol).maybeSingle();
     if (catalog.error) throw new Error('The asset catalog is unavailable. Your watchlist has not been changed.');
-    if (!catalog.data) throw new Error('This asset is not in the supported catalog yet. Saving searched assets will be available after trusted symbol validation is added.');
+    if (!catalog.data) {
+      const { data, error } = await client.auth.getSession();
+      if (error || !data.session) throw new Error('Sign in again before saving this asset.');
+      let response: Response;
+      try {
+        response = await fetch('/api/assets/register', { method: 'POST',
+          headers: { Authorization: 'Bearer ' + data.session.access_token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol }), signal: AbortSignal.timeout(35000) });
+      } catch { throw new Error('Asset validation was not confirmed. Your watchlist has not changed; please retry.'); }
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.symbol !== symbol) throw new Error(result?.error || 'Asset registration was not confirmed. Your watchlist has not changed.');
+    }
   }
   const result = add
     ? await client.from('watchlist_items').insert({ user_id: userId, symbol }).select('symbol')

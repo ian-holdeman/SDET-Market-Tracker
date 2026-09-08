@@ -37,12 +37,13 @@ export function useHourlyMovers(): HourlyMoversState {
 
   return useMemo(() => {
     const validStocks = stocks.filter(
-      (s) => typeof s.changePercent === 'number' && !isNaN(s.changePercent)
+      (s) => s.dataStatus === 'available' && Number.isFinite(s.price) && Number.isFinite(s.changePercent)
     );
 
     const sortedByGain = [...validStocks].sort((a, b) => b.changePercent - a.changePercent);
 
-    const topGainers: HourlyMoversItem[] = sortedByGain.slice(0, 5).map((s, idx) => ({
+    const topGainers: HourlyMoversItem[] = sortedByGain.filter(s => s.changePercent > 0).slice(0, 5).map((s, idx) => ({
+      currency: s.currency, assetType: s.assetType,
       symbol: s.symbol,
       name: s.name,
       price: s.price,
@@ -52,10 +53,11 @@ export function useHourlyMovers(): HourlyMoversState {
       categoryType: 'gainer',
     }));
 
-    const topLosers: HourlyMoversItem[] = sortedByGain
+    const topLosers: HourlyMoversItem[] = sortedByGain.filter(s => s.changePercent < 0)
       .slice(-5)
       .reverse()
       .map((s, idx) => ({
+        currency: s.currency, assetType: s.assetType,
         symbol: s.symbol,
         name: s.name,
         price: s.price,
@@ -66,7 +68,7 @@ export function useHourlyMovers(): HourlyMoversState {
       }));
 
     const now = new Date();
-    const lastUpdatedLabel = lastSyncTime || formatEasternHour(now);
+    const lastUpdatedLabel = lastSyncTime || 'Not yet updated';
 
     const nextSyncDate = new Date(now);
     if (now.getMinutes() < 30) {

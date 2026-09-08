@@ -1,7 +1,8 @@
+import { emptyStock, applyQuote } from '../utils/marketValues';
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { BoardStock } from '../types';
 import { INITIAL_BOARD_STOCKS } from '../data/marketData';
-import { fetchProxyQuotes, ProxyQuoteItem, preloadProxyCandles } from '../services/yahooMarket';
+import { fetchProxyQuotes, ProxyQuoteItem } from '../services/yahooMarket';
 import { preloadTickerLogos } from '../components/TickerLogo';
 import { useAuth } from './AuthContext';
 import { getSupabase } from '../lib/supabase';
@@ -34,35 +35,14 @@ export interface MarketContextType {
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
-const CACHE_KEY = 'imt_cached_market_stocks_v6';
-
-function getInitialCachedStocks(): BoardStock[] {
-  try {
-    const cached = sessionStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const cachedMap = new Map<string, BoardStock>(parsed.map((s: BoardStock) => [s.symbol, s]));
-        // Reconcile with INITIAL_BOARD_STOCKS so only the curated 50 are initialized
-        return INITIAL_BOARD_STOCKS.map((init) => cachedMap.get(init.symbol) || init);
-      }
-    }
-  } catch {
-    // Ignore cache errors
-  }
-  return INITIAL_BOARD_STOCKS;
-}
+const getInitialCachedStocks = () => INITIAL_BOARD_STOCKS;
 
 export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [curatedSymbols, setCuratedSymbols] = useState(INITIAL_BOARD_STOCKS.map((s) => s.symbol));
   const [curationError, setCurationError] = useState<string | null>(null);
   const curatedStocks = useMemo(() => curatedSymbols.map((symbol): BoardStock =>
-    INITIAL_BOARD_STOCKS.find((s) => s.symbol === symbol) || {
-      symbol, name: symbol, assetType: 'Stock', price: 0, change: 0, changePercent: 0,
-      prevClose: 0, open: 0, dayHigh: 0, dayLow: 0, fiftyTwoWeekHigh: 0,
-      fiftyTwoWeekLow: 0, volume: 0, sparkline: [], lastUpdated: '', tickCount: 0,
-    }), [curatedSymbols]);
+    INITIAL_BOARD_STOCKS.find((s) => s.symbol === symbol) || emptyStock(symbol)), [curatedSymbols]);
   const reloadCuration = useCallback(async () => {
     const result = await getSupabase().from('curated_assets').select('symbol').order('symbol');
     if (result.error) throw new Error('Curated Board membership could not be loaded. Displaying the last available list.');
@@ -88,7 +68,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const universeRef = useRef(universe);
   universeRef.current = universe;
   const [stocks, setStocks] = useState<BoardStock[]>(getInitialCachedStocks);
-  const [socketStatus, setSocketStatus] = useState<SocketStatus>('connected');
+  const [socketStatus, setSocketStatus] = useState<SocketStatus>('connecting');
   const [feedMode, setFeedMode] = useState<FeedMode>('synced_rest');
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [lastTickTime, setLastTickTime] = useState<string | null>(null);
@@ -122,21 +102,13 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const measuredLatency = Date.now() - startTime;
       setLatencyMs(measuredLatency);
 
-      if (!proxyQuotes || proxyQuotes.length === 0) {
-        setIsInitialLoadComplete(true);
-        return;
-      }
+      if (!proxyQuotes?.length) throw new Error('No quotes received');
 
       const quoteMap = new Map<string, ProxyQuoteItem>();
       proxyQuotes.forEach((q) => quoteMap.set(q.symbol, q));
 
-      const nowTimeStr = new Date().toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      });
-
+      const nowTimeStr = new Date(Math.min(...proxyQuotes.map(q => Date.parse(q.fetchedAt)))).toLocaleString();
+      const partial = symbols.some(symbol => !proxyQuotes.some(q => q.symbol === symbol));
       // Reconcile and atomic state update containing quotes
       setStocks((prevStocks) => {
         const prevMap = new Map(prevStocks.map((s) => [s.symbol, s]));
@@ -156,68 +128,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         const updated = baseStocks.map((stock) => {
           const live = quoteMap.get(stock.symbol);
-          if (!live) return stock;
-
-          const currentPrice = live.price;
-          const prevClose = live.prevClose || stock.prevClose || currentPrice;
-          const change = live.change;
-          const changePercent = live.changePercent;
-          const dayHigh = live.dayHigh || stock.dayHigh;
-          const dayLow = live.dayLow || stock.dayLow;
-          const open = live.open || stock.open;
-          const fiftyTwoHigh = live.fiftyTwoWeekHigh || stock.fiftyTwoWeekHigh;
-          const fiftyTwoLow = live.fiftyTwoWeekLow || stock.fiftyTwoWeekLow;
-
-          // Format market cap
-          const formattedMarketCap = live.marketCap || stock.marketCap;
-
-          const rawSparkline =
-            live.sparkline && live.sparkline.length >= 2
-              ? live.sparkline
-              : stock.sparkline && stock.sparkline.length > 0
-              ? stock.sparkline
-              : [prevClose, currentPrice];
-
-          const sparkline =
-            prevClose > 0 && Math.abs(rawSparkline[0] - prevClose) > 0.001
-              ? [prevClose, ...rawSparkline]
-              : rawSparkline;
-
-          const peRatio = live.peRatio !== undefined ? live.peRatio : stock.peRatio;
-          const dividendYield = live.dividendYield !== undefined ? live.dividendYield : stock.dividendYield;
-          const targetPrice1Y = live.targetPrice1Y || stock.targetPrice1Y;
-          const assetType = live.assetType || stock.assetType || 'Stock';
-
-          return {
-            ...stock,
-            name: stock.name === stock.symbol ? live.name || stock.name : stock.name,
-            price: currentPrice,
-            change,
-            changePercent,
-            prevClose,
-            open,
-            dayHigh,
-            dayLow,
-            fiftyTwoWeekHigh: fiftyTwoHigh,
-            fiftyTwoWeekLow: fiftyTwoLow,
-            marketCap: formattedMarketCap,
-            peRatio,
-            dividendYield,
-            targetPrice1Y,
-            assetType,
-            volume: live.volume || stock.volume,
-            sparkline,
-            lastUpdated: nowTimeStr,
-          };
+          return live ? applyQuote(stock, live) : { ...stock, dataStatus: stock.asOf ? 'stale' as const : 'unavailable' as const };
         });
-
-        // Cache in sessionStorage only for the curated 50
-        try {
-          const baseOnly = updated.filter((s) => curatedStocks.some((b) => b.symbol === s.symbol));
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify(baseOnly));
-        } catch {
-          // Ignore storage overflow
-        }
 
         return updated;
       });
@@ -225,24 +137,20 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setLastSyncTime(nowTimeStr);
       setLastTickTime(nowTimeStr);
       setTotalTicks((prev) => prev + proxyQuotes.length);
-      setIsOffline(false);
-      setSocketStatus('connected');
-      setErrorMessage(null);
+      setIsOffline(partial);
+      setSocketStatus(partial ? 'error' : 'connected');
+      setErrorMessage(partial ? 'Some assets could not be updated. Their previous data is marked stale.' : null);
       setFeedMode('synced_rest');
       setIsInitialLoadComplete(true);
 
-      // Pre-warm 1D intraday candles in background so card expansions render charts with 0ms latency
-      setTimeout(() => {
-        symbols.forEach((sym, idx) => {
-          setTimeout(() => preloadProxyCandles(sym, '1D'), idx * 60);
-        });
-      }, 200);
     } catch (err: any) {
+      if (universeRef.current !== currentUniverse) return;
+      setStocks(prev => prev.map(s => ({ ...s, dataStatus: s.asOf ? 'stale' : 'unavailable' })));
       console.warn('[Market Feed] Error syncing market data:', err?.message || err);
       setIsOffline(true);
       setSocketStatus('error');
       setFeedMode('offline_error');
-      setErrorMessage('Market data feed connection interrupted. Showing last confirmed market data.');
+      setErrorMessage('Market update failed. Previous observations are stale; assets without data remain unavailable.');
       setIsInitialLoadComplete(true);
     } finally {
       isFetchingRef.current = false;
@@ -258,42 +166,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const quotes = await fetchProxyQuotes([cleanSym]);
       if (!quotes || quotes.length === 0) return null;
-      const q = quotes[0];
+      const q = quotes.find(q => q.symbol === cleanSym);
+      if (!q) return null;
 
-      const nowTimeStr = new Date().toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      });
-
-      const newStock: BoardStock = {
-        symbol: q.symbol,
-        name: q.name || q.symbol,
-        assetType: q.assetType || 'Stock',
-        category: q.assetType === 'Crypto' ? 'Cryptocurrency' : q.assetType === 'ETF' ? 'Exchange Traded Fund' : q.assetType === 'Index' ? 'Index Benchmark' : 'Equities',
-        price: q.price,
-        change: q.change,
-        changePercent: q.changePercent,
-        prevClose: q.prevClose,
-        open: q.open,
-        dayHigh: q.dayHigh,
-        dayLow: q.dayLow,
-        fiftyTwoWeekHigh: q.fiftyTwoWeekHigh || Number((q.price * 1.2).toFixed(2)),
-        fiftyTwoWeekLow: q.fiftyTwoWeekLow || Number((q.price * 0.8).toFixed(2)),
-        volume: q.volume,
-        peRatio: q.peRatio,
-        marketCap: q.marketCap || '—',
-        dividendYield: q.dividendYield || 0,
-        sparkline: q.sparkline && q.sparkline.length > 0 ? q.sparkline : [q.prevClose, q.price],
-        lastUpdated: nowTimeStr,
-        tickCount: 0,
-        targetPrice1Y: q.targetPrice1Y,
-      };
-
-      // Warm 1D candles for immediate expansion
-      preloadProxyCandles(cleanSym, '1D');
-
+      const newStock = applyQuote(emptyStock(cleanSym), q);
       return newStock;
     } catch (err) {
       console.warn(`Failed to fetch quote for ${cleanSym}:`, err);
@@ -320,7 +196,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     let active = true;
     const wanted = new Set([...curatedSymbols, ...(user?.watchlist || [])]);
-    setStocks((prev) => prev.filter((stock) => wanted.has(stock.symbol)));
+    setStocks((prev) => { const existing = new Map(prev.map(stock => [stock.symbol, stock])); return [...wanted].map(symbol => existing.get(symbol) ?? emptyStock(symbol)); });
     const custom = (user?.watchlist || []).filter((symbol) => !curatedSymbols.includes(symbol));
     void Promise.all(custom.map(fetchSingleAssetQuote)).then((quotes) => {
       if (!active) return;

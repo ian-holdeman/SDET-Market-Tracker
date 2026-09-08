@@ -51,6 +51,8 @@ export interface MarketIndexData {
 }
 
 export interface TickerSummary {
+  currency?: string;
+  assetType?: AssetType;
   symbol: string;
   name: string;
   price: number;
@@ -86,34 +88,38 @@ export interface WallStreetPriceTarget {
   analystCount: number;
 }
 
-export type AssetType = 'ETF' | 'Stock' | 'Crypto' | 'Index' | 'Commodity' | 'Bond Yield';
+export type AssetType = 'ETF' | 'Stock' | 'Crypto' | 'Index' | 'Commodity' | 'Bond Yield' | 'Mutual Fund';
 
 export interface BoardStock {
+  dataStatus?: 'available' | 'stale' | 'unavailable';
+  asOf?: string;
+  fetchedAt?: string;
+  currency?: string | null;
   symbol: string;
   name: string;
   assetType: AssetType;
   category?: AssetCategory;
   exchange?: string;
   isFavorite?: boolean;
-  price: number;
-  change: number;
-  changePercent: number;
-  prevClose: number;
-  open: number;
-  dayHigh: number;
-  dayLow: number;
-  fiftyTwoWeekHigh: number;
-  fiftyTwoWeekLow: number;
-  volume: number;
-  peRatio?: number;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
+  prevClose: number | null;
+  open: number | null;
+  dayHigh: number | null;
+  dayLow: number | null;
+  fiftyTwoWeekHigh: number | null;
+  fiftyTwoWeekLow: number | null;
+  volume: number | null;
+  peRatio?: number | null;
   marketCap?: string;
-  dividendYield?: number;
-  expenseRatio?: number;
+  dividendYield?: number | null;
+  expenseRatio?: number | null;
   logoUrl?: string;
   sparkline: number[];
   lastUpdated: string;
   lastTickDirection?: 'up' | 'down' | 'none';
-  tickCount: number;
+  tickCount: number | null;
   recentTrades?: TradeTick[];
   targetPrice1Y?: WallStreetPriceTarget;
 }

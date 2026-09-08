@@ -94,7 +94,7 @@ export function formatSubtleTimestamp(dateInput?: string | number | Date | null)
  */
 export function formatMarketUpdateTime(timeString?: string | null): string {
   if (!timeString) {
-    return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    return 'Not yet updated';
   }
 
   // If already formatted like "10:45:22 AM" or "10:45 AM", return directly or simplify

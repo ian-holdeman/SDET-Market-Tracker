@@ -1,13 +1,13 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { 
-  Brain, 
-  Layers, 
-  Terminal, 
-  Cpu, 
-  ShieldCheck, 
-  Workflow, 
-  CheckCircle2, 
+import {
+  Brain,
+  Layers,
+  Terminal,
+  Cpu,
+  ShieldCheck,
+  Workflow,
+  CheckCircle2,
   ArrowRight,
   Code2,
   Gauge,
@@ -40,7 +40,7 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => {
         <div className="h-[2px] w-32 sm:w-48 bg-gradient-to-r from-transparent via-blue-500/70 via-emerald-400/70 to-transparent rounded-full mx-auto my-2" />
 
         <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          Why this platform is built the way it is. A breakdown of intentional engineering, real-time data handling, and the rigorous SDET testing framework designed to deliver zero-defect reliability.
+          Why this platform is built the way it is. A breakdown of intentional engineering, market-data validation, and the rigorous SDET testing framework designed to detect regressions.
         </p>
       </div>
 
@@ -172,7 +172,7 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => {
 
         <div className="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
           <p>
-            The platform connects to live Finnhub market feeds, leveraging real-time WebSockets during market hours (9:30 AM – 4:00 PM ET) and resilient fallback caches for after-hours surveillance. 
+            The Board polls a server-side Yahoo Finance proxy. Responses are validated before use; regular-session quotes and historical samples retain provider timestamps. Missing metrics remain unavailable, and failed refreshes mark retained observations stale. Provider data may be delayed.
           </p>
           <p className="text-slate-400">
             All market updates, test histories, and watchlist favorites are managed through reactive React 19 hooks and local state caches, ensuring instant page navigation with zero layout shift.
