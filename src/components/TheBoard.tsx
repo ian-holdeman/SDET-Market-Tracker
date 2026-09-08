@@ -1,15 +1,15 @@
 import { finite, fixed, priceLabel, fullPriceLabel, rangePriceLabel } from '../utils/marketValues';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown, 
-  Search, 
-  RefreshCw, 
-  Layers, 
-  WifiOff, 
-  TrendingUp, 
+import {
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Search,
+  RefreshCw,
+  Layers,
+  WifiOff,
+  TrendingUp,
   TrendingDown,
   Maximize2,
   Minimize2,
@@ -67,7 +67,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
   const fiftyTwoLow = stock.fiftyTwoWeekLow;
   const fiftyTwoHigh = stock.fiftyTwoWeekHigh;
   const fiftyTwoSpan = fiftyTwoHigh - fiftyTwoLow;
-  const fiftyTwoWeekPct = fiftyTwoSpan > 0 
+  const fiftyTwoWeekPct = fiftyTwoSpan > 0
     ? Math.max(0, Math.min(100, ((stock.price - fiftyTwoLow) / fiftyTwoSpan) * 100))
     : 50;
 
@@ -79,12 +79,12 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
     const allValues = [...points, stock.dayLow, stock.dayHigh, stock.price].filter(v => finite(v));
     const refLow = Math.min(...allValues);
     const refHigh = Math.max(...allValues);
-    
+
     // Guarantee a stable minimum vertical range (at least 0.75% of price) so micro-ticks don't bounce drastically
     const naturalSpan = refHigh - refLow;
     const minBufferSpan = (stock.price || 100) * 0.0075;
     const effectiveSpan = Math.max(naturalSpan, minBufferSpan);
-    
+
     const midPoint = (refLow + refHigh) / 2;
     const min = midPoint - effectiveSpan / 2;
     const max = midPoint + effectiveSpan / 2;
@@ -105,7 +105,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
     return {
       pathD: coords.length > 1 ? `M ${coords.join(' L ')}` : '',
       lastCoord: (coords[coords.length - 1] || `${width / 2},${height / 2}`).split(','),
-      strokeColor: isPositive ? '#10B981' : '#EF4444',
+      strokeColor: isPositive ? 'var(--color-chart-positive)' : 'var(--color-chart-negative)',
     };
   }, [stock.sparkline, stock.dayLow, stock.dayHigh, stock.prevClose, stock.price, isPositive]);
 
@@ -121,50 +121,50 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         onClick={() => onToggleExpand(stock.symbol)}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`group cursor-pointer select-none transition-colors duration-150 border-l-2 outline-none focus:outline-none scroll-mt-28 sm:scroll-mt-32 ${
-          isExpanded 
-            ? 'bg-[#121A28] border-l-blue-500' 
-            : 'border-l-transparent hover:border-l-blue-500/70 hover:bg-[#151F30] active:bg-[#192438]'
+          isExpanded
+            ? 'bg-selected-row border-l-info-500'
+            : 'border-l-transparent hover:border-l-info-500/70 hover:bg-hover-row active:bg-pressed-row'
         }`}
       >
         {/* 1. Name & Asset Icon (Column 1 on mobile & desktop) */}
-        <td className={`py-3.5 sm:py-4 pl-3.5 sm:pl-6 pr-1 sm:pr-3 ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
+        <td className={`py-3.5 sm:py-4 pl-3.5 sm:pl-6 pr-1 sm:pr-3 ${!isExpanded && !isLastRow ? 'border-b border-line/60' : ''}`}>
           <div className="flex items-center space-x-2.5 sm:space-x-3.5">
             {/* Symbol Logo / Brand Icon */}
-            <TickerLogo 
-              symbol={stock.symbol} 
-              assetType={stock.assetType} 
-              logoUrl={stock.logoUrl} 
-              size="md" 
-              className={isExpanded ? 'border-blue-500 shadow-blue-950/50' : ''}
+            <TickerLogo
+              symbol={stock.symbol}
+              assetType={stock.assetType}
+              logoUrl={stock.logoUrl}
+              size="md"
+              className={isExpanded ? 'border-info-500 shadow-info-shadow-950/50' : ''}
             />
 
             <div className="flex flex-col min-w-0">
               <div className="flex items-center space-x-1.5 sm:space-x-2">
                 <span className={`font-bold sm:font-extrabold tracking-tight transition-colors font-mono text-base sm:text-lg ${
-                  isExpanded ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
+                  isExpanded ? 'text-info-ink-400' : 'text-ink-heading group-hover:text-info-ink-400'
                 }`}>
                   {stock.symbol}
                 </span>
                 <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono ${
                   stock.assetType === 'ETF' || stock.assetType === 'Index'
-                    ? 'bg-blue-950/90 text-blue-400 border border-blue-800/50 uppercase' 
+                    ? 'bg-info-surface-950/90 text-info-ink-400 border border-info-surface-800/50 uppercase'
                     : stock.assetType === 'Crypto'
-                    ? 'bg-amber-950/90 text-amber-400 border border-amber-800/50 uppercase'
+                    ? 'bg-warning-surface-950/90 text-warning-ink-400 border border-warning-surface-800/50 uppercase'
                     : stock.assetType === 'Commodity'
-                    ? 'bg-yellow-950/90 text-yellow-400 border border-yellow-800/50 uppercase'
+                    ? 'bg-commodity-surface/90 text-commodity-ink border border-commodity-line/50 uppercase'
                     : stock.assetType === 'Bond Yield'
-                    ? 'bg-emerald-950/90 text-emerald-400 border border-emerald-800/50 uppercase'
-                    : 'bg-slate-800 text-slate-300 border border-slate-700'
+                    ? 'bg-positive-surface-950/90 text-positive-ink-400 border border-positive-surface-800/50 uppercase'
+                    : 'bg-surface-800 text-ink-secondary border border-line-strong'
                 }`}>
                   {stock.symbol === 'AGG' ? 'Bonds' : (stock.assetType || 'Stock')}
                 </span>
                 {isWatching && (
-                  <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono bg-purple-950/90 text-purple-400 border border-purple-800/50">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono bg-accent-surface-950/90 text-accent-ink-400 border border-accent-surface-800/50">
                     Watching
                   </span>
                 )}
               </div>
-              <span className="text-xs text-slate-400 max-w-[140px] sm:max-w-xs truncate hidden sm:block">
+              <span className="text-xs text-ink-muted max-w-[140px] sm:max-w-xs truncate hidden sm:block">
                 {stock.name}
               </span>
             </div>
@@ -172,7 +172,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         </td>
 
         {/* 2. Today's Trendline (Desktop Only) */}
-        <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-center ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
+        <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-center ${!isExpanded && !isLastRow ? 'border-b border-line/60' : ''}`}>
           <div className="w-20 h-6 mx-auto flex items-center justify-center">
             <svg className="w-[80px] h-[24px] overflow-visible" viewBox="0 0 84 26">
               <path
@@ -196,25 +196,25 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         </td>
 
         {/* 3. Last Price (Desktop Only) */}
-        <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-right ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
+        <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-right ${!isExpanded && !isLastRow ? 'border-b border-line/60' : ''}`}>
           <div className="inline-flex flex-col items-end">
-            <span className="font-mono text-base sm:text-lg font-bold sm:font-extrabold text-white">
+            <span className="font-mono text-base sm:text-lg font-bold sm:font-extrabold text-ink-heading">
               <span title={fullPriceLabel(stock.price, stock.currency, stock.assetType)}>{priceLabel(stock.price, stock.currency, stock.assetType)}</span>
             </span>
           </div>
         </td>
 
         {/* 4. Today's Change / Mobile 2nd Column with Price & Change */}
-        <td className={`py-3.5 sm:py-4 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right md:text-center ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
+        <td className={`py-3.5 sm:py-4 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right md:text-center ${!isExpanded && !isLastRow ? 'border-b border-line/60' : ''}`}>
           {/* Mobile View: Price on top (bigger, colored to match direction), Change underneath */}
           <div className="md:hidden flex flex-col items-end">
             <span className={`font-mono text-base sm:text-lg font-bold sm:font-extrabold ${
-              isPositive ? 'text-emerald-400' : 'text-rose-400'
+              isPositive ? 'text-positive-ink-400' : 'text-danger-ink-400'
             }`}>
               <span title={fullPriceLabel(stock.price, stock.currency, stock.assetType)}>{priceLabel(stock.price, stock.currency, stock.assetType)}</span>
             </span>
             <span className={`inline-flex items-center font-mono text-xs font-semibold mt-0.5 ${
-              isPositive ? 'text-emerald-400/90' : 'text-rose-400/90'
+              isPositive ? 'text-positive-ink-400/90' : 'text-danger-ink-400/90'
             }`}>
               {isPositive ? '+' : ''}{fixed(stock.changePercent)}%
             </span>
@@ -226,8 +226,8 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
               <span
                 className={`inline-flex items-center justify-center font-mono text-sm font-bold px-3 py-1 rounded border ${
                   isPositive
-                    ? 'bg-emerald-950/70 text-emerald-300 border-emerald-800/50'
-                    : 'bg-rose-950/70 text-rose-300 border-rose-800/50'
+                    ? 'bg-positive-surface-950/70 text-positive-ink-300 border-positive-surface-800/50'
+                    : 'bg-danger-surface-950/70 text-danger-ink-300 border-danger-surface-800/50'
                 }`}
               >
                 {isPositive ? '+' : ''}{fixed(stock.changePercent)}%
@@ -236,7 +236,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
               <div className="mt-1 w-full text-right pr-0.5">
                 <span
                   className={`text-[13px] font-mono font-semibold ${
-                    isPositive ? 'text-emerald-400' : 'text-rose-400'
+                    isPositive ? 'text-positive-ink-400' : 'text-danger-ink-400'
                   }`}
                 >
                   <span title={fullPriceLabel(stock.change, stock.currency, stock.assetType)}>{priceLabel(stock.change, stock.currency, stock.assetType)}</span>
@@ -247,22 +247,22 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         </td>
 
         {/* 5. 52W Range (Desktop Only) - Balanced 3-column grid for stable centering despite digit length variations */}
-        <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-center ${!isExpanded && !isLastRow ? 'border-b border-slate-800/60' : ''}`}>
+        <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-center ${!isExpanded && !isLastRow ? 'border-b border-line/60' : ''}`}>
           <div className="flex flex-col items-center max-w-[175px] mx-auto">
             <div className="w-full grid grid-cols-3 items-center text-[11px] font-mono mb-1">
-              <span className="font-semibold text-slate-200 text-left"><span title={fullPriceLabel(fiftyTwoLow, stock.currency, stock.assetType)}>{rangePriceLabel(fiftyTwoLow, stock.currency, stock.assetType)}</span></span>
-              <span className="text-[10px] text-slate-400 text-center tracking-wide">52W</span>
-              <span className="font-semibold text-slate-200 text-right"><span title={fullPriceLabel(fiftyTwoHigh, stock.currency, stock.assetType)}>{rangePriceLabel(fiftyTwoHigh, stock.currency, stock.assetType)}</span></span>
+              <span className="font-semibold text-ink-strong text-left"><span title={fullPriceLabel(fiftyTwoLow, stock.currency, stock.assetType)}>{rangePriceLabel(fiftyTwoLow, stock.currency, stock.assetType)}</span></span>
+              <span className="text-[10px] text-ink-muted text-center tracking-wide">52W</span>
+              <span className="font-semibold text-ink-strong text-right"><span title={fullPriceLabel(fiftyTwoHigh, stock.currency, stock.assetType)}>{rangePriceLabel(fiftyTwoHigh, stock.currency, stock.assetType)}</span></span>
             </div>
             {/* Range track */}
-            <div className="w-full h-1.5 bg-slate-800/90 rounded-full overflow-hidden relative">
+            <div className="w-full h-1.5 bg-surface-800/90 rounded-full overflow-hidden relative">
               <div
-                className="h-full bg-blue-500/40 rounded-full"
+                className="h-full bg-info-500/40 rounded-full"
                 style={{ width: '100%' }}
               />
               {/* Marker */}
               <div
-                className="absolute top-0 bottom-0 w-2 bg-blue-400 rounded-full shadow-sm transition-all duration-300 ease-out"
+                className="absolute top-0 bottom-0 w-2 bg-info-400 rounded-full shadow-sm transition-all duration-300 ease-out"
                 style={{ visibility: finite(fiftyTwoLow) && finite(fiftyTwoHigh) && finite(stock.price) ? 'visible' : 'hidden', left: `calc(${fiftyTwoWeekPct}% - 4px)` }}
               />
             </div>
@@ -273,34 +273,34 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
       {/* Expandable Drill-Down Detail Card Row */}
       <AnimatePresence initial={false}>
         {isExpanded && (
-          <tr 
-            key={`expanded-${stock.symbol}`} 
-            className={`bg-[#0B0F17] outline-none ${!isLastRow ? 'border-b border-slate-800/60' : ''}`}
+          <tr
+            key={`expanded-${stock.symbol}`}
+            className={`bg-chart-surface outline-none ${!isLastRow ? 'border-b border-line/60' : ''}`}
           >
-            <td colSpan={5} className="p-0 border-none outline-none bg-[#0B0F17]">
+            <td colSpan={5} className="p-0 border-none outline-none bg-chart-surface">
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
-                animate={{ 
-                  height: 'auto', 
+                animate={{
+                  height: 'auto',
                   opacity: 1,
                   transition: {
                     height: { duration: 0.24, ease: [0.25, 1, 0.5, 1] },
                     opacity: { duration: 0.18, delay: 0.02 }
                   }
                 }}
-                exit={{ 
-                  height: 0, 
+                exit={{
+                  height: 0,
                   opacity: 0,
                   transition: {
                     height: { duration: 0.2, ease: [0.25, 1, 0.5, 1] },
                     opacity: { duration: 0.1 }
                   }
                 }}
-                className="overflow-hidden m-0 p-0 bg-[#0B0F17]"
+                className="overflow-hidden m-0 p-0 bg-chart-surface"
               >
-                <div className="px-1.5 sm:px-5 pt-1 pb-3 sm:pb-5 bg-[#0B0F17]">
-                  <BoardStockDetailCard 
-                    stock={stock} 
+                <div className="px-1.5 sm:px-5 pt-1 pb-3 sm:pb-5 bg-chart-surface">
+                  <BoardStockDetailCard
+                    stock={stock}
                     onClose={() => onToggleExpand(stock.symbol)}
                   />
                 </div>
@@ -316,7 +316,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
 BoardTableRow.displayName = 'BoardTableRow';
 
 export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSelectStock }) => {
-  const { 
+  const {
     stocks, curationError, feedMode,
     latencyMs,
     lastSyncTime,
@@ -408,7 +408,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
       setIsSearchingUniverse(false);
     };
   }, [searchQuery, stocks, ephemeralSearchResults.length, fetchSingleAssetQuote]);
-  
+
   // Default tab logic:
   // 1. If direct asset navigation provided (initialExpandedSymbol) -> 'ALL'
   // 2. If user has any items in their watchlist -> 'WATCHLIST'
@@ -533,7 +533,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
       };
     }
   }, [initialExpandedSymbol]);
-  
+
   // Feed diagnostics modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
@@ -650,7 +650,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         }
 
         const symUpper = stock.symbol.toUpperCase();
-        
+
         // Exact ticker match check
         if (symUpper === cleanUpper) {
           return true;
@@ -681,8 +681,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         if (sortField === 'name' || sortField === 'symbol') {
           const valA = sortField === 'symbol' ? a.symbol : a.name;
           const valB = sortField === 'symbol' ? b.symbol : b.name;
-          return sortDirection === 'asc' 
-            ? valA.localeCompare(valB) 
+          return sortDirection === 'asc'
+            ? valA.localeCompare(valB)
             : valB.localeCompare(valA);
         }
 
@@ -708,31 +708,31 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
   // Render sort icon for table headers
   const renderSortIcon = (field: BoardSortField) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="w-3 h-3 text-slate-600 group-hover:text-slate-400 inline ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />;
+      return <ArrowUpDown className="w-3 h-3 text-ink-faint group-hover:text-ink-muted inline ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />;
     }
     return sortDirection === 'asc' ? (
-      <ArrowUp className="w-3 h-3 text-blue-400 inline ml-1" />
+      <ArrowUp className="w-3 h-3 text-info-ink-400 inline ml-1" />
     ) : (
-      <ArrowDown className="w-3 h-3 text-blue-400 inline ml-1" />
+      <ArrowDown className="w-3 h-3 text-info-ink-400 inline ml-1" />
     );
   };
 
   return (
     <div id="the-board-page" className="w-full space-y-5">
-      {curationError && <p role="alert" className="text-sm text-amber-300">{curationError}</p>}
-      
+      {curationError && <p role="alert" className="text-sm text-warning-ink-300">{curationError}</p>}
+
       {/* Top Header & Surveillance Telemetry Bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center space-x-3">
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
-              <Layers className="w-7 h-7 text-blue-500" />
+            <h1 className="text-2xl sm:text-3xl font-black text-ink-heading tracking-tight flex items-center gap-2.5">
+              <Layers className="w-7 h-7 text-info-ink-500" />
               <span>The Board</span>
             </h1>
           </div>
         </div>
 
-        {searchError && <p role="alert" className="text-xs text-amber-400">{searchError}</p>}
+        {searchError && <p role="alert" className="text-xs text-warning-ink-400">{searchError}</p>}
         {/* Live Stream Telemetry Pill & Refresh Action */}
         <div className="flex items-center space-x-2.5 self-start md:self-auto flex-wrap">
           {/* Feed Status Display: Clickable diagnostic button for all users */}
@@ -740,33 +740,33 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
             id="board-feed-status-btn"
             onClick={() => setShowSettingsModal(true)}
             title="Click to view live Yahoo Finance engine sync diagnostics & telemetry"
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#0F141E] hover:bg-[#161F2E] border border-slate-800 hover:border-slate-700 font-mono text-xs shadow-inner transition-all group cursor-pointer"
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-panel hover:bg-hover-panel border border-line hover:border-line-strong font-mono text-xs shadow-inner transition-all group cursor-pointer"
           >
             {isOffline ? (
               <>
-                <span className="w-2 h-2 rounded-full bg-rose-500" />
-                <span className="text-rose-400 font-semibold">Feed Offline</span>
-                <span className="text-slate-600">|</span>
-                <span className="text-slate-400 text-[11px]">Last Known Data</span>
+                <span className="w-2 h-2 rounded-full bg-danger-500" />
+                <span className="text-danger-ink-400 font-semibold">Feed Offline</span>
+                <span className="text-ink-faint">|</span>
+                <span className="text-ink-muted text-[11px]">Last Known Data</span>
               </>
             ) : isLoadingLiveMetrics ? (
               <>
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-amber-400">Syncing Quotes...</span>
+                <span className="w-2 h-2 rounded-full bg-warning-400 animate-pulse" />
+                <span className="text-warning-ink-400">Syncing Quotes...</span>
               </>
             ) : (
               <>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-emerald-400 font-semibold">{lastSyncTime ? 'Provider data • may be delayed' : 'Awaiting data'}</span>
+                <span className="w-2 h-2 rounded-full bg-positive-400 animate-pulse" />
+                <span className="text-positive-ink-400 font-semibold">{lastSyncTime ? 'Provider data • may be delayed' : 'Awaiting data'}</span>
                 {lastSyncTime && (
                   <>
-                    <span className="text-slate-600">|</span>
-                    <span className="text-slate-400 text-[11px]">{lastSyncTime}</span>
+                    <span className="text-ink-faint">|</span>
+                    <span className="text-ink-muted text-[11px]">{lastSyncTime}</span>
                   </>
                 )}
               </>
             )}
-            <SlidersHorizontal className="w-3 h-3 text-slate-500 group-hover:text-blue-400 ml-1 transition-colors" />
+            <SlidersHorizontal className="w-3 h-3 text-ink-subtle group-hover:text-info-ink-400 ml-1 transition-colors" />
           </button>
 
           {/* Quick Refresh Button */}
@@ -775,24 +775,24 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
             aria-label="Refresh market quotes"
             onClick={handleRefresh}
             title="Refresh latest quotes from Yahoo Finance backend proxy"
-            className="p-2 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer"
+            className="p-2 rounded-xl bg-panel hover:bg-surface-800 border border-line hover:border-line-strong text-ink-muted hover:text-ink-heading transition-all shadow-sm active:scale-95 cursor-pointer"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing || isLoadingLiveMetrics ? 'animate-spin text-blue-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isRefreshing || isLoadingLiveMetrics ? 'animate-spin text-info-ink-400' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Prominent Connection Loss Notification Banner */}
       {isOffline && (
-        <div 
+        <div
           id="board-offline-alert"
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-200 text-xs font-mono shadow-lg"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-danger-surface-950/40 border border-danger-surface-800/60 text-danger-ink-200 text-xs font-mono shadow-lg"
         >
           <div className="flex items-center space-x-2.5">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-danger-ink-400 shrink-0" />
             <div>
-              <span className="font-bold text-rose-300">{feedMode === 'synced_rest' ? 'Partial Market Update: ' : 'Connection Interrupted: '}</span>
-              <span className="text-slate-300">
+              <span className="font-bold text-danger-ink-300">{feedMode === 'synced_rest' ? 'Partial Market Update: ' : 'Connection Interrupted: '}</span>
+              <span className="text-ink-secondary">
                 {errorMessage || 'Market update unavailable.'}
               </span>
             </div>
@@ -802,7 +802,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               reconnect();
               refreshQuotes();
             }}
-            className="px-3 py-1.5 rounded-lg bg-rose-900/80 hover:bg-rose-800 border border-rose-700 text-white font-mono text-xs font-bold transition-all shrink-0 flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-danger-surface-900/80 hover:bg-danger-surface-800 border border-danger-700 text-ink-heading font-mono text-xs font-bold transition-all shrink-0 flex items-center gap-1.5"
           >
             <RefreshCw className="w-3 h-3" />
             <span>Reconnect & Sync</span>
@@ -811,13 +811,13 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
       )}
 
       {/* Main Horizontal Roll Table with Seamless Render Architecture */}
-      <div className="relative z-10 w-full min-h-[320px] sm:min-h-[380px] bg-[#0F141E] border border-slate-800 rounded-xl sm:rounded-2xl shadow-2xl backdrop-blur-sm">
+      <div className="relative z-10 w-full min-h-[320px] sm:min-h-[380px] bg-panel border border-line rounded-xl sm:rounded-2xl shadow-2xl backdrop-blur-sm">
         {/* Top Controls Toolbar on a single horizontal axis touching the table */}
-        <div className="relative z-30 flex items-center justify-between gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-[#0B0F17]/90 rounded-t-xl sm:rounded-t-2xl">
+        <div className="relative z-30 flex items-center justify-between gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-chart-surface/90 rounded-t-xl sm:rounded-t-2xl">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
             {/* 1. Desktop View: Always Expanded Search Bar */}
             <div className="hidden lg:flex relative items-center w-52 xl:w-64">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-ink-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 id="board-search-input-desktop"
                 type="text"
@@ -830,16 +830,16 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                     setSearchQuery('');
                   }
                 }}
-                className="w-full pl-8 pr-7 py-1.5 bg-[#0F141E] border border-slate-800 focus:border-blue-500/80 rounded-xl text-xs text-white placeholder-slate-500 outline-none transition-all font-sans shadow-sm"
+                className="w-full pl-8 pr-7 py-1.5 bg-panel border border-line focus:border-info-500/80 rounded-xl text-xs text-ink-heading placeholder-ink-subtle outline-none transition-all font-sans shadow-sm"
               />
               {isSearchingUniverse && (
-                <RefreshCw className="w-3 h-3 text-blue-400 animate-spin absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <RefreshCw className="w-3 h-3 text-info-ink-400 animate-spin absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none" />
               )}
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
                   title="Clear search"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-ink-muted hover:text-ink-heading transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -850,7 +850,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
             <div className="lg:hidden flex items-center">
               {isSearchExpanded || searchQuery ? (
                 <div className="relative flex items-center w-28 xs:w-32 sm:w-44 md:w-56 transition-all">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Search className="w-3.5 h-3.5 text-ink-muted absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     id="board-search-input"
                     type="text"
@@ -865,10 +865,10 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                         setIsSearchExpanded(false);
                       }
                     }}
-                    className="w-full pl-7 pr-6 py-1 sm:py-1.5 bg-[#0F141E] border border-blue-500/80 rounded-xl text-xs text-white placeholder-slate-500 outline-none transition-all font-sans shadow-sm"
+                    className="w-full pl-7 pr-6 py-1 sm:py-1.5 bg-panel border border-info-500/80 rounded-xl text-xs text-ink-heading placeholder-ink-subtle outline-none transition-all font-sans shadow-sm"
                   />
                   {isSearchingUniverse && (
-                    <RefreshCw className="w-3 h-3 text-blue-400 animate-spin absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <RefreshCw className="w-3 h-3 text-info-ink-400 animate-spin absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   )}
                   <button
                     onClick={() => {
@@ -876,7 +876,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                       setIsSearchExpanded(false);
                     }}
                     title="Clear and close search"
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white transition-colors"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-ink-muted hover:text-ink-heading transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -887,7 +887,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                   aria-label="Search market assets"
                   onClick={() => setIsSearchExpanded(true)}
                   title="Search any asset or ticker"
-                  className="p-1.5 sm:p-2 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all shadow-sm shrink-0 flex items-center justify-center"
+                  className="p-1.5 sm:p-2 rounded-xl bg-panel hover:bg-surface-800 border border-line hover:border-line-strong text-ink-muted hover:text-ink-heading transition-all shadow-sm shrink-0 flex items-center justify-center"
                 >
                   <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
@@ -895,24 +895,24 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
             </div>
 
             {/* Soft, connected category & watchlist toggle pill with subtle dropdown menu */}
-            <div 
+            <div
               ref={dropdownRef}
               id="board-asset-type-toggle"
-              className="relative inline-flex items-center p-0.5 rounded-xl bg-[#0F141E] border border-slate-800 shadow-inner select-none shrink-0 gap-0.5"
+              className="relative inline-flex items-center p-0.5 rounded-xl bg-panel border border-line shadow-inner select-none shrink-0 gap-0.5"
             >
               {/* Category Segmented Control with Separate Label and Dropdown Arrow Hit Areas */}
               <div
                 className={`relative z-10 inline-flex items-center rounded-lg transition-all duration-150 ${
                   assetFilter === 'ALL'
-                    ? 'text-white font-semibold'
-                    : 'text-slate-400'
+                    ? 'text-ink-heading font-semibold'
+                    : 'text-ink-muted'
                 }`}
               >
                 {assetFilter === 'ALL' && (
                   <motion.div
                     layoutId="boardAssetFilterPill"
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                    className="absolute inset-0 bg-slate-800 border border-slate-700/80 rounded-lg shadow-sm -z-10"
+                    className="absolute inset-0 bg-surface-800 border border-line-strong/80 rounded-lg shadow-sm -z-10"
                   />
                 )}
 
@@ -925,14 +925,14 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                   }}
                   className={`pl-2.5 sm:pl-3 pr-1.5 py-1 text-[11px] sm:text-xs font-mono font-medium rounded-l-lg transition-colors cursor-pointer flex items-center ${
                     assetFilter === 'ALL'
-                      ? 'text-white hover:text-blue-200'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                      ? 'text-ink-heading hover:text-info-ink-200'
+                      : 'text-ink-muted hover:text-ink-strong hover:bg-surface-800/50'
                   }`}
                   title={`View all ${selectedCategory === 'ALL' ? 'assets' : (CATEGORY_OPTIONS.find((c) => c.id === selectedCategory)?.shortLabel || selectedCategory)}`}
                 >
                   <span>
-                    {selectedCategory === 'ALL' 
-                      ? 'All' 
+                    {selectedCategory === 'ALL'
+                      ? 'All'
                       : (CATEGORY_OPTIONS.find((c) => c.id === selectedCategory)?.shortLabel || selectedCategory)}
                   </span>
                 </button>
@@ -947,15 +947,15 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                   }}
                   className={`pl-1 pr-2 sm:pr-2.5 py-1 rounded-r-lg transition-colors cursor-pointer flex items-center justify-center border-l ${
                     assetFilter === 'ALL'
-                      ? 'border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-700/50'
-                      : 'border-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800/70'
+                      ? 'border-line-strong/60 text-ink-secondary hover:text-ink-heading hover:bg-surface-700/50'
+                      : 'border-line/80 text-ink-muted hover:text-ink-strong hover:bg-surface-800/70'
                   }`}
                   title={assetFilter === 'WATCHLIST' ? 'Filter Watchlist by Category' : 'Change Asset Category'}
                 >
-                  <ChevronDown 
+                  <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                      isCategoryDropdownOpen ? 'rotate-180 text-blue-400' : 'text-slate-400 group-hover:text-slate-200'
-                    }`} 
+                      isCategoryDropdownOpen ? 'rotate-180 text-info-ink-400' : 'text-ink-muted group-hover:text-ink-strong'
+                    }`}
                   />
                 </button>
               </div>
@@ -970,8 +970,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 }}
                 className={`relative z-10 px-2.5 sm:px-3.5 py-1 text-[11px] sm:text-xs font-mono font-medium rounded-lg transition-all duration-150 flex items-center gap-1.5 cursor-pointer ${
                   assetFilter === 'WATCHLIST'
-                    ? 'text-white font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+                    ? 'text-ink-heading font-semibold'
+                    : 'text-ink-muted hover:text-ink-strong hover:bg-surface-800/30'
                 }`}
                 title={`Watchlist (${selectedCategory === 'ALL' ? 'All categories' : (CATEGORY_OPTIONS.find((c) => c.id === selectedCategory)?.shortLabel || selectedCategory)})`}
               >
@@ -979,15 +979,15 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                   <motion.div
                     layoutId="boardAssetFilterPill"
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                    className="absolute inset-0 bg-slate-800 border border-slate-700/80 rounded-lg shadow-sm -z-10"
+                    className="absolute inset-0 bg-surface-800 border border-line-strong/80 rounded-lg shadow-sm -z-10"
                   />
                 )}
                 <span>Watchlist</span>
                 {watchedCountForCategory > 0 && (
-                  <span 
+                  <span
                     id="board-watchlist-count-badge"
                     className={`text-[10px] sm:text-[11px] font-bold font-mono px-1.5 py-0.5 rounded-full leading-none transition-colors border ${
-                      assetFilter === 'WATCHLIST' ? 'bg-amber-400/25 text-amber-300 border-amber-400/40' : 'bg-slate-800 text-slate-300 border-slate-700'
+                      assetFilter === 'WATCHLIST' ? 'bg-warning-400/25 text-warning-ink-300 border-warning-400/40' : 'bg-surface-800 text-ink-secondary border-line-strong'
                     }`}
                   >
                     {watchedCountForCategory}
@@ -1004,9 +1004,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.96 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute left-0 top-full mt-1.5 z-50 w-max min-w-[180px] sm:min-w-[210px] max-w-[calc(100vw-2rem)] p-1 sm:p-1.5 bg-[#0C1017]/98 backdrop-blur-xl border border-slate-700/80 rounded-xl shadow-2xl shadow-black/90 font-sans"
+                    className="absolute left-0 top-full mt-1.5 z-50 w-max min-w-[180px] sm:min-w-[210px] max-w-[calc(100vw-2rem)] p-1 sm:p-1.5 bg-popover/98 backdrop-blur-xl border border-line-strong/80 rounded-xl shadow-2xl shadow-shade/90 font-sans"
                   >
-                    <div className="px-2 py-1 flex items-center justify-between text-[9px] sm:text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase border-b border-slate-800/80 pb-1 mb-0.5">
+                    <div className="px-2 py-1 flex items-center justify-between text-[9px] sm:text-[10px] font-mono font-bold text-ink-muted tracking-wider uppercase border-b border-line/80 pb-1 mb-0.5">
                       <span>{assetFilter === 'WATCHLIST' ? 'Watchlist Category' : 'Product Category'}</span>
                       {selectedCategory !== 'ALL' && (
                         <button
@@ -1016,7 +1016,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                             setSelectedCategory('ALL');
                             setIsCategoryDropdownOpen(false);
                           }}
-                          className="text-[9px] text-blue-400 hover:text-blue-300 normal-case font-medium hover:underline cursor-pointer"
+                          className="text-[9px] text-info-ink-400 hover:text-info-ink-300 normal-case font-medium hover:underline cursor-pointer"
                         >
                           Reset
                         </button>
@@ -1025,8 +1025,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                     <div className="space-y-0.5">
                       {CATEGORY_OPTIONS.map((opt) => {
                         const isSelected = selectedCategory === opt.id;
-                        const count = opt.id === 'ALL' 
-                          ? stocks.length 
+                        const count = opt.id === 'ALL'
+                          ? stocks.length
                           : (categoryCounts.counts[opt.id] || 0);
                         const watchedCount = opt.id === 'ALL'
                           ? categoryCounts.watchedCounts.ALL
@@ -1042,13 +1042,13 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                             }}
                             className={`w-full px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-mono flex items-center justify-between transition-colors cursor-pointer text-left ${
                               isSelected
-                                ? 'bg-blue-600/15 text-blue-300 font-semibold border border-blue-500/30'
-                                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white border border-transparent'
+                                ? 'bg-info-600/15 text-info-ink-300 font-semibold border border-info-500/30'
+                                : 'text-ink-secondary hover:bg-surface-800/70 hover:text-ink-heading border border-transparent'
                             }`}
                           >
                             <div className="flex items-center gap-1.5 sm:gap-2">
                               {isSelected ? (
-                                <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 shrink-0" />
+                                <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-info-ink-400 shrink-0" />
                               ) : (
                                 <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                               )}
@@ -1056,8 +1056,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                             </div>
                             <span className={`text-[10px] sm:text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md shrink-0 ml-2 border ${
                               isSelected
-                                ? 'bg-blue-500/25 text-blue-200 border-blue-400/40'
-                                : 'bg-slate-800 text-slate-200 border-slate-700/80'
+                                ? 'bg-info-500/25 text-info-ink-200 border-info-400/40'
+                                : 'bg-surface-800 text-ink-strong border-line-strong/80'
                             }`}>
                               {assetFilter === 'WATCHLIST' ? watchedCount : count}
                             </span>
@@ -1078,17 +1078,17 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               aria-label={expandedSymbols.size > 0 ? 'Collapse all assets' : 'Expand all assets'}
               onClick={toggleExpandAll}
               title={expandedSymbols.size > 0 ? 'Collapse All' : 'Expand All'}
-              className="p-1.5 sm:p-2 lg:px-3 lg:py-1.5 rounded-xl bg-[#0F141E] hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95 text-xs font-mono font-medium cursor-pointer"
+              className="p-1.5 sm:p-2 lg:px-3 lg:py-1.5 rounded-xl bg-panel hover:bg-surface-800 border border-line hover:border-line-strong text-ink-secondary hover:text-ink-heading transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95 text-xs font-mono font-medium cursor-pointer"
             >
               {expandedSymbols.size > 0 ? (
                 <>
-                  <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" />
-                  <span className="hidden lg:inline text-blue-400">Collapse all</span>
+                  <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-info-ink-400" />
+                  <span className="hidden lg:inline text-info-ink-400">Collapse all</span>
                 </>
               ) : (
                 <>
-                  <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
-                  <span className="hidden lg:inline text-slate-300">Expand all</span>
+                  <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-ink-muted" />
+                  <span className="hidden lg:inline text-ink-secondary">Expand all</span>
                 </>
               )}
             </button>
@@ -1099,12 +1099,12 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           <table className="w-full table-fixed md:table-auto text-left border-separate border-spacing-0">
             {/* Table Header with Clickable Sorting */}
             <thead>
-              <tr className="bg-[#131926]/90 text-[11px] font-mono text-slate-400 uppercase tracking-wider select-none">
-                
+              <tr className="bg-inset/90 text-[11px] font-mono text-ink-muted uppercase tracking-wider select-none">
+
                 {/* 1. Name (Sortable) */}
-                <th 
+                <th
                   onClick={() => handleSort('name')}
-                  className="py-3 pl-3.5 sm:pl-6 pr-1 sm:pr-3 cursor-pointer hover:text-white transition-colors group w-[52%] sm:w-[56%] md:w-auto border-b border-slate-800"
+                  className="py-3 pl-3.5 sm:pl-6 pr-1 sm:pr-3 cursor-pointer hover:text-ink-heading transition-colors group w-[52%] sm:w-[56%] md:w-auto border-b border-line"
                 >
                   <span className="flex items-center">
                     <span>Name</span>
@@ -1113,14 +1113,14 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 </th>
 
                 {/* 2. Today's Trendline (Not Sortable - Desktop Only) */}
-                <th className="hidden md:table-cell py-3.5 px-4 text-center border-b border-slate-800">
+                <th className="hidden md:table-cell py-3.5 px-4 text-center border-b border-line">
                   <span>Today's Trend</span>
                 </th>
 
                 {/* 3. Last Price (Sortable - Desktop Only) */}
-                <th 
+                <th
                   onClick={() => handleSort('price')}
-                  className="hidden md:table-cell py-3.5 px-4 text-right cursor-pointer hover:text-white transition-colors group border-b border-slate-800"
+                  className="hidden md:table-cell py-3.5 px-4 text-right cursor-pointer hover:text-ink-heading transition-colors group border-b border-line"
                 >
                   <span className="flex items-center justify-end">
                     Last Price
@@ -1129,13 +1129,13 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 </th>
 
                 {/* 4. Today's Change (Desktop) / Price & Change Sort Switcher (Mobile) */}
-                <th 
+                <th
                   onClick={() => {
                     if (typeof window !== 'undefined' && window.innerWidth >= 768) {
                       handleSort('changePercent');
                     }
                   }}
-                  className="py-2.5 sm:py-3.5 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right md:text-center md:cursor-pointer hover:text-white transition-colors group w-[48%] sm:w-[44%] md:w-auto border-b border-slate-800"
+                  className="py-2.5 sm:py-3.5 px-2 sm:px-4 pr-3.5 sm:pr-4 text-right md:text-center md:cursor-pointer hover:text-ink-heading transition-colors group w-[48%] sm:w-[44%] md:w-auto border-b border-line"
                 >
                   {/* Desktop: Centered "Today's Change" */}
                   <span className="hidden md:flex items-center justify-center">
@@ -1145,9 +1145,9 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
                   {/* Mobile View: Minimalist animated segmented toggle for Price vs % */}
                   <div className="md:hidden flex items-center justify-end">
-                    <div 
+                    <div
                       id="mobile-board-sort-toggle"
-                      className="relative inline-flex items-center p-0.5 rounded-xl bg-[#0B0F17] border border-slate-800 shadow-inner select-none"
+                      className="relative inline-flex items-center p-0.5 rounded-xl bg-chart-surface border border-line shadow-inner select-none"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {[
@@ -1163,23 +1163,23 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                             onClick={() => handleSort(item.id)}
                             className={`relative z-10 px-2.5 py-1 text-xs font-mono font-semibold rounded-lg transition-colors duration-200 flex items-center gap-1 cursor-pointer antialiased ${
                               isActive
-                                ? 'text-blue-400 font-bold'
-                                : 'text-slate-400 hover:text-slate-200 font-medium'
+                                ? 'text-info-ink-400 font-bold'
+                                : 'text-ink-muted hover:text-ink-strong font-medium'
                             }`}
                           >
                             {isActive && (
                               <motion.div
                                 layoutId="mobileBoardSortPill"
                                 transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                                className="absolute inset-0 bg-slate-800 border border-slate-700/80 rounded-lg shadow-sm -z-10"
+                                className="absolute inset-0 bg-surface-800 border border-line-strong/80 rounded-lg shadow-sm -z-10"
                               />
                             )}
                             <span className="leading-none">{item.label}</span>
                             {isActive && (
                               sortDirection === 'asc' ? (
-                                <ArrowUp className="w-3 h-3 text-blue-400 stroke-[2.5]" />
+                                <ArrowUp className="w-3 h-3 text-info-ink-400 stroke-[2.5]" />
                               ) : (
-                                <ArrowDown className="w-3 h-3 text-blue-400 stroke-[2.5]" />
+                                <ArrowDown className="w-3 h-3 text-info-ink-400 stroke-[2.5]" />
                               )
                             )}
                           </button>
@@ -1190,14 +1190,14 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 </th>
 
                 {/* 5. 52W Range (Not Sortable - Desktop Only) */}
-                <th className="hidden md:table-cell py-3.5 px-4 text-center border-b border-slate-800">
+                <th className="hidden md:table-cell py-3.5 px-4 text-center border-b border-line">
                   <span className="flex items-center justify-center">52W Range</span>
                 </th>
               </tr>
             </thead>
 
             {/* Table Body */}
-            <tbody className="font-sans text-sm bg-[#0F141E]">
+            <tbody className="font-sans text-sm bg-panel">
               {processedStocks.length > 0 ? (
                 processedStocks.map((stock, index) => (
                   <BoardTableRow
@@ -1211,21 +1211,21 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-12 px-4 text-center text-slate-500">
+                  <td colSpan={5} className="py-12 px-4 text-center text-ink-subtle">
                     {assetFilter === 'WATCHLIST' ? (
                       <div className="max-w-md mx-auto space-y-3.5">
-                        <div className="w-11 h-11 rounded-2xl bg-amber-950/40 border border-amber-800/40 flex items-center justify-center text-amber-400 mx-auto shadow-inner">
+                        <div className="w-11 h-11 rounded-2xl bg-warning-surface-950/40 border border-warning-surface-800/40 flex items-center justify-center text-warning-ink-400 mx-auto shadow-inner">
                           <Star className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <p className="text-sm font-bold text-slate-200">
+                          <p className="text-sm font-bold text-ink-strong">
                             {!user
                               ? 'Sign In to View Watchlist'
                               : (user.watchlist?.length || 0) === 0
                               ? 'Your Watchlist is Empty'
                               : `No Watched ${selectedCategory === 'ALL' ? 'Assets' : (CATEGORY_OPTIONS.find(c => c.id === selectedCategory)?.shortLabel || selectedCategory)} Found`}
                           </p>
-                          <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto">
+                          <p className="text-xs text-ink-muted leading-relaxed max-w-sm mx-auto">
                             {!user
                               ? 'Sign in to save your personal watchlist and synchronize custom tickers across sessions.'
                               : (user.watchlist?.length || 0) === 0
@@ -1240,7 +1240,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                                 <button
                                   id="btn-show-all-watched-categories"
                                   onClick={() => setSelectedCategory('ALL')}
-                                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-surface-800 hover:bg-surface-700 text-ink-strong text-xs font-semibold border border-line-strong transition-colors cursor-pointer"
                                 >
                                   <span>View All Watched ({categoryCounts.watchedCounts.ALL})</span>
                                 </button>
@@ -1248,7 +1248,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                               <button
                                 id="btn-explore-all-from-empty-watchlist"
                                 onClick={() => setAssetFilter('ALL')}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-semibold border border-blue-500/30 transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-info-600/20 hover:bg-info-600/30 text-info-ink-400 text-xs font-semibold border border-info-500/30 transition-colors cursor-pointer"
                               >
                                 <span>Browse All {selectedCategory === 'ALL' ? 'Assets' : (CATEGORY_OPTIONS.find(c => c.id === selectedCategory)?.shortLabel || selectedCategory)}</span>
                               </button>
@@ -1257,7 +1257,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                             <button
                               id="btn-signin-from-empty-watchlist"
                               onClick={() => openAuthModal('login')}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors cursor-pointer shadow-md shadow-blue-950/50"
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-info-600 hover:bg-info-500 text-on-action text-xs font-semibold transition-colors cursor-pointer shadow-md shadow-info-shadow-950/50"
                             >
                               <LogIn className="w-3.5 h-3.5" />
                               <span>Sign In / Register</span>
@@ -1270,7 +1270,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                         <p className="text-sm">No assets match your search "{searchQuery}"</p>
                         <button
                           onClick={() => setSearchQuery('')}
-                          className="mt-1 text-xs text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
+                          className="mt-1 text-xs text-info-ink-400 hover:text-info-ink-300 underline font-medium cursor-pointer"
                         >
                           Clear search
                         </button>
@@ -1282,7 +1282,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                           <button
                             id="btn-empty-reset-category"
                             onClick={() => setSelectedCategory('ALL')}
-                            className="mt-1 text-xs text-blue-400 hover:text-blue-300 underline font-medium cursor-pointer"
+                            className="mt-1 text-xs text-info-ink-400 hover:text-info-ink-300 underline font-medium cursor-pointer"
                           >
                             Show all categories
                           </button>
@@ -1297,8 +1297,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         </div>
 
         {/* Table Footer Summary */}
-        <div className="px-3.5 sm:px-6 py-2.5 border-t border-slate-800 bg-[#131926]/60 flex items-center text-xs text-slate-400">
-          <span>Showing <strong className="text-white font-mono">{processedStocks.length}</strong> of <strong className="text-white font-mono">{stocks.length}</strong> assets</span>
+        <div className="px-3.5 sm:px-6 py-2.5 border-t border-line bg-inset/60 flex items-center text-xs text-ink-muted">
+          <span>Showing <strong className="text-ink-heading font-mono">{processedStocks.length}</strong> of <strong className="text-ink-heading font-mono">{stocks.length}</strong> assets</span>
         </div>
       </div>
 
@@ -1310,52 +1310,52 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] sm:max-h-[88vh] bg-[#0F141E] border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+              className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] sm:max-h-[88vh] bg-panel border border-line-strong/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             >
               {/* Modal Header */}
-              <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-[#131926]/70 shrink-0">
+              <div className="p-4 sm:p-5 border-b border-line flex items-center justify-between bg-inset/70 shrink-0">
                 <div className="flex items-center space-x-2.5">
-                  <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0">
+                  <div className="p-2 rounded-xl bg-info-500/10 border border-info-500/20 text-info-ink-400 shrink-0">
                     <Radio className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white font-mono">Market Provider Polling</h3>
-                    <p className="text-xs text-slate-400">Yahoo Finance Backend Engine</p>
+                    <h3 className="text-base font-bold text-ink-heading font-mono">Market Provider Polling</h3>
+                    <p className="text-xs text-ink-muted">Yahoo Finance Backend Engine</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowSettingsModal(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+                  className="p-1.5 rounded-lg text-ink-muted hover:text-ink-heading hover:bg-surface-800 transition-colors shrink-0 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <div className="p-4 sm:p-5 space-y-4 text-xs text-slate-300 overflow-y-auto flex-1 overscroll-contain">
-                
+              <div className="p-4 sm:p-5 space-y-4 text-xs text-ink-secondary overflow-y-auto flex-1 overscroll-contain">
+
                 {/* Live Stream Telemetry Overview - Mobile Friendly 1-col on tiny screens, 3-col on sm+ */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
-                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Feed Engine</span>
+                  <div className="p-3 bg-canvas border border-line rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
+                    <span className="text-[10px] uppercase font-mono text-ink-subtle block">Feed Engine</span>
                     <span className={`font-mono font-bold flex items-center gap-1.5 text-xs sm:text-sm sm:mt-1 ${
-                      isOffline ? 'text-rose-400' : 'text-emerald-400'
+                      isOffline ? 'text-danger-ink-400' : 'text-positive-ink-400'
                     }`}>
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${isOffline ? 'bg-rose-500' : 'bg-emerald-400 animate-pulse'}`} />
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${isOffline ? 'bg-danger-500' : 'bg-positive-400 animate-pulse'}`} />
                       <span>{isOffline ? 'Update failed' : lastSyncTime ? 'Yahoo proxy responded' : 'Awaiting data'}</span>
                     </span>
                   </div>
 
-                  <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
-                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Round-Trip Latency</span>
-                    <span className="font-mono font-bold text-white text-xs sm:text-sm sm:mt-1">
+                  <div className="p-3 bg-canvas border border-line rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
+                    <span className="text-[10px] uppercase font-mono text-ink-subtle block">Round-Trip Latency</span>
+                    <span className="font-mono font-bold text-ink-heading text-xs sm:text-sm sm:mt-1">
                       {finite(latencyMs) ? `${latencyMs}ms` : 'Unavailable'}
                     </span>
                   </div>
 
-                  <div className="p-3 bg-[#0B0E14] border border-slate-800 rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
-                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Last Market Sync</span>
-                    <span className="font-mono font-bold text-blue-400 text-xs sm:text-sm sm:mt-1">
+                  <div className="p-3 bg-canvas border border-line rounded-xl flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
+                    <span className="text-[10px] uppercase font-mono text-ink-subtle block">Last Market Sync</span>
+                    <span className="font-mono font-bold text-info-ink-400 text-xs sm:text-sm sm:mt-1">
                       {lastSyncTime || 'Syncing...'}
                     </span>
                   </div>
@@ -1364,14 +1364,14 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 {/* Test Result Message */}
                 {testResult && (
                   <div className={`p-3 rounded-xl border text-xs leading-relaxed flex items-start gap-2 ${
-                    testResult.success 
-                      ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300' 
-                      : 'bg-rose-950/40 border-rose-800 text-rose-300'
+                    testResult.success
+                      ? 'bg-positive-surface-950/40 border-positive-surface-800 text-positive-ink-300'
+                      : 'bg-danger-surface-950/40 border-danger-surface-800 text-danger-ink-300'
                   }`}>
                     {testResult.success ? (
-                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-positive-ink-400 mt-0.5" />
                     ) : (
-                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                      <AlertCircle className="w-4 h-4 shrink-0 text-danger-ink-400 mt-0.5" />
                     )}
                     <span>{testResult.message}</span>
                   </div>
@@ -1379,19 +1379,19 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               </div>
 
               {/* Modal Actions */}
-              <div className="p-4 sm:p-5 border-t border-slate-800 bg-[#131926]/70 flex items-center justify-between gap-3 shrink-0">
+              <div className="p-4 sm:p-5 border-t border-line bg-inset/70 flex items-center justify-between gap-3 shrink-0">
                 <button
                   onClick={handleTestConnection}
                   disabled={isTestingConnection}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-mono text-xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-surface-800 hover:bg-surface-700 text-ink-heading font-mono text-xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isTestingConnection ? 'animate-spin text-blue-400' : ''}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 ${isTestingConnection ? 'animate-spin text-info-ink-400' : ''}`} />
                   <span>{isTestingConnection ? 'Pinging Yahoo Engine...' : 'Ping Engine Diagnostics'}</span>
                 </button>
 
                 <button
                   onClick={() => setShowSettingsModal(false)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition-all shadow-lg shadow-blue-900/30 cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-info-600 hover:bg-info-500 text-on-action font-mono text-xs font-bold transition-all shadow-lg shadow-info-shadow-900/30 cursor-pointer"
                 >
                   Done
                 </button>

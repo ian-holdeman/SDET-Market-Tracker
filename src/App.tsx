@@ -54,7 +54,7 @@ function AppContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0B0E14] text-slate-100 flex flex-col font-sans selection:bg-blue-600/30 selection:text-white antialiased">
+    <div className="min-h-screen bg-canvas text-ink-body flex flex-col font-sans selection:bg-info-600/30 selection:text-ink-heading antialiased">
       {/* Top Header Navigation */}
       <Header
         currentPage={currentPage}
@@ -95,14 +95,14 @@ function AppContent() {
               <div className="w-full space-y-8 sm:space-y-12">
                 {/* Centered Page Title & Gradient Accent */}
                 <div className="w-full text-center max-w-3xl mx-auto space-y-3 pb-2 flex flex-col items-center">
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-ink-heading tracking-tight leading-tight">
                     The SDET's Market Tracker
                   </h1>
 
                   {/* Subtle gradient accent underline linking Market (Blue) & SDET (Emerald) palette */}
-                  <div className="h-[2px] w-32 sm:w-48 bg-gradient-to-r from-transparent via-blue-500/70 via-emerald-400/70 to-transparent rounded-full my-1.5" />
+                  <div className="h-[2px] w-32 sm:w-48 bg-gradient-to-r from-transparent via-info-500/70 via-positive-400/70 to-transparent rounded-full my-1.5" />
 
-                  <p className="mt-1 text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+                  <p className="mt-1 text-sm sm:text-base text-ink-muted max-w-2xl mx-auto leading-relaxed">
                     A dual-purpose financial platform providing real-time market surveillance of select assets and a live visual showcase of automated test execution
                   </p>
                 </div>

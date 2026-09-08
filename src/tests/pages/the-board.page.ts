@@ -2,6 +2,10 @@ import { Page, Locator } from '@playwright/test';
 import { BasePage } from './base.page';
 
 export class TheBoardPage extends BasePage {
+  get allAssets() { return this.page.getByRole('button', { name: 'All', exact: true }); }
+  get watchlistCount() { return this.page.locator('#board-watchlist-count-badge'); }
+  watchlistButton(symbol: string) { return this.page.locator('#watchlist-star-btn-' + symbol.toLowerCase()); }
+  watchingTag(symbol: string) { return this.page.locator('#watching-tag-' + symbol.toLowerCase()); }
   readonly pageHeading: Locator;
   readonly searchInput: Locator;
   readonly refreshButton: Locator;
@@ -39,6 +43,8 @@ export class TheBoardPage extends BasePage {
     return {
       card,
       financeLink: card.getByRole('link', { name: /^Google Finance/ }),
+      highLabel: card.locator('#price-badge-high-' + symbol.toLowerCase()),
+      surface: card.getByTestId('market-chart'),
       line: card.getByTestId('market-chart-line'),
       endpoint: card.getByTestId('market-chart-endpoint').locator('circle').first(),
       pulse: card.getByTestId('market-chart-pulse'),

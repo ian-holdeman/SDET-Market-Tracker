@@ -9,7 +9,7 @@ Start with git status and the relevant implementation; preserve staged and unsta
 ## Feature workflow across sessions
 
 - For substantial new features, inspect the existing implementation and relevant tests first. Complete useful feasibility checks, then ask focused questions about unresolved product choices. Propose scope, design, evidence limits, and acceptance criteria before drafting the implementation prompt. Wait for agreement on those choices; do not restart approval for already accepted work or routine polish.
-- The agreed prompt should name the affected surface, preserved behavior, test scenarios, evidence source, validation commands, and delivery boundaries. Use repository guides to carry these decisions across sessions; do not rely on chat memory.
+- The agreed prompt should name the affected surface, preserved behavior, test scenarios, evidence source, validation commands, and delivery boundaries. Use repository guides to carry these decisions across sessions; do not rely on chat memory. Carry accepted changes to earlier decisions into those guides and remove temporary feature prompts once their decisions are preserved. Do not reopen accepted product choices.
 - For behavior changes, start with a meaningful failing test or regression reproduction, confirm it fails for the intended reason, implement the smallest coherent change, then refactor with the checks passing. Prioritize externally observable behavior and boundary failures. Pure copy/icon changes need proportionate visual verification, not tests that assert implementation details.
 - Validate and present a reviewable local result, incorporate design feedback, then update the roadmap and relevant guide when the owner accepts the feature. Preserve the owner’s stated milestone (for example, initial draft complete); acceptance does not imply CI success, deployment, or production readiness. Carry deferred scope forward explicitly without treating it as the next authorized task.
 
@@ -26,13 +26,13 @@ Start with git status and the relevant implementation; preserve staged and unsta
 
 ## UX and accessibility
 
-- Keep layout, dimensions and styling stable outside authorized changes. Use existing card, typography, spacing, currency and status conventions; verify desktop and mobile.
+- Keep layout, dimensions and styling stable outside authorized changes. Use existing card, typography, spacing, currency and status conventions; verify desktop and mobile. Consume the shared semantic tokens in src/theme.css and check both palettes, including negative charts, hover labels and unavailable states. Follow docs/settings.md for device defaults and browser-only overrides; preserve recorded media colors and mounted chart/player/dialog state.
 - Use plain, scenario-specific copy and only useful detail; avoid formulaic step counts and repeated explanations. Keep audit identifiers in evidence artifacts when they do not help the visitor. Small icons need bold, simple silhouettes checked at actual mobile size; decorative graphics must not imply live activity.
 - Prefer literal headings, concise labels and prominent useful metrics. Let bars, icons and state labels carry information without repeating it in captions; omit redundant controls. Put technical evidence in details, not default product views. No fabricated live activity, loading theatrics or count-up metrics.
 - Distinguish initial loading, empty, unavailable, stale and failure states. Preserve usable evidence, focus and playback during bounded background verification; do not remount a view merely because its retrieval timestamp changes. Apply the domain’s stale/expiry policy when verification fails. Skeletons reserve real layout space; respect reduced motion.
 - Use semantic elements, accessible names and keyboard operation. Dialogs must close reliably, keep focus inside, and restore focus to the opener, including nested dialogs and Safari.
 - Prefer role/name locators for interactive controls. Use stable, scoped data-testid values for repeated data or nonsemantic elements; do not derive test identity from CSS or display copy. Scope duplicate Home/dashboard/report metrics to their containing view.
-- Keep selectors and reusable interactions in existing page objects/components under src/tests/pages. Share repeated locator logic; keep assertions and scenario intent in tests. Avoid arbitrary sleeps and structural selectors when semantic ones exist.
+- Keep selectors and reusable interactions in existing page objects/components under src/tests/pages. Share repeated locator logic; keep assertions and scenario intent in tests. Avoid arbitrary sleeps and structural selectors when semantic ones exist. Use locator actions that wait for scrolling/layout stability, and inspect the current route and state before repeating an action after reload: Board asset URLs already restore an expanded card. Control device color scheme explicitly when a scenario depends on its default.
 
 ## Security and domain invariants
 
@@ -58,7 +58,7 @@ Use Node from .nvmrc and the locked npm dependencies. Choose checks appropriate 
 | Provider behavior | Deterministic offline tests first; opt-in npm run test:market:live or npm run test:market:coverage separately |
 | Documentation only | Check referenced commands, paths, links and contradictions; no application suite solely for prose changes |
 
-- Browser tests use an isolated production server on port 3100 and mocked external APIs; do not point them at the interactive development server. Do not rebuild shared dist while browser tests are running.
+- Browser tests use an isolated production server on port 3100 and mocked external APIs; do not point them at the interactive development server. Do not rebuild shared dist while browser tests are running. Finish builds before starting lint or baseline checks too: the current TypeScript configuration includes generated JavaScript, so cleaning dist concurrently can produce missing-file failures.
 - Prioritize boundary failures, ownership, retry history, race conditions and meaningful financial calculations. Avoid tests that merely mirror implementation or assert styling classes.
 - Exercise external-boundary feasibility early: for media, verify decoded frames and dimensions in the target browsers, not merely a moving playback clock. Reuse deterministic, populated fixtures for incidental services in demonstrations; keep the scenario’s intended failures and disclose simulated dependencies. Never improve appearance by hiding failed assertions or substituting a success state.
 - Browser mocks cannot prove RLS, OAuth-provider behavior, or independent market accuracy. Use real disposable local integration tests for database/Auth boundaries. Keep live provider checks outside the offline CI gate.

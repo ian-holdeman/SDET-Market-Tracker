@@ -644,7 +644,7 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
   if (brandSvg) {
     return (
       <div 
-        className={`flex items-center justify-center shrink-0 border border-slate-700/80 bg-[#0c1017] shadow-inner ${sizeClasses} ${className}`}
+        className={`flex items-center justify-center shrink-0 border border-line-strong/80 bg-popover shadow-inner ${sizeClasses} ${className}`}
         title={`${symbol} Logo`}
       >
         {brandSvg}
@@ -654,12 +654,12 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
 
   // Fallback typography colors
   const badgeColors = {
-    ETF: 'bg-blue-950/70 border-blue-800/60 text-blue-300',
-    Crypto: 'bg-amber-950/70 border-amber-800/60 text-amber-300',
-    Index: 'bg-blue-950/70 border-blue-800/60 text-blue-300',
-    Commodity: 'bg-yellow-950/70 border-yellow-800/60 text-yellow-300',
-    'Bond Yield': 'bg-emerald-950/70 border-emerald-800/60 text-emerald-300',
-    Stock: 'bg-slate-900 border-slate-700/80 text-white',
+    ETF: 'bg-info-surface-950/70 border-info-surface-800/60 text-info-ink-300',
+    Crypto: 'bg-warning-surface-950/70 border-warning-surface-800/60 text-warning-ink-300',
+    Index: 'bg-info-surface-950/70 border-info-surface-800/60 text-info-ink-300',
+    Commodity: 'bg-commodity-surface/70 border-commodity-line/60 text-commodity-ink-soft',
+    'Bond Yield': 'bg-positive-surface-950/70 border-positive-surface-800/60 text-positive-ink-300',
+    Stock: 'bg-surface-900 border-line-strong/80 text-ink-heading',
   }[assetType || 'Stock'];
 
   // Determine external / CDN logo URL candidate
@@ -669,12 +669,12 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
   if (cdnUrl && !imgError) {
     return (
       <div 
-        className={`relative flex items-center justify-center overflow-hidden border border-slate-700/80 bg-[#0c1017] shadow-inner shrink-0 ${sizeClasses} ${className}`}
+        className={`relative flex items-center justify-center overflow-hidden border border-line-strong/80 bg-popover shadow-inner shrink-0 ${sizeClasses} ${className}`}
         title={symbol}
       >
         {/* Underlay: Typography fallback to prevent blank state or layout shifts */}
         {!imgLoaded && (
-          <span className={`font-mono font-bold text-[10px] sm:text-xs opacity-60 text-slate-400 select-none`}>
+          <span className={`font-mono font-bold text-[10px] sm:text-xs opacity-60 text-ink-muted select-none`}>
             {cleanSym.slice(0, 3)}
           </span>
         )}

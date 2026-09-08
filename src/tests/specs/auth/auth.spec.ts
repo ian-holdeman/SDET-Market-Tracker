@@ -1,77 +1,7 @@
-import type { Page } from '@playwright/test';
-import { fulfillShowcaseMarket } from '../../fixtures/showcase-market';
 import { test, expect } from '../../fixtures/showcase-test';
 import { HeaderComponent } from '../../pages/components/header.component';
 
-const id = '44444444-4444-4444-8444-444444444444';
-const identity = { id, aud: 'authenticated', role: 'authenticated', email: 'browser@example.invalid',
-  user_metadata: { full_name: 'Test Member', role: 'admin' }, app_metadata: { provider: 'google' }, created_at: '2026-01-01T00:00:00Z' };
-const jwt = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString('base64url');
-const token = jwt({ alg: 'HS256', typ: 'JWT' }) + '.' + jwt({ sub: id, role: 'authenticated', exp: 4102444800 }) + '.test';
-const session = { access_token: token, refresh_token: 'test-refresh', token_type: 'bearer', expires_in: 3600, expires_at: 4102444800, user: identity };
-
-async function mockApp(page: Page, authenticated = false, admin = false) {
-  if (authenticated) await page.addInitScript((value) => {
-    if (!sessionStorage.getItem('test-session-initialized')) {
-      localStorage.setItem('imt_supabase_auth', JSON.stringify(value));
-      sessionStorage.setItem('test-session-initialized', 'yes');
-    }
-  }, session);
-  const state = { failRegistration: true, catalogAvailable: true, curated: ['AAPL', 'MSFT'], googleEnabled: true, failDeletion: true, watchlist: [] as string[], writes: [] as unknown[], exchanges: 0 };
-  await page.route('**/*', async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.origin === 'https://supabase.example.invalid') {
-      if (url.pathname === '/auth/v1/settings') return route.fulfill({ json: { external: { google: state.googleEnabled } } });
-      if (url.pathname === '/auth/v1/authorize') {
-        expect(url.searchParams.get('provider')).toBe('google');
-        expect(url.searchParams.get('redirect_to')).toBe('http://127.0.0.1:3100/auth/callback');
-        expect(url.searchParams.get('code_challenge')).toBeTruthy();
-        return route.fulfill({ contentType: 'text/html', body: '<meta http-equiv="refresh" content="0;url=http://127.0.0.1:3100/auth/callback?code=test-code">' });
-      }
-      if (url.pathname === '/auth/v1/token') { state.exchanges++; return route.fulfill({ json: session }); }
-      if (url.pathname === '/auth/v1/user') return route.fulfill({ json: identity });
-      if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 });
-      if (url.pathname === '/rest/v1/rpc/current_user_is_admin') return route.fulfill({ json: admin });
-      if (url.pathname === '/rest/v1/curated_assets') {
-        if (request.method() === 'DELETE') {
-          const symbol = url.searchParams.get('symbol')!.slice(3);
-          state.curated = state.curated.filter((item) => item !== symbol);
-          return route.fulfill({ json: [{ symbol }] });
-        }
-        return route.fulfill({ json: state.curated.map((symbol) => ({ symbol })) });
-      }
-      if (url.pathname === '/rest/v1/assets') return route.fulfill({ json: state.catalogAvailable ? { symbol: 'AAPL' } : null });
-      if (url.pathname === '/rest/v1/watchlist_items') {
-        if (request.method() === 'POST') {
-          const body = request.postDataJSON(); state.writes.push(body); state.watchlist.push(body.symbol);
-        }
-        return route.fulfill({ json: state.watchlist.map((symbol) => ({ symbol })) });
-      }
-      throw new Error('Unexpected Supabase request: ' + url.pathname);
-    }
-    if (url.origin !== 'http://127.0.0.1:3100') return route.abort();
-    if (url.pathname === '/api/assets/register') {
-      expect(request.headers().authorization).toBe('Bearer ' + token);
-      expect(request.postDataJSON()).toEqual({ symbol: 'AAPL' });
-      if (state.failRegistration) return route.fulfill({ status: 502, json: { error: 'Yahoo could not validate this symbol.' } });
-      state.catalogAvailable = true;
-      return route.fulfill({ json: { symbol: 'AAPL' } });
-    }
-    if (url.pathname === '/api/test-history') return route.fulfill({ json: { version: 1, configured: true, fetchedAt: new Date().toISOString(), stale: false, runs: [] } });
-    if (url.pathname === '/api/account') {
-      expect(request.method()).toBe('DELETE'); expect(request.headers().authorization).toBe('Bearer ' + token);
-      expect(request.postData()).toBeNull();
-      return state.failDeletion
-        ? route.fulfill({ status: 502, json: { error: 'Account deletion was not confirmed. Check your session before retrying.' } })
-        : route.fulfill({ status: 204 });
-    }
-    if (process.env.SHOWCASE_CAPTURE === '1' && await fulfillShowcaseMarket(route)) return;
-    if (url.pathname.startsWith('/api/')) return route.fulfill({ json: url.pathname === '/api/quotes' ? { quotes: [] } : { points: [], results: [] } });
-    return route.continue();
-  });
-  return state;
-}
+import { mockApp, id } from '../../fixtures/auth';
 
 test('Google PKCE callback returns to the starting page and exchanges the code once', async ({ page }) => {
   const state = await mockApp(page);

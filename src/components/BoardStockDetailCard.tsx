@@ -425,7 +425,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
     return `${pathD} L ${last.x.toFixed(1)},${bottomY.toFixed(1)} L ${first.x.toFixed(1)},${bottomY.toFixed(1)} Z`;
   }, [coords, pathD, chartHeight, paddingBottom]);
 
-  const strokeColor = isPeriodPositive ? '#10B981' : '#EF4444';
+  const strokeColor = isPeriodPositive ? 'var(--color-chart-positive)' : 'var(--color-chart-negative)';
 
   // Compute clean, even X-axis ticks
   const xTicks = useMemo(() => {
@@ -608,10 +608,10 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   return (
     <div
       id={`drilldown-card-${stock.symbol.toLowerCase()}`}
-      className="p-1.5 sm:p-3.5 bg-[#0B0F17] space-y-1.5 sm:space-y-2.5 max-w-full overflow-hidden"
+      className="p-1.5 sm:p-3.5 bg-chart-surface space-y-1.5 sm:space-y-2.5 max-w-full overflow-hidden"
     >
-      {actionError && <p role="alert" className="text-sm text-rose-300">{actionError}</p>}
-      {isAdmin && <button disabled={actionPending} className="rounded-lg border border-blue-700 px-3 py-2 text-xs text-blue-300 disabled:opacity-50"
+      {actionError && <p role="alert" className="text-sm text-danger-ink-300">{actionError}</p>}
+      {isAdmin && <button disabled={actionPending} className="rounded-lg border border-info-700 px-3 py-2 text-xs text-info-ink-300 disabled:opacity-50"
         onClick={async () => {
           setActionError(null); setActionPending(true);
           try { await changeCuration(stock.symbol, !curatedSymbols.includes(stock.symbol)); }
@@ -633,20 +633,20 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
             />
             <div className="min-w-0 flex-1 flex flex-col justify-center">
               <div className="flex items-center space-x-1.5 sm:space-x-2 flex-wrap gap-y-1">
-                <h2 className="text-base sm:text-lg font-bold text-white font-mono tracking-tight">
+                <h2 className="text-base sm:text-lg font-bold text-ink-heading font-mono tracking-tight">
                   {stock.symbol}
                 </h2>
                 {/* Required Product Type Tag */}
                 <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold font-mono ${
                   stock.assetType === 'ETF' || stock.assetType === 'Index'
-                    ? 'bg-blue-950/90 text-blue-400 border border-blue-800/50 uppercase'
+                    ? 'bg-info-surface-950/90 text-info-ink-400 border border-info-surface-800/50 uppercase'
                     : stock.assetType === 'Crypto'
-                    ? 'bg-amber-950/90 text-amber-400 border border-amber-800/50 uppercase'
+                    ? 'bg-warning-surface-950/90 text-warning-ink-400 border border-warning-surface-800/50 uppercase'
                     : stock.assetType === 'Commodity'
-                    ? 'bg-yellow-950/90 text-yellow-400 border border-yellow-800/50 uppercase'
+                    ? 'bg-commodity-surface/90 text-commodity-ink border border-commodity-line/50 uppercase'
                     : stock.assetType === 'Bond Yield'
-                    ? 'bg-emerald-950/90 text-emerald-400 border border-emerald-800/50 uppercase'
-                    : 'bg-slate-800 text-slate-300 border border-slate-700'
+                    ? 'bg-positive-surface-950/90 text-positive-ink-400 border border-positive-surface-800/50 uppercase'
+                    : 'bg-surface-800 text-ink-secondary border border-line-strong'
                 }`}>
                   {stock.symbol === 'AGG' ? 'Bonds' : stock.assetType}
                 </span>
@@ -654,7 +654,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 {isWatching && (
                   <span
                     id={`watching-tag-${stock.symbol.toLowerCase()}`}
-                    className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider bg-purple-950/90 text-purple-400 border border-purple-800/60"
+                    className="px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-mono font-bold tracking-wider bg-accent-surface-950/90 text-accent-ink-400 border border-accent-surface-800/60"
                   >
                     Watching
                   </span>
@@ -668,19 +668,19 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   title={isWatching ? `Watching ${stock.symbol} - Click to remove from watchlist` : `Add ${stock.symbol} to Watchlist`}
                   className={`p-1.5 rounded-lg transition-all duration-150 inline-flex items-center justify-center shrink-0 active:scale-90 cursor-pointer ${
                     isWatching
-                      ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
-                      : 'bg-slate-900/80 text-slate-400 hover:text-amber-400 hover:bg-slate-800'
+                      ? 'bg-warning-500/20 text-warning-ink-400 hover:bg-warning-500/30'
+                      : 'bg-surface-900/80 text-ink-muted hover:text-warning-ink-400 hover:bg-surface-800'
                   }`}
                 >
                   <Star
                     className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-150 ${
-                      isWatching ? 'fill-amber-400 text-amber-400' : 'text-slate-400'
+                      isWatching ? 'fill-warning-400 text-warning-ink-400' : 'text-ink-muted'
                     }`}
                   />
                 </button>
               </div>
 
-              <p className="text-xs sm:text-sm text-slate-400 font-medium leading-normal mt-0.5 break-words">
+              <p className="text-xs sm:text-sm text-ink-muted font-medium leading-normal mt-0.5 break-words">
                 {stock.name}
               </p>
             </div>
@@ -688,13 +688,13 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
 
           {/* Selected Period Value & Return (Stacked directly under asset details on the left) */}
           <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap pt-0.5">
-            <span className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+            <span className="text-xl sm:text-2xl font-black font-mono text-ink-heading tracking-tight">
               <span title={fullPriceLabel(activePrice, stock.currency, stock.assetType)}>{priceLabel(activePrice, stock.currency, stock.assetType)}</span>
             </span>
             <span className={`inline-flex items-center font-mono text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-lg ${
               isPeriodPositive
-                ? 'bg-emerald-950/70 text-emerald-300'
-                : 'bg-rose-950/70 text-rose-300'
+                ? 'bg-positive-surface-950/70 text-positive-ink-300'
+                : 'bg-danger-surface-950/70 text-danger-ink-300'
             }`}>
               {isPeriodPositive ? (
                 <TrendingUp className="w-3.5 h-3.5 mr-1 shrink-0" />
@@ -713,7 +713,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0 pt-1 sm:pt-0">
           {/* Status Indicator */}
           {isLoadingCandles ? (
-            <span className="inline-flex items-center text-[10px] sm:text-xs text-blue-400 font-mono bg-blue-950/60 px-2 py-0.5 rounded font-medium">
+            <span className="inline-flex items-center text-[10px] sm:text-xs text-info-ink-400 font-mono bg-info-surface-950/60 px-2 py-0.5 rounded font-medium">
               <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" />
               Syncing...
             </span>
@@ -721,16 +721,16 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
             <button
               onClick={loadCandleData}
               title="Click to retry loading live market candles"
-              className="inline-flex items-center text-[10px] sm:text-xs text-amber-400 hover:text-amber-300 font-mono bg-amber-950/60 hover:bg-amber-900/60 px-2 py-0.5 rounded transition-colors font-medium cursor-pointer"
+              className="inline-flex items-center text-[10px] sm:text-xs text-warning-ink-400 hover:text-warning-ink-300 font-mono bg-warning-surface-950/60 hover:bg-warning-surface-900/60 px-2 py-0.5 rounded transition-colors font-medium cursor-pointer"
             >
-              <AlertTriangle className="w-2.5 h-2.5 mr-1 text-amber-400" />
+              <AlertTriangle className="w-2.5 h-2.5 mr-1 text-warning-ink-400" />
               <span>Retry</span>
               <RotateCw className="w-2.5 h-2.5 ml-1" />
             </button>
           ) : null}
 
           {/* Timeframe Selector: 1D, 1W, 1M, YTD, 1Y, 5Y, MAX */}
-          <div className="flex items-center space-x-0.5 sm:space-x-1 p-1 bg-[#101520] rounded-xl overflow-x-auto scrollbar-none w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center space-x-0.5 sm:space-x-1 p-1 bg-segmented rounded-xl overflow-x-auto scrollbar-none w-full sm:w-auto justify-between sm:justify-start">
             {TIMEFRAMES.map((tf) => {
               const isSelected = selectedTimeframe === tf;
               return (
@@ -746,8 +746,8 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   }}
                   className={`px-2.5 sm:px-3 py-1 text-xs font-mono font-bold rounded-lg transition-all duration-150 whitespace-nowrap text-center flex-1 sm:flex-initial cursor-pointer ${
                     isSelected
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      ? 'bg-info-600 text-on-action shadow-md shadow-info-shadow-900/40'
+                      : 'text-ink-muted hover:text-ink-heading hover:bg-surface-800/60'
                   }`}
                 >
                   {tf}
@@ -761,16 +761,16 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       {/* Main Focus: Big Multi-Timeframe Interactive Trendline */}
       <div className="space-y-1 relative">
 
-        {candleError && <p className="text-xs text-slate-400" role="status">{candleError}</p>}
+        {candleError && <p className="text-xs text-ink-muted" role="status">{candleError}</p>}
         {/* Dedicated Timestamp Track above graph (Ensures 0 overlap with High Y-axis price badge) */}
         <div className="h-5 sm:h-6 relative w-full flex items-center select-none">
-          {!activeCoord && is1D && points.length > 0 && <span data-testid="market-chart-session" className="text-[10px] sm:text-xs text-slate-400">
+          {!activeCoord && is1D && points.length > 0 && <span data-testid="market-chart-session" className="text-[10px] sm:text-xs text-ink-muted">
             {new Date(points[0].timeUnix!).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' })}
             {' · '}{new Date(points.at(-1)!.timeUnix!).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === new Date(chartNow).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) ? 'Intraday samples' : 'Previous session'}
           </span>}
           {activeCoord && (
             <div
-              className="absolute top-1/2 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-30 px-3 py-0.5 rounded-full bg-slate-800 text-xs sm:text-sm font-mono font-bold text-slate-100 shadow-md whitespace-nowrap border border-slate-700/60"
+              className="absolute top-1/2 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-30 px-3 py-0.5 rounded-full bg-surface-800 text-xs sm:text-sm font-mono font-bold text-ink-body shadow-md whitespace-nowrap border border-line-strong/60"
               style={{
                 left: `${Math.max(14, Math.min(86, (activeCoord.x / chartWidth) * 100))}%`
               }}
@@ -790,7 +790,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               {highY !== null && (
                 <div
                   id={`price-badge-high-${stock.symbol.toLowerCase()}`}
-                  className="absolute right-2 sm:right-4 transform -translate-y-full -mt-1 text-sm font-mono font-bold text-slate-300 select-none whitespace-nowrap leading-none"
+                  className="absolute right-2 sm:right-4 transform -translate-y-full -mt-1 text-sm font-mono font-bold text-ink-secondary select-none whitespace-nowrap leading-none"
                   style={{ top: `${(highY / chartHeight) * 100}%` }}
                 >
                   <span title={fullPriceLabel(periodHigh, stock.currency, stock.assetType)}>{priceLabel(periodHigh, stock.currency, stock.assetType)}</span>
@@ -806,7 +806,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 return (
                   <div
                     id={`price-badge-open-${stock.symbol.toLowerCase()}`}
-                    className={`absolute right-2 sm:right-4 font-mono font-bold text-slate-300 select-none whitespace-nowrap text-sm leading-none ${
+                    className={`absolute right-2 sm:right-4 font-mono font-bold text-ink-secondary select-none whitespace-nowrap text-sm leading-none ${
                       isCloserToHigh
                         ? 'transform translate-y-0 mt-1.5'
                         : 'transform -translate-y-full -mt-1.5'
@@ -822,7 +822,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
               {lowY !== null && (
                 <div
                   id={`price-badge-low-${stock.symbol.toLowerCase()}`}
-                  className="absolute right-2 sm:right-4 transform translate-y-0 mt-1.5 text-sm font-mono font-bold text-slate-300 select-none whitespace-nowrap leading-none"
+                  className="absolute right-2 sm:right-4 transform translate-y-0 mt-1.5 text-sm font-mono font-bold text-ink-secondary select-none whitespace-nowrap leading-none"
                   style={{ top: `${(lowY / chartHeight) * 100}%` }}
                 >
                   <span title={fullPriceLabel(periodLow, stock.currency, stock.assetType)}>{priceLabel(periodLow, stock.currency, stock.assetType)}</span>
@@ -833,6 +833,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
 
           <svg
             ref={svgRef}
+            data-testid="market-chart"
             className="w-full h-full cursor-crosshair overflow-visible"
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             preserveAspectRatio="none"
@@ -856,7 +857,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   y1={openY}
                   x2={chartWidth - paddingRight}
                   y2={openY}
-                  stroke="#475569"
+                  stroke="var(--color-chart-reference)"
                   strokeDasharray="4 4"
                   strokeWidth="1.25"
                   strokeOpacity="0.75"
@@ -874,7 +875,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                     y1={highY}
                     x2={chartWidth - paddingRight}
                     y2={highY}
-                    stroke="#64748b"
+                    stroke="var(--color-chart-axis)"
                     strokeDasharray="3 3"
                     strokeWidth="1.25"
                     strokeOpacity="0.85"
@@ -888,7 +889,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                     y1={lowY}
                     x2={chartWidth - paddingRight}
                     y2={lowY}
-                    stroke="#64748b"
+                    stroke="var(--color-chart-axis)"
                     strokeDasharray="3 3"
                     strokeWidth="1.25"
                     strokeOpacity="0.85"
@@ -932,7 +933,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   y1={paddingTop - 4}
                   x2={activeCoord.x}
                   y2={chartHeight - paddingBottom}
-                  stroke="#64748b"
+                  stroke="var(--color-chart-axis)"
                   strokeWidth="1.5"
                   strokeDasharray="3 3"
                 />
@@ -942,7 +943,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                   cx={activeCoord.x}
                   cy={activeCoord.y}
                   r="5"
-                  fill="#0B0F17"
+                  fill="var(--color-chart-surface)"
                   stroke={strokeColor}
                   strokeWidth="3"
                 />
@@ -958,10 +959,10 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
             title={financeSearch ? `Search Google Finance for ${stock.name} (${stock.symbol}); direct listing unavailable` : `${stock.name} (${stock.symbol}) on Google Finance`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-mono text-slate-400 hover:text-blue-400 inline-flex items-center gap-1.5 transition-colors font-medium hover:underline underline-offset-2 py-0.5 px-1.5 rounded hover:bg-slate-800/40"
+            className="text-xs font-mono text-ink-muted hover:text-info-ink-400 inline-flex items-center gap-1.5 transition-colors font-medium hover:underline underline-offset-2 py-0.5 px-1.5 rounded hover:bg-surface-800/40"
           >
             <span>{financeSearch ? 'Google Finance search' : 'Google Finance'}</span>
-            <ExternalLink className="w-3 h-3 text-slate-400" />
+            <ExternalLink className="w-3 h-3 text-ink-muted" />
           </a>
         </div>
       </div>
@@ -970,15 +971,15 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       <div id={`price-activity-${stock.symbol.toLowerCase()}`} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 pt-1">
         {[
           { id: 'previous-close', label: 'Previous Close', value: priceLabel(stock.prevClose, stock.currency, stock.assetType), title: 'Previous close: ' + fullPriceLabel(stock.prevClose, stock.currency, stock.assetType) },
-          { id: 'day-range', label: 'Day Range', value: <><span><span title={fullPriceLabel(stock.dayLow, stock.currency, stock.assetType)}>{rangePriceLabel(stock.dayLow, stock.currency, stock.assetType)}</span></span><span className="text-slate-500 font-normal px-1">–</span><span><span title={fullPriceLabel(stock.dayHigh, stock.currency, stock.assetType)}>{rangePriceLabel(stock.dayHigh, stock.currency, stock.assetType)}</span></span></>, title: 'Day range: ' + fullPriceLabel(stock.dayLow, stock.currency, stock.assetType) + ' – ' + fullPriceLabel(stock.dayHigh, stock.currency, stock.assetType) },
-          { id: '52w-range', label: '52W Range', value: <><span><span title={fullPriceLabel(stock.fiftyTwoWeekLow, stock.currency, stock.assetType)}>{rangePriceLabel(stock.fiftyTwoWeekLow, stock.currency, stock.assetType)}</span></span><span className="text-slate-500 font-normal px-1">–</span><span><span title={fullPriceLabel(stock.fiftyTwoWeekHigh, stock.currency, stock.assetType)}>{rangePriceLabel(stock.fiftyTwoWeekHigh, stock.currency, stock.assetType)}</span></span></>, title: '52-week range: ' + fullPriceLabel(stock.fiftyTwoWeekLow, stock.currency, stock.assetType) + ' – ' + fullPriceLabel(stock.fiftyTwoWeekHigh, stock.currency, stock.assetType) },
+          { id: 'day-range', label: 'Day Range', value: <><span><span title={fullPriceLabel(stock.dayLow, stock.currency, stock.assetType)}>{rangePriceLabel(stock.dayLow, stock.currency, stock.assetType)}</span></span><span className="text-ink-subtle font-normal px-1">–</span><span><span title={fullPriceLabel(stock.dayHigh, stock.currency, stock.assetType)}>{rangePriceLabel(stock.dayHigh, stock.currency, stock.assetType)}</span></span></>, title: 'Day range: ' + fullPriceLabel(stock.dayLow, stock.currency, stock.assetType) + ' – ' + fullPriceLabel(stock.dayHigh, stock.currency, stock.assetType) },
+          { id: '52w-range', label: '52W Range', value: <><span><span title={fullPriceLabel(stock.fiftyTwoWeekLow, stock.currency, stock.assetType)}>{rangePriceLabel(stock.fiftyTwoWeekLow, stock.currency, stock.assetType)}</span></span><span className="text-ink-subtle font-normal px-1">–</span><span><span title={fullPriceLabel(stock.fiftyTwoWeekHigh, stock.currency, stock.assetType)}>{rangePriceLabel(stock.fiftyTwoWeekHigh, stock.currency, stock.assetType)}</span></span></>, title: '52-week range: ' + fullPriceLabel(stock.fiftyTwoWeekLow, stock.currency, stock.assetType) + ' – ' + fullPriceLabel(stock.fiftyTwoWeekHigh, stock.currency, stock.assetType) },
           { id: 'volume', label: 'Volume', value: stock.assetType === 'Index' || stock.assetType === 'Bond Yield' ? 'N/A' : formatVolume(stock.volume), title: stock.assetType === 'Crypto' ? 'Provider-reported cryptocurrency volume; units are not assumed to be shares' : stock.assetType === 'Index' || stock.assetType === 'Bond Yield' ? 'This benchmark does not trade as shares' : 'Provider-reported trading volume' },
           { id: '1m-change', label: '1M Change', value: percentage(activity?.month.changePercent), title: historyTitle('month'), change: activity?.month.changePercent, stale: activity?.stale },
           { id: '1y-change', label: '1Y Change', value: percentage(activity?.year.changePercent), title: historyTitle('year'), change: activity?.year.changePercent, stale: activity?.stale },
         ].map(metric => (
-          <div key={metric.id} id={`card-${metric.id}-${stock.symbol.toLowerCase()}`} title={metric.title} className="min-w-0 p-3 rounded-xl bg-[#111724] flex flex-col justify-between">
-            <span className="text-[11px] sm:text-xs font-mono text-slate-300 font-bold uppercase tracking-wider">{metric.label}</span>
-            <div className={`mt-1.5 flex items-center justify-between font-mono ${metric.id.endsWith('range') ? 'text-xs sm:text-sm font-bold' : 'text-sm sm:text-base font-black'} ${metric.stale ? 'text-amber-400' : finite(metric.change) ? metric.change >= 0 ? 'text-emerald-400' : 'text-rose-400' : 'text-slate-100'}`}>
+          <div key={metric.id} id={`card-${metric.id}-${stock.symbol.toLowerCase()}`} title={metric.title} className="min-w-0 p-3 rounded-xl bg-metric-surface flex flex-col justify-between">
+            <span className="text-[11px] sm:text-xs font-mono text-ink-secondary font-bold uppercase tracking-wider">{metric.label}</span>
+            <div className={`mt-1.5 flex items-center justify-between font-mono ${metric.id.endsWith('range') ? 'text-xs sm:text-sm font-bold' : 'text-sm sm:text-base font-black'} ${metric.stale ? 'text-warning-ink-400' : finite(metric.change) ? metric.change >= 0 ? 'text-positive-ink-400' : 'text-danger-ink-400' : 'text-ink-body'}`}>
               {metric.value}{metric.stale && <AlertTriangle className="w-3 h-3 shrink-0" aria-label="Stale historical data" />}
             </div>
           </div>

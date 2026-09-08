@@ -45,18 +45,37 @@ export function completeOAuth() {
 export async function loadProfile(identity: User): Promise<UserProfile> {
   const client = getSupabase();
   const [watchlist, role] = await Promise.all([
-    client.from('watchlist_items').select('symbol').eq('user_id', identity.id),
-    client.rpc('current_user_is_admin'),
+    client.from('watchlist_items').select('symbol').eq('user_id', identity.id).abortSignal(AbortSignal.timeout(15000)),
+    client.rpc('current_user_is_admin').abortSignal(AbortSignal.timeout(15000)),
   ]);
-  if (watchlist.error || role.error) throw new Error('Your watchlist or permissions could not be loaded. Please retry sign-in.');
+  if (watchlist.error || role.error || !Array.isArray(watchlist.data) || watchlist.data.some(row => typeof row.symbol !== 'string') || typeof role.data !== 'boolean') {
+    throw new Error('Your watchlist or permissions could not be loaded. Please retry sign-in.');
+  }
   return { id: identity.id, username: String(identity.user_metadata?.full_name || 'Member'),
     watchlist: watchlist.data.map((row) => row.symbol), role: role.data === true ? 'admin' : 'user' };
+}
+
+export async function loadWatchlist(userId: string): Promise<string[]> {
+  const result = await getSupabase().from('watchlist_items').select('symbol').eq('user_id', userId)
+    .abortSignal(AbortSignal.timeout(15000));
+  if (result.error || !Array.isArray(result.data) || result.data.some(row => typeof row.symbol !== 'string')) {
+    throw new Error('The current watchlist could not be verified. Reload before retrying.');
+  }
+  return result.data.map(row => row.symbol);
+}
+
+export async function clearUserWatchlist(userId: string) {
+  const result = await getSupabase().from('watchlist_items').delete().eq('user_id', userId).select('symbol')
+    .abortSignal(AbortSignal.timeout(15000));
+  if (result.error || !Array.isArray(result.data) || result.data.some(row => typeof row.symbol !== 'string')) {
+    throw new Error('Watchlist clearing was not confirmed. It may have completed; checking the current watchlist.');
+  }
 }
 
 export async function changeWatchlist(userId: string, symbol: string, add: boolean) {
   const client = getSupabase();
   if (add) {
-    const catalog = await client.from('assets').select('symbol').eq('symbol', symbol).maybeSingle();
+    const catalog = await client.from('assets').select('symbol').eq('symbol', symbol).abortSignal(AbortSignal.timeout(15000)).maybeSingle();
     if (catalog.error) throw new Error('The asset catalog is unavailable. Your watchlist has not been changed.');
     if (!catalog.data) {
       const { data, error } = await client.auth.getSession();
@@ -72,15 +91,16 @@ export async function changeWatchlist(userId: string, symbol: string, add: boole
     }
   }
   const result = add
-    ? await client.from('watchlist_items').insert({ user_id: userId, symbol }).select('symbol')
-    : await client.from('watchlist_items').delete().eq('user_id', userId).eq('symbol', symbol).select('symbol');
+    ? await client.from('watchlist_items').insert({ user_id: userId, symbol }).select('symbol').abortSignal(AbortSignal.timeout(15000))
+    : await client.from('watchlist_items').delete().eq('user_id', userId).eq('symbol', symbol).select('symbol').abortSignal(AbortSignal.timeout(15000));
   if (result.error || result.data?.length !== 1) throw new Error('The watchlist change was not confirmed. Reload to check its current state before retrying.');
 }
 
-export async function deleteUserAccount() {
+export async function deleteUserAccount(expectedUserId: string, isCurrent: () => boolean) {
   const client = getSupabase();
   const { data, error } = await client.auth.getSession();
   if (error || !data.session) throw new Error('Sign in again before deleting your account.');
+  if (!isCurrent() || data.session.user.id !== expectedUserId) throw new Error('Your account changed. Check the current account before deleting it.');
   let response: Response;
   try {
     response = await fetch('/api/account', { method: 'DELETE',
@@ -90,6 +110,9 @@ export async function deleteUserAccount() {
     const body = await response.json().catch(() => null);
     throw new Error(body?.error || 'Account deletion was not confirmed. Please try again.');
   }
+  if (!isCurrent()) return;
+  const latest = await client.auth.getSession();
+  if (!isCurrent() || latest.data.session?.user.id !== expectedUserId) return;
   // Delete persisted state first, so local SDK sign-out cannot depend on a remote logout response.
   clearLocalAuthState();
   try { await client.auth.signOut({ scope: 'local' }); } catch { /* Auth deletion already succeeded. */ }

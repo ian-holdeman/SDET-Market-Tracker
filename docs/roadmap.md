@@ -2,7 +2,7 @@
 
 Owner-provided roadmap, recorded 2026-09-08. This roadmap tracks accepted work and future scope; it is not authorization to implement every item. Start each substantial feature with a focused prompt, acceptance criteria, evidence requirements and review boundaries.
 
-Home, The Board, The Tests and The Logic are initial version complete and owner-accepted. This is a feature milestone, not deployment, current CI success, security/compliance certification or production verification.
+Home, The Board, The Tests, The Logic, Privacy, and Settings/application themes are initial version complete and owner-accepted. This is a feature milestone, not deployment, current CI success, security/compliance certification or production verification.
 
 ## Home / Landing
 
@@ -32,10 +32,10 @@ For both features, preserve visitor access and use real, attributable evidence. 
 
 ## Overall
 
-- Privacy/security: public notice copy owner-approved; local modal/direct-page implementation, local fonts, Auth cleanup and response-header controls are implemented and locally verified, awaiting owner review of the assembled feature. See [scope, evidence and launch requirements](privacy-security.md). This does not establish hosted readiness or legal certification.
+- Privacy/security: public notice copy owner-approved; local modal/direct-page implementation, local fonts, Auth cleanup and response-header controls are implemented and locally verified. Complete and owner-accepted, including the Settings full-notice link and narrow browser-appearance disclosure. See [scope, evidence and launch requirements](privacy-security.md). This does not establish hosted readiness or legal certification.
 - Maintain the [data inventory](data-inventory.md) with processing changes. Existing direct Parqet logo delivery is retained by owner decision pending provider permission. Hosting/provider retention and production OAuth verification remain launch requirements.
-- Revise the Contact modal.
-- Revise the Settings draft.
+- Contact is the remaining small feature before hosting: concise full-time hiring subtext is prepared; preserve the third-option joke. Await the owner’s resume upload for a light editorial cleanup and verified PDF integration, then review the assembled modal. See [Contact scope and readiness](contact.md).
+- Settings and application themes: complete and owner-accepted, with Delete Account, confirmed owner-scoped Clear Watchlist, a browser-only Light/Dark choice (device default until an explicit selection), and the full public notice link. Settings stays behind sign-in in the user dropdown. Local browser/database evidence and limits are documented in [Settings](settings.md); hosted verification remains separate.
 - Determine hosting solution: choose application hosting, database/Auth arrangement and private snapshot durability within the owner's budget. Selection does not authorize provisioning.
 - Verify production functionality: after an explicitly authorized deployment, verify public pages, market data, OAuth, private watchlists, registration/deletion, published test evidence and failure behavior on the actual production origin. Local checks do not complete this item.
 

@@ -7,98 +7,14 @@ import {
   durationLabel,
   statusLabel,
 } from "../../telemetry/presentation";
-export function ResultDialog({
-  title,
-  close,
-  children,
-}: {
-  title: string;
-  close: () => void;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<HTMLDialogElement>(null),
-    heading = useId();
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    const dialog = ref.current!;
-    const overflow = document.body.style.overflow;
-    dialog.showModal();
-    document.body.style.overflow = "hidden";
-    return () => {
-      dialog.close();
-      document.body.style.overflow = overflow;
-      if (previous?.isConnected) previous.focus();
-    };
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      aria-labelledby={heading}
-      onCancel={(e) => {
-        e.preventDefault();
-        close();
-      }}
-      onKeyDown={(e) => {
-        if (e.key !== "Tab") return;
-        const items = Array.from(
-          e.currentTarget.querySelectorAll<HTMLElement>(
-            'button, a[href], summary, [tabindex="0"]',
-          ),
-        ).filter(
-          (el) =>
-            el.getClientRects().length > 0 && !el.hasAttribute("disabled"),
-        );
-        const first = items[0],
-          last = items.at(-1);
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last?.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first?.focus();
-        }
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          const r = e.currentTarget.getBoundingClientRect();
-          if (
-            e.clientX < r.left ||
-            e.clientX > r.right ||
-            e.clientY < r.top ||
-            e.clientY > r.bottom
-          )
-            close();
-        }
-      }}
-      className="m-auto w-[calc(100%-1.5rem)] max-w-3xl max-h-[88dvh] p-0 rounded-2xl border border-slate-700/70 bg-[#0F141E] text-slate-200 shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm"
-    >
-      <div className="flex max-h-[88dvh] flex-col overflow-hidden">
-        <header className="flex items-center justify-between gap-3 border-b border-slate-800 px-5 py-4 sm:px-6">
-          <h2 id={heading} className="text-lg font-bold text-white">
-            {title}
-          </h2>
-          <button
-            autoFocus
-            onClick={close}
-            aria-label={`Close ${title}`}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </header>
-        <div className="overflow-y-auto overscroll-contain p-5 sm:p-6 space-y-5">
-          {children}
-        </div>
-      </div>
-    </dialog>
-  );
-}
+import { Dialog as ResultDialog } from '../Dialog';
+export { Dialog as ResultDialog } from '../Dialog';
 export const statusTone = (status: string) =>
   status === "passed"
-    ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+    ? "text-positive-ink-400 bg-positive-500/10 border-positive-500/20"
     : status === "failed"
-      ? "text-rose-400 bg-rose-500/10 border-rose-500/20"
-      : "text-amber-300 bg-amber-500/10 border-amber-500/20";
+      ? "text-danger-ink-400 bg-danger-500/10 border-danger-500/20"
+      : "text-warning-ink-300 bg-warning-500/10 border-warning-500/20";
 export function StatusBadge({ run }: { run: PublishedRun }) {
   const Icon =
     run.status === "passed"
@@ -152,23 +68,23 @@ export function Metrics({
           key={key}
           data-testid={`run-metric-${key}`}
           data-metric={label}
-          className={`min-w-0 rounded-xl border border-slate-800/80 bg-[#131926]/80 ${compact ? "p-4" : "p-4 sm:p-5"} ${snapshot ? "lg:aspect-[4/3] lg:flex lg:flex-col lg:items-center lg:justify-center lg:text-center" : ""}`}
+          className={`min-w-0 rounded-xl border border-line/80 bg-inset/80 ${compact ? "p-4" : "p-4 sm:p-5"} ${snapshot ? "lg:aspect-[4/3] lg:flex lg:flex-col lg:items-center lg:justify-center lg:text-center" : ""}`}
         >
           <p
             data-testid="metric-label"
-            className={`text-xs font-medium text-slate-400 ${snapshot ? "lg:text-lg lg:font-semibold lg:text-slate-200" : ""}`}
+            className={`text-xs font-medium text-ink-muted ${snapshot ? "lg:text-lg lg:font-semibold lg:text-ink-strong" : ""}`}
           >
             {label}
           </p>
           <p
             data-testid="metric-value"
-            className={`mt-3 font-mono font-black tracking-tight ${compact ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"} ${snapshot ? "lg:text-4xl xl:text-5xl" : ""} ${label === "Flaky Tests" && Number(value) > 0 ? "text-amber-300" : "text-white"}`}
+            className={`mt-3 font-mono font-black tracking-tight ${compact ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"} ${snapshot ? "lg:text-4xl xl:text-5xl" : ""} ${label === "Flaky Tests" && Number(value) > 0 ? "text-warning-ink-300" : "text-ink-heading"}`}
           >
             {pending ? (
               <span
                 data-testid="metric-skeleton"
                 aria-label="Loading value"
-                className="inline-block h-[1em] w-20 rounded bg-slate-700/40 motion-safe:animate-pulse align-middle"
+                className="inline-block h-[1em] w-20 rounded bg-surface-700/40 motion-safe:animate-pulse align-middle"
               />
             ) : (
               <span key={String(value)} className="metric-reveal">
@@ -193,7 +109,7 @@ export function Exceptions({ run }: { run: PublishedRun }) {
     : [];
   return labels.length ? (
     <p
-      className={`text-sm font-medium ${s?.failed ? "text-rose-400" : "text-amber-300"}`}
+      className={`text-sm font-medium ${s?.failed ? "text-danger-ink-400" : "text-warning-ink-300"}`}
     >
       {labels.join(" · ")}
     </p>
@@ -209,7 +125,7 @@ export function RunTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-xs sm:text-sm [&_svg]:hidden sm:[&_svg]:block [&_span]:text-[10px] sm:[&_span]:text-xs [&_span]:px-1.5 sm:[&_span]:px-2.5">
-        <thead className="text-slate-500">
+        <thead className="text-ink-subtle">
           <tr>
             {["Run", "Status", "Pass Rate", "Duration", "Details"].map(
               (label) => (
@@ -223,24 +139,24 @@ export function RunTable({
             )}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800/60">
+        <tbody className="divide-y divide-line/60">
           {runs.map((run) => {
             const m = runMetrics(run);
             return (
               <tr
                 key={`${run.id}:${run.attempt}`}
-                className="hover:bg-slate-800/20"
+                className="hover:bg-surface-800/20"
               >
-                <td className="px-1 py-4 sm:px-4 text-slate-300 font-mono whitespace-nowrap">
+                <td className="px-1 py-4 sm:px-4 text-ink-secondary font-mono whitespace-nowrap">
                   {runLabel(run)}
                 </td>
                 <td className="px-1 py-4 sm:px-4">
                   <StatusBadge run={run} />
                 </td>
-                <td className="px-1 py-4 sm:px-4 text-white font-mono">
+                <td className="px-1 py-4 sm:px-4 text-ink-heading font-mono">
                   {m.summary?.passRate == null ? "—" : `${m.summary.passRate}%`}
                 </td>
-                <td className="px-1 py-4 sm:px-4 text-slate-300 whitespace-nowrap font-mono">
+                <td className="px-1 py-4 sm:px-4 text-ink-secondary whitespace-nowrap font-mono">
                   {durationLabel(m.durationMs)}
                 </td>
                 <td className="px-1 py-4 sm:px-4">
@@ -250,7 +166,7 @@ export function RunTable({
                       details(run);
                     }}
                     aria-label={`Details for run ${runLabel(run)}`}
-                    className="min-h-10 text-blue-300 hover:text-blue-200 underline-offset-4 hover:underline"
+                    className="min-h-10 text-info-ink-300 hover:text-info-ink-200 underline-offset-4 hover:underline"
                   >
                     Details
                   </button>
@@ -279,7 +195,7 @@ export function RunReport({
           href={run.url}
           target="_blank"
           rel="noreferrer"
-          className="text-sm text-blue-300 hover:underline"
+          className="text-sm text-info-ink-300 hover:underline"
         >
           View on GitHub ↗
         </a>
@@ -287,24 +203,24 @@ export function RunReport({
       <Metrics run={run} compact />
       <Exceptions run={run} />
       {!e?.planned ? (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-ink-muted">
           {run.evidenceState === "expired"
             ? "Results have expired."
             : "No test results were recorded."}
         </p>
       ) : (
         <>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-subtle">
             Pass rate excludes retries and includes all collected tests.
           </p>
           <div className="space-y-3">
             {e.tests.map((t) => (
               <article
                 key={t.id}
-                className="rounded-xl border border-slate-800 bg-slate-950/30 p-4 space-y-2"
+                className="rounded-xl border border-line bg-surface-950/30 p-4 space-y-2"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-slate-200 break-words min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-ink-strong break-words min-w-0 flex-1">
                     {t.name}
                   </h3>
                   <span
@@ -313,41 +229,41 @@ export function RunReport({
                     {testOutcome(t)}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">{t.project}</p>
+                <p className="text-xs text-ink-subtle">{t.project}</p>
                 {t.attempts.map((a) => (
-                  <p key={a.retry} className="text-xs text-slate-400">
+                  <p key={a.retry} className="text-xs text-ink-muted">
                     Attempt {a.retry + 1}: {a.status}{" "}
-                    <span className="text-slate-600">·</span>{" "}
+                    <span className="text-ink-faint">·</span>{" "}
                     {durationLabel(a.durationMs)}
                   </p>
                 ))}
                 {!t.attempts.length && (
-                  <p className="text-xs text-amber-300">No execution result.</p>
+                  <p className="text-xs text-warning-ink-300">No execution result.</p>
                 )}
               </article>
             ))}
           </div>
         </>
       )}
-      <details className="text-xs text-slate-400 border-t border-slate-800 pt-4">
+      <details className="text-xs text-ink-muted border-t border-line pt-4">
         <summary className="cursor-pointer py-1">Run metadata</summary>
         <dl className="mt-3 space-y-2 break-all">
           <div>
-            <dt className="text-slate-500">Commit</dt>
+            <dt className="text-ink-subtle">Commit</dt>
             <dd>{run.commitSha}</dd>
           </div>
           <div>
-            <dt className="text-slate-500">Started</dt>
+            <dt className="text-ink-subtle">Started</dt>
             <dd>{new Date(e?.startedAt || run.startedAt).toLocaleString()}</dd>
           </div>
           {e?.completedAt && (
             <div>
-              <dt className="text-slate-500">Finished</dt>
+              <dt className="text-ink-subtle">Finished</dt>
               <dd>{new Date(e.completedAt).toLocaleString()}</dd>
             </div>
           )}
           <div>
-            <dt className="text-slate-500">Workflow outcome</dt>
+            <dt className="text-ink-subtle">Workflow outcome</dt>
             <dd>{run.conclusion || "In progress"}</dd>
           </div>
           {!!e?.errorCount && (
@@ -375,7 +291,7 @@ export function RefreshStatus({
     <p
       data-testid="result-refresh-status"
       role="status"
-      className="min-h-4 text-xs text-slate-400"
+      className="min-h-4 text-xs text-ink-muted"
       title={
         fetchedAt
           ? "Retrieved " + new Date(fetchedAt).toLocaleString()

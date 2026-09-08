@@ -33,10 +33,10 @@ export const TestingDashboardPlus: React.FC = () => {
     <div
       id="finance-automation-dashboard"
       data-testid="test-dashboard"
-      className="rounded-2xl border border-slate-800 bg-[#0F141E] shadow-xl shadow-black/20 overflow-hidden"
+      className="rounded-2xl border border-line bg-panel shadow-xl shadow-shade/20 overflow-hidden"
     >
-      <header className="px-5 py-5 sm:px-7 flex items-center justify-between gap-3 border-b border-slate-800/80">
-        <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2.5">
+      <header className="px-5 py-5 sm:px-7 flex items-center justify-between gap-3 border-b border-line/80">
+        <h2 className="text-base sm:text-lg font-bold text-ink-heading flex items-center gap-2.5">
           <AutomationMark />
           Automation Dashboard
         </h2>
@@ -45,14 +45,14 @@ export const TestingDashboardPlus: React.FC = () => {
           disabled={loading}
           aria-label="Refresh test history"
           title="Refresh results"
-          className="rounded-lg p-2.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-40"
+          className="rounded-lg p-2.5 text-ink-muted hover:bg-surface-800 hover:text-ink-heading disabled:opacity-40"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </button>
       </header>
       <div className="p-5 sm:p-7 space-y-5">
         {error && (
-          <p role="alert" className="text-sm text-amber-300">
+          <p role="alert" className="text-sm text-warning-ink-300">
             {error}
           </p>
         )}
@@ -62,7 +62,7 @@ export const TestingDashboardPlus: React.FC = () => {
           fetchedAt={feed?.fetchedAt}
         />
         {!loading && !feed?.refreshing && !error && !latest && (
-          <p role="status" className="text-sm text-slate-400">
+          <p role="status" className="text-sm text-ink-muted">
             No verified runs yet.
           </p>
         )}
@@ -70,11 +70,11 @@ export const TestingDashboardPlus: React.FC = () => {
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-medium text-slate-500 mb-1.5">
+                <p className="text-xs font-medium text-ink-subtle mb-1.5">
                   {noLatest && active ? "Previous results" : "Latest run"}
                 </p>
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-lg font-bold text-white">
+                  <span className="font-mono text-lg font-bold text-ink-heading">
                     {runLabel(active || latest)}
                   </span>
                   <StatusBadge run={active || latest} />
@@ -85,7 +85,7 @@ export const TestingDashboardPlus: React.FC = () => {
                   event.currentTarget.focus();
                   setReport(active || latest);
                 }}
-                className="flex items-center gap-1.5 rounded-lg px-3.5 py-2.5 bg-slate-800/70 text-sm font-semibold text-slate-200 hover:bg-slate-700/70"
+                className="flex items-center gap-1.5 rounded-lg px-3.5 py-2.5 bg-surface-800/70 text-sm font-semibold text-ink-strong hover:bg-surface-700/70"
               >
                 View Report
                 <ArrowUpRight className="h-4 w-4" />
@@ -102,13 +102,13 @@ export const TestingDashboardPlus: React.FC = () => {
         {noLatest && (
           <div
             role="status"
-            className="flex items-start gap-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15 p-3.5 text-sm text-amber-200"
+            className="flex items-start gap-2.5 rounded-xl bg-warning-500/5 border border-warning-500/15 p-3.5 text-sm text-warning-ink-200"
           >
             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
               {latestNotice(latest)}
               {active && (
-                <span className="text-slate-400">
+                <span className="text-ink-muted">
                   {" "}
                   Showing previous results below.
                 </span>
@@ -126,15 +126,15 @@ export const TestingDashboardPlus: React.FC = () => {
           </div>
         )}
       </div>
-      <section className="border-t border-slate-800/80 px-3 pb-3 sm:px-5 sm:pb-5">
+      <section className="border-t border-line/80 px-3 pb-3 sm:px-5 sm:pb-5">
         <div className="flex items-center justify-between gap-3 px-2 sm:px-2 pt-5 pb-2">
-          <h3 className="text-sm font-semibold text-slate-300">Recent runs</h3>
+          <h3 className="text-sm font-semibold text-ink-secondary">Recent runs</h3>
           <button
             onClick={(event) => {
               event.currentTarget.focus();
               setHistory(true);
             }}
-            className="text-xs sm:text-sm text-blue-300 hover:text-blue-200 hover:underline underline-offset-4 min-h-10"
+            className="text-xs sm:text-sm text-info-ink-300 hover:text-info-ink-200 hover:underline underline-offset-4 min-h-10"
           >
             Show run history
           </button>
@@ -142,7 +142,7 @@ export const TestingDashboardPlus: React.FC = () => {
         {recent.length ? (
           <RunTable runs={recent} details={setReport} />
         ) : (
-          <p className="px-2 py-5 text-sm text-slate-500">
+          <p className="px-2 py-5 text-sm text-ink-subtle">
             {loading
               ? "Finding recent results…"
               : "No completed test results yet."}
@@ -151,16 +151,16 @@ export const TestingDashboardPlus: React.FC = () => {
       </section>
       {history && (
         <ResultDialog title="Run history" close={() => setHistory(false)}>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-subtle">
             Retained runs, including incomplete attempts. Detailed results
             expire after 90 days.
           </p>
           <RunTable runs={runs} details={setReport} />
           {!runs.length && (
-            <p className="text-sm text-slate-400">No verified runs yet.</p>
+            <p className="text-sm text-ink-muted">No verified runs yet.</p>
           )}
           {moreError && (
-            <p role="alert" className="text-sm text-amber-300">
+            <p role="alert" className="text-sm text-warning-ink-300">
               {moreError}
             </p>
           )}
@@ -168,7 +168,7 @@ export const TestingDashboardPlus: React.FC = () => {
             <button
               disabled={moreLoading || loading}
               onClick={() => void loadMore()}
-              className="w-full rounded-xl border border-slate-700 py-3 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              className="w-full rounded-xl border border-line-strong py-3 text-sm text-ink-secondary hover:bg-surface-800 disabled:opacity-50"
             >
               {moreLoading
                 ? "Loading…"
@@ -178,7 +178,7 @@ export const TestingDashboardPlus: React.FC = () => {
             </button>
           )}
           {feed?.historyLimited && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-ink-subtle">
               GitHub’s history limit has been reached. Older runs may be
               available on GitHub.
             </p>

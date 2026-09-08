@@ -6,9 +6,9 @@ interface TheLogicProps {
   onNavigate: (page: PageView) => void;
 }
 
-const card = 'bg-[#0F141E]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-8 space-y-5';
-const heading = 'text-xl sm:text-2xl font-bold text-white';
-const focus = 'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-400';
+const card = 'bg-panel/90 border border-line/90 rounded-2xl p-6 sm:p-8 space-y-5';
+const heading = 'text-xl sm:text-2xl font-bold text-ink-heading';
+const focus = 'focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus';
 const sourceRoot = 'https://github.com/ian-holdeman/SDET-Market-Tracker/blob/main/';
 
 const evidence = [
@@ -39,12 +39,12 @@ const evidence = [
 ];
 
 export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => (
-  <article aria-labelledby="logic-title" className="w-full max-w-5xl mx-auto space-y-8 sm:space-y-10 py-4 text-sm sm:text-base text-slate-300 leading-relaxed">
+  <article aria-labelledby="logic-title" className="w-full max-w-5xl mx-auto space-y-8 sm:space-y-10 py-4 text-sm sm:text-base text-ink-secondary leading-relaxed">
     <header className="text-center max-w-3xl mx-auto space-y-4">
-      <Brain aria-hidden="true" className="w-6 h-6 text-blue-400 mx-auto" />
-      <h1 id="logic-title" className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">The Logic</h1>
-      <div className="h-[2px] w-32 sm:w-48 bg-gradient-to-r from-transparent via-blue-500/70 to-transparent rounded-full mx-auto" />
-      <p className="text-slate-400">The project, the decisions behind it, and how I check the work.</p>
+      <Brain aria-hidden="true" className="w-6 h-6 text-info-ink-400 mx-auto" />
+      <h1 id="logic-title" className="text-3xl sm:text-4xl lg:text-5xl font-black text-ink-heading tracking-tight">The Logic</h1>
+      <div className="h-[2px] w-32 sm:w-48 bg-gradient-to-r from-transparent via-info-500/70 to-transparent rounded-full mx-auto" />
+      <p className="text-ink-muted">The project, the decisions behind it, and how I check the work.</p>
     </header>
 
     <section aria-labelledby="logic-why" className={card}>
@@ -57,18 +57,18 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => (
       <h2 id="logic-architecture" className={heading}>How the app works</h2>
       <p className="max-w-3xl">The browser brings together market data, private watchlists and published test evidence. Each has a different source of authority. Visitors can explore the Board, Tests and Logic without an account; Google sign-in enables a private watchlist.</p>
       <figure className="space-y-3" aria-labelledby="logic-flow-title">
-        <figcaption id="logic-flow-title" className="text-sm font-semibold text-white">Data flow</figcaption>
+        <figcaption id="logic-flow-title" className="text-sm font-semibold text-ink-heading">Data flow</figcaption>
         <div className="space-y-3">
           {[
             ['Market data', 'Yahoo', 'Express validation', 'React Board & charts'],
             ['Private watchlists', 'React + user session', 'Supabase Auth & API', 'PostgreSQL ownership rules'],
             ['Test evidence', 'GitHub Actions artifacts', 'Express evidence validation', 'React Tests & Home'],
           ].map(([label, ...steps]) => (
-            <div key={label} className="rounded-xl bg-[#121824] border border-slate-800/70 p-4">
-              <p className="text-xs font-semibold text-blue-300 mb-3">{label}</p>
+            <div key={label} className="rounded-xl bg-raised border border-line/70 p-4">
+              <p className="text-xs font-semibold text-info-ink-300 mb-3">{label}</p>
               <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                 {steps.map((step, index) => <li key={step} className="flex items-center gap-2 min-w-0">
-                  {index > 0 && <ArrowRight aria-hidden="true" className="w-4 h-4 shrink-0 text-slate-500 rotate-90 sm:rotate-0" />}
+                  {index > 0 && <ArrowRight aria-hidden="true" className="w-4 h-4 shrink-0 text-ink-subtle rotate-90 sm:rotate-0" />}
                   <span><span className="sr-only">{index + 1}. </span>{step}</span>
                 </li>)}
               </ol>
@@ -81,22 +81,22 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => (
         <p>Watchlists belong to an authenticated UUID. Database grants and row-level security enforce ownership; hiding a button cannot grant or remove permission. Admin curation is separate from private watchlists. Registration and account deletion use server-side identity verification.</p>
         <p>GitHub supplies published test evidence. The server validates its source and retains a private snapshot for cold starts, then rechecks upstream evidence. Local runs cannot publish to the dashboard, and visitors cannot start tests.</p>
       </div>
-      <div className="border-t border-slate-800 pt-5 space-y-3">
-        <h3 className="font-semibold text-white">Tools and workflow</h3>
-        <p className="text-sm text-slate-400">The interface was developed with a mobile-first mindset. Try both mobile and desktop views to see how the layout adapts.</p>
+      <div className="border-t border-line pt-5 space-y-3">
+        <h3 className="font-semibold text-ink-heading">Tools and workflow</h3>
+        <p className="text-sm text-ink-muted">The interface was developed with a mobile-first mindset. Try both mobile and desktop views to see how the layout adapts.</p>
         <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
           {[
             ['Interface', 'React · TypeScript · Vite · Tailwind'],
             ['API and data', 'Node.js · Express · Supabase Auth · PostgreSQL'],
             ['Verification', 'Node test runner · Playwright · pgTAP'],
             ['Delivery checks', 'GitHub Actions · Docker / local Supabase'],
-          ].map(([purpose, tools]) => <div key={purpose}><dt className="text-white font-medium">{purpose}</dt><dd className="text-slate-400 mt-1">{tools}</dd></div>)}
+          ].map(([purpose, tools]) => <div key={purpose}><dt className="text-ink-heading font-medium">{purpose}</dt><dd className="text-ink-muted mt-1">{tools}</dd></div>)}
         </dl>
-        <p className="text-sm text-slate-400">The repository workflow starts behavior changes with a failing test or reproduction, then implementation and focused checks. CI separates browser/offline checks from database/Auth checks. Docker runs the local Supabase stack; application hosting is still undecided.</p>
+        <p className="text-sm text-ink-muted">The repository workflow starts behavior changes with a failing test or reproduction, then implementation and focused checks. CI separates browser/offline checks from database/Auth checks. Docker runs the local Supabase stack; application hosting is still undecided.</p>
       </div>
       <div className="flex flex-wrap gap-3 pt-1">
-        <button onClick={() => onNavigate('board')} className={`px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold cursor-pointer ${focus}`}>The Board</button>
-        <button onClick={() => onNavigate('tests')} className={`px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold cursor-pointer ${focus}`}>The Tests</button>
+        <button onClick={() => onNavigate('board')} className={`px-4 py-2 rounded-xl bg-info-600 hover:bg-info-500 text-on-action text-sm font-semibold cursor-pointer ${focus}`}>The Board</button>
+        <button onClick={() => onNavigate('tests')} className={`px-4 py-2 rounded-xl bg-positive-600 hover:bg-positive-500 text-on-action text-sm font-semibold cursor-pointer ${focus}`}>The Tests</button>
       </div>
     </section>
 
@@ -105,16 +105,16 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => (
       <p className="max-w-3xl">A valuable test makes sure your code does what it says it’s doing. The core features have to work: the Board has to load, users need to be able to save watchlists and add new assets, and the Tests dashboard needs to report results accurately. Those features need testable outputs, not just a page that looks like it worked.</p>
       <p className="max-w-3xl">That also means testing what happens when something goes wrong. If a market request fails, the app should clearly label retained data as stale. If a new asset can’t be validated, the app should explain the failure and leave the watchlist unchanged. And if a test passes only after a retry, the dashboard should show it as flaky rather than a clean pass.</p>
       <p className="max-w-3xl">The checks run at different levels. Controlled inputs test calculations and API failure handling. Browser tests check user workflows with mocked services. Local database and Auth tests check ownership, permissions, and account deletion against real services. Each covers a different part of the application; browser mocks alone can’t establish that the database keeps users’ data separate.</p>
-      <details className="border-t border-slate-800 pt-4 text-sm">
-        <summary className={`cursor-pointer text-blue-300 rounded-sm ${focus}`}>Evidence and coverage boundaries</summary>
+      <details className="border-t border-line pt-4 text-sm">
+        <summary className={`cursor-pointer text-info-ink-300 rounded-sm ${focus}`}>Evidence and coverage boundaries</summary>
         <div data-testid="logic-evidence" className="pt-5 space-y-5">
           {evidence.map(item => <div key={item.path} className="space-y-1">
-            <a href={sourceRoot + item.path} className={`text-blue-300 underline underline-offset-4 rounded-sm ${focus}`}>{item.title}</a>
-            <p className="text-slate-400 max-w-3xl">{item.text}</p>
+            <a href={sourceRoot + item.path} className={`text-info-ink-300 underline underline-offset-4 rounded-sm ${focus}`}>{item.title}</a>
+            <p className="text-ink-muted max-w-3xl">{item.text}</p>
           </div>)}
-          <p className="text-slate-400">Source links describe test scenarios on the main branch, not a current passing run. The Tests page separates published browser-case results, curated recordings with mocked services, and a historical CI timeline. Database job status does not supply database case counts.</p>
-          <p className="text-slate-400">Pass Rate counts first-attempt passes over all collected browser test-project cases. A passing retry stays flaky; missing evidence is unavailable, never a perfect score.</p>
-          <p className="text-slate-400">Independent market reconciliation, load testing, hosted configuration and physical-device checks remain gaps. Test duration is not application performance. No benchmark is claimed here.</p>
+          <p className="text-ink-muted">Source links describe test scenarios on the main branch, not a current passing run. The Tests page separates published browser-case results, curated recordings with mocked services, and a historical CI timeline. Database job status does not supply database case counts.</p>
+          <p className="text-ink-muted">Pass Rate counts first-attempt passes over all collected browser test-project cases. A passing retry stays flaky; missing evidence is unavailable, never a perfect score.</p>
+          <p className="text-ink-muted">Independent market reconciliation, load testing, hosted configuration and physical-device checks remain gaps. Test duration is not application performance. No benchmark is claimed here.</p>
         </div>
       </details>
 

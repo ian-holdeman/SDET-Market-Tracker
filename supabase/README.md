@@ -208,7 +208,7 @@ immediately denied by database policy.
 Expanded cards expose curated add/remove controls only for verified admins.
 Mutations must affect exactly one returned row before the UI treats them as
 confirmed. Curation deletes membership only. Watchlist writes use the authenticated
-UUID, with per-user RLS and foreign keys as the authority. A failed write is shown
+UUID, with per-user RLS and foreign keys as the authority. Settings bulk clear performs one owner-filtered `watchlist_items` DELETE, preserving identities, admin assignments, shared assets and curation. AuthContext excludes concurrent watchlist/account writes and re-reads uncertain outcomes; stale responses cannot update another account. The disposable `scripts/auth-tests/clear-watchlist.test.ts` verifies effects for both owners, including empty and forbidden cross-owner clears. No migration or new privilege is required. See [Settings](../docs/settings.md). A failed write is shown
 rather than represented as a successful optimistic save.
 
 Searched assets outside the catalog can be saved through `POST /api/assets/register`. The server verifies the caller and provider symbol, inserts shared identity only, then the frontend saves the watchlist item with the user session under RLS. Registration grants no curation, role or cross-user privileges. See [trusted symbol registration](../docs/symbol-registration.md) for the full contract.

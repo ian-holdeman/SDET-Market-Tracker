@@ -2,7 +2,7 @@
 
 This project serves two purposes: personal market monitoring and a public portfolio demonstrating Senior SDET skills. The audience should see useful functionality and inspect credible engineering evidence without needing an account. Production-quality behavior and a minimalist interface take priority over breadth. Infrastructure cost matters; do not infer a budget or provision paid services.
 
-Home, The Board, The Tests and The Logic are owner-accepted as initial version complete. Privacy/security review is the next feature; hosting selection and production verification remain open. See [milestones and remaining scope](roadmap.md).
+Home, The Board, The Tests, The Logic, Privacy, and Settings/application themes are complete and owner-accepted for the local initial version. Contact is the remaining small feature, with concise hiring copy prepared and a light resume review awaiting the owner’s upload. Hosting selection and production verification remain open. See [milestones and remaining scope](roadmap.md).
 
 ## Architecture map
 
@@ -18,6 +18,7 @@ Home, The Board, The Tests and The Logic are owner-accepted as initial version c
 ## Durable product decisions
 
 - Initial launch scope: Board, Tests, Logic, Home, and honest Privacy/Contact/Settings behavior. Visitors can explore all public content.
+- Settings provides account deletion, owner-scoped bulk watchlist clearing, browser-only Light/Dark appearance and the full public privacy notice. The device supplies the unsaved default; explicit choices survive sign-out/deletion and are never sent to the server. See [Settings behavior and evidence](settings.md).
 - Accounts currently enable watchlists. Admin curation is separate from personal data; Google metadata cannot assign roles. See [accounts and authorization](../supabase/README.md).
 - Keep personal-data use limited to operating sign-in and private watchlists. The owner does not want analytics, advertising, subscriptions, behavioral tracking or secondary use. Review necessary Auth/storage/provider processing honestly; see [privacy direction](privacy-security.md).
 - The Board shows six price/activity metrics: previous close, day range, 52-week range, volume, one-month change and one-year change. Google Finance links provide deeper research; inaccessible fundamentals are not estimated. See [market data](market-data.md).
