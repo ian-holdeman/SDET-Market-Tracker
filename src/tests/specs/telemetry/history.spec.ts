@@ -1,10 +1,37 @@
+import { HomePage } from "../../pages/home.page";
+import { TheTestsPage } from "../../pages/the-tests.page";
 import { test, expect } from "@playwright/test";
 import { evidence, published, feed } from "../../fixtures/testEvidence";
-
-test("empty history is explicit and visitors have no execution controls", async ({
-  page,
-}) => {
-  await page.route("**/api/test-history", (r) => r.fulfill({ json: feed([]) }));
+function varied(
+  number: number,
+  status: "passed" | "flaky" | "failed" | "incomplete" = "passed",
+) {
+  const e = evidence();
+  e.runId = String(100 + number);
+  if (status === "flaky") {
+    e.tests[0].attempts[0].status = "failed";
+    e.tests[0].attempts.push({
+      retry: 1,
+      status: "passed",
+      durationMs: 7,
+      startedAt: "2026-09-07T00:00:02.000Z",
+    });
+  }
+  if (status === "failed") {
+    e.tests[0].attempts[0].status = "failed";
+    e.runnerStatus = "failed";
+  }
+  const r = published(status === "incomplete" ? null : e);
+  r.id = String(100 + number);
+  r.number = number;
+  r.url = `https://github.com/owner/repo/actions/runs/${r.id}/attempts/1`;
+  return r;
+}
+test("empty and failed retrieval states remain distinct", async ({ page }) => {
+  let fail = false;
+  await page.route("**/api/test-history**", (r) =>
+    fail ? r.fulfill({ status: 502, json: {} }) : r.fulfill({ json: feed([]) }),
+  );
   await page.goto("/tests");
   await expect(
     page.getByText("No verified runs yet.", { exact: true }),
@@ -12,81 +39,131 @@ test("empty history is explicit and visitors have no execution controls", async 
   await expect(
     page.getByRole("button", { name: /run suite|start execution|simulate/i }),
   ).toHaveCount(0);
-  await expect(page.getByText("100% Passing")).toHaveCount(0);
-  await expect(
-    page.getByText("Recordings are not available yet.", { exact: false }),
-  ).toBeVisible();
+  fail = true;
+  await page.getByRole("button", { name: "Refresh test history" }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
 });
-
-test("flaky evidence preserves both attempts and failed refresh retains the previous run", async ({
+test("flaky report, focus restoration and stale data preserve accurate metrics", async ({
   page,
 }) => {
-  const e = evidence();
-  e.tests[0].attempts[0].status = "failed";
-  e.tests[0].attempts.push({
-    retry: 1,
-    status: "passed",
-    durationMs: 7,
-    startedAt: "2026-09-07T00:00:02.000Z",
-  });
   let fail = false;
-  await page.route("**/api/test-history", (r) =>
+  await page.route("**/api/test-history**", (r) =>
     fail
-      ? r.fulfill({ status: 502, json: { error: "offline" } })
-      : r.fulfill({ json: feed([published(e)]) }),
+      ? r.fulfill({ status: 502, json: {} })
+      : r.fulfill({ json: feed([varied(3, "flaky")]) }),
   );
   await page.goto("/tests");
-  await expect(page.getByText("#3.1 · FLAKY")).toBeVisible();
-  await page.getByRole("button", { name: "Inspect evidence" }).click();
+  const dashboardMetrics = new TheTestsPage(page).results;
+  const dashboard = dashboardMetrics.root;
+  await expect(dashboardMetrics.value("pass-rate")).toContainText("0%");
+  await expect(dashboardMetrics.value("flaky-tests")).toContainText("1");
+  await expect(dashboardMetrics.value("duration")).toContainText("5.0s");
+  await expect(dashboard).not.toContainText("Clean");
+  await expect(dashboard).not.toContainText("main");
+  const open = page.getByRole("button", { name: "View Report", exact: true });
+  await open.click();
   const report = page.getByRole("dialog");
   await expect(report).toContainText("Attempt 1: failed");
   await expect(report).toContainText("Attempt 2: passed");
-  await expect(report).toContainText("clean passes: 0");
-  await expect(report).toContainText("flaky: 1");
-  await report
-    .getByRole("button", { name: "Close report", exact: true })
-    .first()
-    .click();
+  await page.keyboard.press("Shift+Tab");
+  expect(await report.evaluate((e) => e.contains(document.activeElement))).toBe(
+    true,
+  );
+  await page.keyboard.press("Escape");
+  await expect(report).toHaveCount(0);
+  await expect(open).toBeFocused();
   fail = true;
   await page.getByRole("button", { name: "Refresh test history" }).click();
-  await expect(page.getByRole("alert")).toContainText("previous retrieval");
-  await expect(page.getByText("#3.1 · FLAKY")).toBeVisible();
-});
-
-test("cancelled run without a report never becomes green telemetry on Tests or Home", async ({
-  page,
-}) => {
-  const run = published(null);
-  run.conclusion = "cancelled";
-  run.status = "cancelled";
-  await page.route("**/api/test-history", (r) =>
-    r.fulfill({ json: feed([run]) }),
+  await expect(page.getByRole("alert")).toContainText("saved results");
+  await expect(dashboardMetrics.value("pass-rate")).toContainText("0%");
+  await page.route("**/api/test-history**", (r) =>
+    r.fulfill({ json: feed([varied(3, "flaky")]) }),
   );
-  await page.goto("/tests");
-  await expect(page.getByText("#3.1 · CANCELLED")).toBeVisible();
-  await expect(
-    page.getByText(
-      "Test evidence missing; no success rate can be established.",
-    ),
-  ).toBeVisible();
   await page.goto("/");
-  await expect(page.locator("#sdet-test-snapshot-card")).toContainText(
-    "cancelled",
-  );
-  await expect(page.locator("#sdet-test-snapshot-card")).not.toContainText(
-    "100%",
-  );
+  const homeMetrics = new HomePage(page).results;
+  const home = homeMetrics.root;
+  await expect(homeMetrics.value("pass-rate")).toContainText("0%");
+  await expect(homeMetrics.value("flaky-tests")).toContainText("1");
 });
-
-test("initial retrieval failure is not an empty-success state", async ({
+test("recent results hides empty runs while history paginates and nested details restore focus", async ({
   page,
 }) => {
-  await page.route("**/api/test-history", (r) =>
-    r.fulfill({ status: 502, json: {} }),
+  const first = feed([
+    varied(9, "incomplete"),
+    ...Array.from({ length: 5 }, (_, i) => varied(8 - i)),
+  ]);
+  first.nextCursor = "older";
+  let older = 0,
+    fail = true;
+  await page.route("**/api/test-history**", (r) => {
+    if (new URL(r.request().url()).searchParams.has("cursor")) {
+      older++;
+      return fail
+        ? r.fulfill({ status: 502, json: {} })
+        : r.fulfill({ json: feed([varied(3, "failed")]) });
+    }
+    return r.fulfill({ json: first });
+  });
+  await page.goto("/tests");
+  const dashboardMetrics = new TheTestsPage(page).results;
+  const dashboard = dashboardMetrics.root;
+  await expect(
+    dashboard.getByText("Showing previous results below."),
+  ).toBeVisible();
+  await expect(dashboard.locator("tbody tr")).toHaveCount(5);
+  await expect(dashboard.locator("tbody")).not.toContainText("#9");
+  const open = page.getByRole("button", { name: "Show run history" });
+  await open.click();
+  const history = page.getByRole("dialog", {
+    name: "Run history",
+    exact: true,
+  });
+  await expect(history.locator("tbody tr")).toHaveCount(6);
+  await expect(history).toContainText("Incomplete");
+  await history.getByRole("button", { name: "Load older runs" }).click();
+  await expect(history.getByRole("alert")).toContainText("Retry");
+  fail = false;
+  await history.getByRole("button", { name: "Retry older runs" }).click();
+  await expect(history.locator("tbody tr")).toHaveCount(7);
+  expect(older).toBe(2);
+  const detail = history.getByRole("button", {
+    name: "Details for run #9",
+    exact: true,
+  });
+  await detail.click();
+  const report = page.getByRole("dialog", { name: "Run #9", exact: true });
+  await expect(report).toContainText("No test results were recorded.");
+  await page.keyboard.press("Escape");
+  await expect(report).toHaveCount(0);
+  await expect(detail).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(history).toHaveCount(0);
+  await expect(open).toBeFocused();
+  await page.goto("/");
+  const homeMetrics = new HomePage(page).results;
+  const home = homeMetrics.root;
+  await expect(home).toContainText("Incomplete");
+  await expect(homeMetrics.value("pass-rate")).toContainText("—");
+  await expect(home).not.toContainText("100%");
+});
+test("mobile and desktop results fit the viewport and failures remain prominent", async ({
+  page,
+}) => {
+  await page.route("**/api/test-history**", (r) =>
+    r.fulfill({ json: feed([varied(3, "failed")]) }),
   );
   await page.goto("/tests");
-  await expect(page.getByRole("alert")).toBeVisible();
-  await expect(
-    page.getByText("No verified runs yet.", { exact: true }),
-  ).toHaveCount(0);
+  await expect(page.getByText("1 failed", { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Show run history" }).click();
+  const dialog = page.getByRole("dialog");
+  expect(
+    await dialog.evaluate(
+      (e) => e.getBoundingClientRect().width <= window.innerWidth,
+    ),
+  ).toBe(true);
 });

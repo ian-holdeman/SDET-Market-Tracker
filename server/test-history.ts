@@ -65,10 +65,31 @@ export function decodeArtifact(data: Uint8Array) {
   if (!files["telemetry.json"]) throw Error("Missing telemetry");
   return validateEvidence(JSON.parse(strFromU8(files["telemetry.json"])));
 }
+export function historyCursor(value?: string) {
+  if (!value)
+    return { anchor: new Date().toISOString(), page: 1, index: 0, attempt: 0 };
+  const [anchor, page, index, attempt, extra] = value.split("~");
+  if (
+    extra !== undefined ||
+    !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(anchor) ||
+    !Number.isFinite(Date.parse(anchor)) ||
+    ![page, index, attempt].every((v) => /^\d+$/.test(v)) ||
+    +page < 1 ||
+    +page > 200 ||
+    +index > 4 ||
+    +attempt > 10000
+  )
+    throw Error("Invalid history cursor");
+  return { anchor, page: +page, index: +index, attempt: +attempt };
+}
 export async function fetchHistory(
   config: HistoryConfig,
   request: typeof fetch = fetch,
+  cursor?: string,
 ): Promise<TelemetryFeed> {
+  const position = historyCursor(cursor);
+  const encode = (page: number, index = 0, attempt = 0) =>
+    `${position.anchor}~${page}~${index}~${attempt}`;
   const base = `https://api.github.com/repos/${config.repository}`;
   const signal = AbortSignal.timeout(25000);
   const headers = {
@@ -86,22 +107,23 @@ export async function fetchHistory(
     return JSON.parse(strFromU8(await bytes(response)));
   }
   const listing = await json(
-    `/actions/workflows/playwright.yml/runs?branch=${encodeURIComponent(config.branch)}&per_page=20`,
+    `/actions/workflows/playwright.yml/runs?branch=${encodeURIComponent(config.branch)}&per_page=5&page=${position.page}&created=${encodeURIComponent("<=" + position.anchor)}`,
   );
   if (!Array.isArray(listing.workflow_runs))
     throw Error("Invalid GitHub run list");
-  const trusted = listing.workflow_runs
-    .filter(
-      (r: any) =>
-        r.head_branch === config.branch &&
-        ["push", "workflow_dispatch"].includes(r.event) &&
-        r.head_repository?.full_name === config.repository &&
-        r.path === ".github/workflows/playwright.yml",
-    )
-    .slice(0, 5);
+  const trusted = listing.workflow_runs.filter(
+    (r: any) =>
+      r.head_branch === config.branch &&
+      ["push", "workflow_dispatch"].includes(r.event) &&
+      r.head_repository?.full_name === config.repository &&
+      r.path === ".github/workflows/playwright.yml",
+  );
   const runs: PublishedRun[] = [];
-  // Each run retains its current and immediately preceding attempt; independent runs remain ordered by creation.
-  for (const head of trusted) {
+  // Page attempts independently, preserving older reruns without unbounded responses.
+  let nextCursor: string | null = null;
+  let historyLimited = false;
+  outer: for (let index = position.index; index < trusted.length; index++) {
+    const head = trusted[index];
     if (
       !Number.isSafeInteger(head.id) ||
       head.id <= 0 ||
@@ -111,8 +133,11 @@ export async function fetchHistory(
       throw Error("Invalid GitHub identity");
     let artifacts: any[] | undefined;
     for (
-      let attempt = head.run_attempt;
-      attempt >= Math.max(1, head.run_attempt - 1);
+      let attempt =
+        index === position.index && position.attempt
+          ? Math.min(position.attempt, head.run_attempt)
+          : head.run_attempt;
+      attempt >= 1;
       attempt--
     ) {
       const r =
@@ -214,7 +239,21 @@ export async function fetchHistory(
         evidence,
         evidenceState,
       });
+      if (runs.length === 5) {
+        if (attempt > 1) nextCursor = encode(position.page, index, attempt - 1);
+        else if (index + 1 < trusted.length)
+          nextCursor = encode(position.page, index + 1);
+        else if (listing.workflow_runs.length === 5 && position.page < 200)
+          nextCursor = encode(position.page + 1);
+        else
+          historyLimited = position.page === 200 && listing.total_count > 1000;
+        break outer;
+      }
     }
+  }
+  if (runs.length < 5 && listing.workflow_runs.length === 5) {
+    if (position.page < 200) nextCursor = encode(position.page + 1);
+    else historyLimited = listing.total_count > 1000;
   }
   return validateFeed({
     version: 1,
@@ -222,6 +261,8 @@ export async function fetchHistory(
     fetchedAt: new Date().toISOString(),
     stale: false,
     runs: orderRuns(runs),
+    nextCursor,
+    historyLimited,
   });
 }
 export function historyRouter(
@@ -229,38 +270,65 @@ export function historyRouter(
   load = fetchHistory,
 ) {
   const router = Router();
-  let cached: TelemetryFeed | undefined;
-  let next = 0;
-  let pending: Promise<TelemetryFeed> | undefined;
-  const empty = (): TelemetryFeed => ({
-    version: 1,
-    configured: false,
-    fetchedAt: new Date().toISOString(),
-    stale: false,
-    runs: [],
-  });
-  router.get("/api/test-history", async (_req, res) => {
+  const cache = new Map<
+    string,
+    { cached?: TelemetryFeed; next: number; pending?: Promise<void> }
+  >();
+  router.get("/api/test-history", async (req, res) => {
     res.set("Cache-Control", "no-store");
-    if (!config) return res.json(empty());
+    let cursor: string | undefined;
     try {
-      if (Date.now() >= next) {
-        pending ??= load(config)
+      if (
+        Object.keys(req.query).some((k) => k !== "cursor") ||
+        (req.query.cursor !== undefined && typeof req.query.cursor !== "string")
+      )
+        throw Error();
+      cursor = req.query.cursor as string | undefined;
+      if (cursor !== undefined && !cursor.length) throw Error();
+      historyCursor(cursor);
+    } catch {
+      return res.status(400).json({ error: "Invalid history page." });
+    }
+    if (!config)
+      return res.json({
+        version: 1,
+        configured: false,
+        fetchedAt: new Date().toISOString(),
+        stale: false,
+        runs: [],
+        nextCursor: null,
+      });
+    const key = cursor || "latest";
+    if (!cache.has(key)) {
+      if (cache.size >= 100) {
+        const available = [...cache].find(([, v]) => !v.pending);
+        if (!available)
+          return res
+            .status(429)
+            .json({ error: "History is busy. Retry shortly." });
+        cache.delete(available[0]);
+      }
+      cache.set(key, { next: 0 });
+    }
+    const entry = cache.get(key)!;
+    try {
+      if (Date.now() >= entry.next) {
+        entry.pending ??= load(config, fetch, cursor)
           .then((result) => {
-            cached = validateFeed(result);
-            return cached;
+            entry.cached = validateFeed(result);
           })
           .finally(() => {
-            pending = undefined;
-            next = Date.now() + 60000;
+            entry.pending = undefined;
+            entry.next = Date.now() + 60000;
           });
-        await pending;
+        await entry.pending;
       }
-      if (!cached) throw Error();
-      return res.json(cached);
+      if (!entry.cached) throw Error();
+      return res.json(entry.cached);
     } catch {
-      if (cached) {
-        cached = { ...cached, stale: true };
-        return res.json(cached);
+      if (entry.cached) {
+        entry.cached = { ...entry.cached, stale: true };
+        return res.json(entry.cached);
       }
       return res
         .status(502)

@@ -1,89 +1,94 @@
 import React, { useState } from "react";
-import { Terminal, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Terminal } from "lucide-react";
 import { useTestHistory } from "../services/testRunsService";
-import { summarize } from "../telemetry/contract";
-import { RunReport } from "./the-tests/TestingDashboardPlus";
+import {
+  runLabel,
+  usableResults,
+  latestNotice,
+} from "../telemetry/presentation";
+import {
+  Metrics,
+  StatusBadge,
+  Exceptions,
+  RunReport,
+} from "./the-tests/RunPresentation";
 export const TestSnapshotCard: React.FC<{ onExploreTests: () => void }> = ({
   onExploreTests,
 }) => {
   const { feed, loading, error } = useTestHistory();
-  const [open, setOpen] = useState(false);
   const run = feed?.runs[0];
-  const summary = run?.evidence ? summarize(run.evidence) : null;
+  const [open, setOpen] = useState(false);
   return (
     <>
       <div
         id="sdet-test-snapshot-card"
-        className="relative w-full bg-[#0F141E] border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl shadow-black/40 flex flex-col justify-between gap-4"
+        data-testid="test-snapshot"
+        className="relative w-full bg-[#0F141E] border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl shadow-black/40 overflow-hidden group hover:border-slate-700/80 transition-all duration-300 flex flex-col justify-between gap-5"
       >
-        <div className="flex justify-between items-center gap-3 pb-4 border-b border-slate-800/80">
-          <h3 className="text-base sm:text-lg font-bold text-white flex gap-2">
-            <Terminal className="w-5 h-5 text-emerald-400" />
-            Latest Test Run
-          </h3>
-          <button
-            id="snapshot-view-tests-btn"
-            aria-label="The Tests Card"
-            onClick={onExploreTests}
-            className="text-emerald-300 text-sm flex gap-1"
-          >
-            The Tests
-            <ArrowUpRight className="w-4 h-4" />
-          </button>
-        </div>
+        <div className="absolute -top-10 -left-10 w-36 h-36 bg-emerald-600/10 blur-2xl pointer-events-none" />
+        <button
+          id="snapshot-view-tests-btn"
+          aria-label="The Tests Card"
+          onClick={onExploreTests}
+          className="absolute top-0 right-0 z-10 pt-4 pr-5 pb-4 pl-10 flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-300 hover:text-white transition-colors group/corner"
+        >
+          <span className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(16,185,129,0.30)_0%,_rgba(20,184,166,0.14)_35%,_rgba(15,20,30,0)_70%)] group-hover/corner:bg-[radial-gradient(ellipse_at_top_right,_rgba(16,185,129,0.48)_0%,_rgba(20,184,166,0.22)_45%,_rgba(15,20,30,0)_75%)] -z-10" />
+          The Tests
+          <ArrowUpRight
+            aria-hidden="true"
+            className="relative z-10 w-4 h-4 text-emerald-400 group-hover/corner:text-white group-hover/corner:translate-x-0.5 group-hover/corner:-translate-y-0.5 transition-transform motion-reduce:transform-none"
+          />
+        </button>
+        <header className="pb-4 pr-24 sm:pr-28 border-b border-slate-800/80 flex items-center gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950 border border-slate-700/70 flex items-center justify-center shadow-inner shrink-0">
+              <Terminal className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+            </div>
+            <h3 className="text-base sm:text-lg lg:text-2xl font-bold text-white tracking-tight truncate whitespace-nowrap">
+              Latest Test Run
+            </h3>
+          </div>
+        </header>
         {loading && (
           <p role="status" className="text-sm text-slate-400">
-            Loading verified test history…
+            Loading results…
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-amber-400">
+          <p role="alert" className="text-sm text-amber-300">
             {error}
           </p>
         )}
-        {!run && !loading && !error && (
+        {!loading && !error && !run && (
           <p role="status" className="text-sm text-slate-400">
             No verified runs yet.
           </p>
         )}
         {run && (
           <>
-            <div className="grid grid-cols-2 gap-3.5 flex-1">
-              {[
-                [
-                  "Clean pass rate",
-                  summary?.passRate == null ? "—" : summary.passRate + "%",
-                ],
-                ["Collected tests", summary?.total ?? "—"],
-                [
-                  "Flaky / failed",
-                  summary ? `${summary.flaky} / ${summary.failed}` : "—",
-                ],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="bg-[#131926]/80 border border-slate-800/80 rounded-xl p-4"
-                >
-                  <span className="text-xs text-slate-400">{label}</span>
-                  <div className="text-2xl font-black text-white font-mono mt-2">
-                    {value}
-                  </div>
-                </div>
-              ))}
+            <Metrics run={run} compact snapshot />
+            <Exceptions run={run} />
+            {!usableResults(run) && (
+              <p className="text-sm text-amber-300">{latestNotice(run)}</p>
+            )}
+            <footer className="pt-3 border-t border-slate-800/70 flex justify-between items-center text-xs">
+              <div className="flex items-center gap-2.5">
+                <StatusBadge run={run} />
+                <span className="font-mono text-slate-400">
+                  Run {runLabel(run)}
+                </span>
+              </div>
               <button
                 id="test-card-report-box"
-                onClick={() => setOpen(true)}
-                className="bg-[#131926]/80 border border-slate-800/80 rounded-xl p-4 text-sm text-blue-400"
+                onClick={(event) => {
+                  event.currentTarget.focus();
+                  setOpen(true);
+                }}
+                className="text-blue-300 hover:underline min-h-9"
               >
-                View evidence
+                View Report
               </button>
-            </div>
-            <p
-              className={`text-xs font-mono ${run.status === "passed" ? "text-emerald-400" : "text-amber-400"}`}
-            >
-              #{run.number}.{run.attempt} · {run.status} ·{" "}
-              {run.commitSha.slice(0, 7)}
-            </p>
+            </footer>
           </>
         )}
       </div>

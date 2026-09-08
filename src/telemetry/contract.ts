@@ -201,6 +201,8 @@ export type PublishedRun = {
   evidenceState: "available" | "missing" | "invalid" | "expired" | "pending";
 };
 export type TelemetryFeed = {
+  nextCursor?: string | null;
+  historyLimited?: boolean;
   version: 1;
   configured: boolean;
   fetchedAt: string;
@@ -232,6 +234,16 @@ export function validateFeed(raw: any): TelemetryFeed {
     typeof raw.stale !== "boolean" ||
     !Array.isArray(raw.runs) ||
     raw.runs.length > 20
+  )
+    fail();
+  if (
+    raw.nextCursor != null &&
+    (typeof raw.nextCursor !== "string" || raw.nextCursor.length > 150)
+  )
+    fail();
+  if (
+    raw.historyLimited !== undefined &&
+    typeof raw.historyLimited !== "boolean"
   )
     fail();
   const keys = new Set<string>();
@@ -298,6 +310,8 @@ export function validateFeed(raw: any): TelemetryFeed {
   return {
     version: 1,
     configured: raw.configured,
+    nextCursor: raw.nextCursor ?? null,
+    historyLimited: raw.historyLimited ?? false,
     fetchedAt: date(raw.fetchedAt),
     stale: raw.stale,
     runs: orderRuns(runs),
