@@ -317,7 +317,7 @@ BoardTableRow.displayName = 'BoardTableRow';
 
 export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSelectStock }) => {
   const { 
-    stocks, curationError,
+    stocks, curationError, feedMode,
     latencyMs,
     lastSyncTime,
     totalTicks,
@@ -791,7 +791,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           <div className="flex items-center space-x-2.5">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <div>
-              <span className="font-bold text-rose-300">Connection Interrupted: </span>
+              <span className="font-bold text-rose-300">{feedMode === 'synced_rest' ? 'Partial Market Update: ' : 'Connection Interrupted: '}</span>
               <span className="text-slate-300">
                 {errorMessage || 'Market update unavailable.'}
               </span>

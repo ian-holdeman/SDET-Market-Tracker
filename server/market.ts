@@ -18,11 +18,15 @@ function assetType(meta: any) {
   return ({ ETF: 'ETF', EQUITY: 'Stock', INDEX: 'Index', CRYPTOCURRENCY: 'Crypto', FUTURE: 'Commodity', MUTUALFUND: 'Mutual Fund' })[meta.instrumentType ?? meta.quoteType] ?? null;
 }
 // Required identity, timestamp and price are fail-closed. Optional malformed metrics become null.
-export function validateChart(body: any, symbol: string, now = Date.now()) {
+function chartResult(body: any, symbol: string) {
   const result = body?.chart?.result;
   if (body?.chart?.error || !Array.isArray(result) || result.length !== 1) throw new Error('Invalid chart envelope');
   const c = result[0];
   if (c?.meta?.symbol !== providerSymbol(symbol)) throw new Error('Provider symbol mismatch');
+  return c;
+}
+export function validateChart(body: any, symbol: string, now = Date.now()) {
+  const c = chartResult(body, symbol);
   const timestamp = c.timestamp;
   const close = c.indicators?.quote?.[0]?.close;
   if (!Array.isArray(timestamp) || !Array.isArray(close) || timestamp.length !== close.length || timestamp.length > 20000) throw new Error('Invalid candle arrays');
@@ -59,6 +63,14 @@ export function normalizeQuote(c: any, symbol: string, rich: any = {}, now = Dat
     sparkline: c.indicators.quote[0].close.filter(finite).slice(-28),
     asOf: new Date(m.regularMarketTime * 1000).toISOString(), fetchedAt: new Date(now).toISOString(), session: 'regular', source: 'Yahoo Finance',
   };
+}
+/** Quote metadata remains usable when a closed session has no chart samples. */
+export function validateQuoteResponse(body: unknown, symbol: string, now = Date.now()) {
+  const c = chartResult(body, symbol);
+  let close: number[] = [];
+  try { close = validateChart(body, symbol, now).indicators.quote[0].close.filter(finite); }
+  catch { /* Optional chart data stays unavailable; quote identity/price/time are still required. */ }
+  return normalizeQuote({ meta: c.meta, indicators: { quote: [{ close }] } }, symbol, {}, now);
 }
 export function normalizeCandles(c: any, symbol: string, timeframe: string, now = Date.now()) {
   const q = c.indicators.quote[0];
@@ -151,8 +163,8 @@ export function marketRouter(fetcher: typeof fetch = fetch, clock = Date.now) {
       while (index < symbols.length) {
         const i = index++, symbol = symbols[i];
         try { results[i] = await cached(`q:${symbol}`, async () => {
-          const c = await chart(symbol, '1D', signal);
-          return normalizeQuote(c, symbol, {}, clock());
+          const body = await yahoo(`/v8/finance/chart/${encodeURIComponent(providerSymbol(symbol))}?range=1d&interval=5m&includePrePost=true`, signal);
+          return validateQuoteResponse(body, symbol, clock());
         }); } catch { results[i] = null; }
       }
     }));

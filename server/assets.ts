@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { serverSupabase } from './account';
-import { normalizeQuote, providerSymbol, validateChart } from './market';
+import { providerSymbol, validateQuoteResponse } from './market';
 
 /** A quote must match the requested identity and pass the same checks as displayed data. */
 export async function validateAsset(symbol: string, request: typeof fetch = fetch) {
@@ -10,7 +10,7 @@ export async function validateAsset(symbol: string, request: typeof fetch = fetc
     try {
       const response = await request(`https://${host}/v8/finance/chart/${encodeURIComponent(providerSymbol(symbol))}?range=5d&interval=1d`, { signal });
       if (!response.ok) throw new Error('Provider unavailable or symbol not found');
-      normalizeQuote(validateChart(await response.json(), symbol), symbol);
+      validateQuoteResponse(await response.json(), symbol);
       return;
     } catch (error) { lastError = error; }
   }

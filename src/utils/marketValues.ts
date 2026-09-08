@@ -26,7 +26,7 @@ export function applyQuote(stock: BoardStock, quote: any): BoardStock {
 }
 export function priceLabel(value: unknown, currency?: string | null, assetType?: string): string {
   if (!finite(value) || Math.abs(value) < 10000 || assetType === 'Bond Yield') return fullPriceLabel(value, currency, assetType);
-  const options: Intl.NumberFormatOptions = { notation: 'compact', maximumFractionDigits: 1 };
+  const options: Intl.NumberFormatOptions = { notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 1 };
   if (currency) { options.style = 'currency'; options.currency = currency; }
   try { return new Intl.NumberFormat('en-US', options).format(value); }
   catch { return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value); }

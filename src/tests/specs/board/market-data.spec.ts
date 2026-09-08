@@ -100,3 +100,14 @@ test('six compact metrics work for a searched asset without registration', async
   await expect(page.locator('#card-1y-change-zztest')).toContainText('+25.00%');
   expect(requests.filter(s=>s==='ZZTEST')).toHaveLength(1);
 });
+
+test('a partial batch is described as a partial update rather than a lost connection', async ({ page }) => {
+  const asOf = new Date().toISOString();
+  await page.route('https://supabase.example.invalid/**', r => r.fulfill({ json: [{ symbol: 'AAPL' }, { symbol: 'MSFT' }] }));
+  await page.route('**/api/quotes?**', r => r.fulfill({ json: { quotes: [{ symbol: 'AAPL', price: 101, change: 1, changePercent: 1, prevClose: 100, open: null, dayHigh: null, dayLow: null, volume: 0, asOf, fetchedAt: asOf, currency: 'USD', assetType: 'Stock', sparkline: [] }], unavailable: ['MSFT'], status: 'partial' } }));
+  await page.goto('/board');
+  await expect(page.locator('#board-row-aapl')).toHaveAttribute('data-market-status', 'available');
+  await expect(page.locator('#board-row-msft')).toHaveAttribute('data-market-status', 'unavailable');
+  await expect(page.locator('#board-offline-alert')).toContainText('Partial Market Update:');
+  await expect(page.locator('#board-offline-alert')).not.toContainText('Connection Interrupted');
+});

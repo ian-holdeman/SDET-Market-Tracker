@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import express from 'express';
-import { marketRouter, validateChart, normalizeQuote, normalizeCandles, providerSymbol, changeFrom } from '../../server/market';
+import { marketRouter, validateQuoteResponse, validateChart, normalizeQuote, normalizeCandles, providerSymbol, changeFrom } from '../../server/market';
 import { applyQuote, emptyStock, fixed, priceLabel, fullPriceLabel, rangePriceLabel } from '../../src/utils/marketValues';
 const now = Date.parse('2026-07-01T16:00:00Z');
 function fixture(symbol = 'SPY') {
@@ -106,4 +106,26 @@ test('client cache preserves observation time and explicitly labels failed refre
     assert.equal(first?.stale, false); // Error metadata must not mutate the cached successful response.
     assert.equal(await fetchProxyCandles('SPY', '1Y'), null); // Never substitute daily history for a failed annual request.
   } finally { globalThis.fetch = realFetch; Date.now = realNow; }
+});
+
+test('quote metadata survives missing or malformed optional candles, but chart and identity checks remain strict', async () => {
+  const body: any = fixture('^GDAXI');
+  delete body.chart.result[0].timestamp;
+  body.chart.result[0].indicators = { quote: [{}] };
+  const quote = validateQuoteResponse(body, '^GDAXI', now);
+  assert.equal(quote.price, 110); assert.deepEqual(quote.sparkline, []);
+  assert.throws(() => validateChart(body, '^GDAXI', now));
+  assert.throws(() => validateQuoteResponse(body, 'SPY', now));
+  body.chart.result[0].meta.regularMarketPrice = null;
+  assert.throws(() => validateQuoteResponse(body, '^GDAXI', now));
+  const malformed: any = fixture(); malformed.chart.result[0].timestamp.reverse();
+  assert.deepEqual(validateQuoteResponse(malformed, 'SPY', now).sparkline, []);
+  const app = express().use(marketRouter(async () => Response.json({ chart: { result: [{ meta: { symbol: '^GDAXI', regularMarketPrice: 110, regularMarketTime: now / 1000 } }] } }), () => now));
+  const server = app.listen(0, '127.0.0.1'); await new Promise<void>(resolve => server.once('listening', resolve));
+  try {
+    const base = 'http://127.0.0.1:' + (server.address() as any).port;
+    const response = await fetch(base + '/api/quotes?symbols=%5EGDAXI');
+    assert.equal(response.status, 200); assert.equal((await response.json()).quotes[0].price, 110);
+    assert.equal((await fetch(base + '/api/candles?symbol=%5EGDAXI')).status, 502);
+  } finally { server.closeAllConnections(); await new Promise<void>(r => server.close(() => r())); }
 });
