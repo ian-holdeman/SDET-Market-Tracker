@@ -36,8 +36,12 @@ export const Footer: React.FC<FooterProps> = ({
               {onOpenPrivacy && (
                 <button
                   id="footer-privacy-link"
-                  onClick={onOpenPrivacy}
-                  className="hover:text-blue-300 transition-colors cursor-pointer"
+                  onClick={event => {
+                    // Safari does not focus buttons on pointer activation.
+                    event.currentTarget.focus({ preventScroll: true });
+                    onOpenPrivacy();
+                  }}
+                  className="rounded hover:text-blue-300 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-blue-400"
                 >
                   Privacy
                 </button>

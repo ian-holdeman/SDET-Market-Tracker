@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import dotenv from 'dotenv';
 import { configuredAccountRouter } from './server/account';
+import { configureSecurity, safeRequestErrors } from './server/security';
 
 dotenv.config({ path: ['.env.local', '.env'], quiet: true });
 
@@ -20,7 +21,8 @@ async function startServer() {
     throw new Error('PORT must be an integer between 1 and 65535.');
   }
 
-  app.use(express.json());
+  configureSecurity(app, process.env.VITE_SUPABASE_URL, process.argv.includes('--development'));
+  app.use(express.json({ limit: '16kb' }));
   const history = historyConfig(process.env);
   if(history){
     const directory=path.resolve(process.env.TEST_SNAPSHOT_DIRECTORY || '.telemetry/snapshots');
@@ -45,6 +47,7 @@ async function startServer() {
   app.all('/api/*', (_req, res) => {
     res.status(404).json({ error: 'API route not found' });
   });
+  app.use(safeRequestErrors);
 
   // Vite middleware for development
   if (process.argv.includes('--development')) {

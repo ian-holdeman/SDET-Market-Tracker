@@ -22,7 +22,7 @@ export function readSupabaseConfig(env: Record<string, string | undefined>) {
 export function safeReturnPath(value: string | null): string {
   if (!value || !/^\/(?:$|\?|#|board(?:[/?#]|$)|tests(?:[?#]|$)|logic(?:[?#]|$)|settings(?:[?#]|$))/.test(value) || /[\\\r\n]/.test(value)) return '/';
   const parsed = new URL(value, 'https://app.invalid');
-  if (parsed.origin !== 'https://app.invalid' || !/^\/(?:$|board(?:\/|$)|tests$|logic$|settings$)/.test(parsed.pathname)) return '/';
+  if (parsed.origin !== 'https://app.invalid' || !/^\/(?:$|board(?:\/|$)|tests$|logic$|privacy$|settings$)/.test(parsed.pathname)) return '/';
   // OAuth returns to the Board overview, never to an expanded asset or scroll anchor.
   if (parsed.pathname === '/board' || parsed.pathname.startsWith('/board/')) return '/board';
   return parsed.pathname + parsed.search + parsed.hash;

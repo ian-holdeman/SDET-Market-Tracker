@@ -18,6 +18,7 @@ export const AuthModal: React.FC = () => {
         <Shield className="mb-4 h-8 w-8 text-blue-400" />
         <h2 id="auth-heading" className="text-xl font-bold">Sign In</h2>
         <p className="my-4 text-sm text-slate-400">Save your personal watchlist with Google. You can browse the Board, Tests, and Logic without an account.</p>
+        <p className="mb-4 text-xs"><a href="/privacy" target="_blank" rel="noreferrer" className="rounded text-blue-300 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-blue-400">Privacy &amp; Data Notice</a></p>
         {error && <p role="alert" id="auth-error-message" className="mb-4 rounded-lg border border-rose-800 p-3 text-sm text-rose-300">{error}</p>}
         <button id="auth-submit-btn" onClick={() => void login()} disabled={loading}
           className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50">

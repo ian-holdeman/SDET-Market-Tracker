@@ -35,6 +35,17 @@ test('production starts outside the project root and serves only public artifact
   assert.equal((await (await fetch(`${base}/api/health`)).json()).status, 'ok');
   const page = await fetch(`${base}/board?symbol=NVDA`);
   assert.equal(page.status, 200);
+  assert.equal(page.headers.get('referrer-policy'), 'no-referrer');
+  assert.equal(page.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(page.headers.get('x-powered-by'), null);
+  assert.match(page.headers.get('content-security-policy') ?? '', /frame-ancestors 'none'/);
+  const malformed = await fetch(`${base}/api/assets/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"synthetic-private-input":' });
+  assert.equal(malformed.status, 400);
+  assert.equal(malformed.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await malformed.json(), { error: 'Invalid request body.' });
+  const oversized = await fetch(`${base}/api/assets/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: 'x'.repeat(17000) }) });
+  assert.equal(oversized.status, 413);
+  assert.deepEqual(await oversized.json(), { error: 'Request body too large.' });
   const html = await page.text();
   assert.match(html, /<div id="root">/);
   const asset = html.match(/src="(\/assets\/[^" ]+\.js)"/)?.[1];

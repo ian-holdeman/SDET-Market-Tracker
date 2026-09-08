@@ -68,7 +68,12 @@ export default defineConfig({
   webServer: {
     command: 'npm start',
     url: `${env.BASE_URL}/api/health`,
-    env: { PORT: new URL(env.BASE_URL).port || '3100' },
+    env: {
+      PORT: new URL(env.BASE_URL).port || '3100',
+      VITE_SUPABASE_URL: 'https://supabase.example.invalid',
+      // Browser fixtures intercept trusted operations. Never inherit real server credentials.
+      SUPABASE_URL: '', SUPABASE_SECRET_KEY: '', VITE_AUTH_REDIRECT_URL: '',
+    },
     reuseExistingServer: false,
     timeout: 120 * 1000,
   },

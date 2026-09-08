@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { fulfillShowcaseMarket } from '../../fixtures/showcase-market';
 import { test, expect } from '../../fixtures/showcase-test';
+import { HeaderComponent } from '../../pages/components/header.component';
 
 const id = '44444444-4444-4444-8444-444444444444';
 const identity = { id, aud: 'authenticated', role: 'authenticated', email: 'browser@example.invalid',
@@ -209,3 +210,21 @@ for (const boardUrl of ['/board?symbol=AAPL', '/board/AAPL#chart']) {
     await expect(page.locator('#board-watchlist-count-badge')).toContainText('1');
   });
 }
+
+test('confirmed sign-out removes orphaned OAuth storage without clearing unrelated site data', async ({ page }) => {
+  const header = new HeaderComponent(page);
+  await mockApp(page, true);
+  await page.goto('/board');
+  await expect(header.username).toHaveText('Test Member');
+  await page.evaluate(() => {
+    localStorage.setItem('imt_supabase_auth-flow-0123456789abcdef-code-verifier', 'synthetic-orphan');
+    localStorage.setItem('unrelated-preference', 'keep');
+    sessionStorage.setItem('imt_oauth_return', '/board');
+  });
+  await header.profileButton.click();
+  await header.logoutButton.click();
+  await expect(header.loginButton).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('imt_supabase_auth-flow-0123456789abcdef-code-verifier'))).toBeNull();
+  expect(await page.evaluate(() => sessionStorage.getItem('imt_oauth_return'))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('unrelated-preference'))).toBe('keep');
+});

@@ -2,6 +2,7 @@ import type { User } from '@supabase/supabase-js';
 import type { UserProfile } from '../types';
 import { getSupabase, getAuthConfig } from '../lib/supabase';
 import { safeReturnPath } from '../lib/supabaseConfig';
+import { clearLocalAuthState } from '../utils/authStorage';
 export type { UserProfile };
 
 const RETURN_KEY = 'imt_oauth_return';
@@ -90,8 +91,6 @@ export async function deleteUserAccount() {
     throw new Error(body?.error || 'Account deletion was not confirmed. Please try again.');
   }
   // Delete persisted state first, so local SDK sign-out cannot depend on a remote logout response.
-  localStorage.removeItem('imt_supabase_auth');
-  localStorage.removeItem('imt_supabase_auth-code-verifier');
-  localStorage.removeItem('imt_active_user_session');
+  clearLocalAuthState();
   try { await client.auth.signOut({ scope: 'local' }); } catch { /* Auth deletion already succeeded. */ }
 }

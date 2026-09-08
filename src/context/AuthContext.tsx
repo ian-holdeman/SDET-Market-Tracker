@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { type UserProfile, signInWithGoogle, completeOAuth, loadProfile, changeWatchlist, deleteUserAccount } from '../services/authService';
 import { getSupabase } from '../lib/supabase';
+import { clearLocalAuthState } from '../utils/authStorage';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -89,6 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error: signOutError } = await getSupabase().auth.signOut({ scope: 'local' });
       if (signOutError) throw signOutError;
+      clearLocalAuthState();
       ++generation.current; setUser(null); setError(null);
     } catch { setError('Sign-out was not confirmed. Please try again.'); setIsAuthModalOpen(true); }
   };

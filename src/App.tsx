@@ -11,6 +11,7 @@ import { UserSettings } from './components/UserSettings';
 import { Footer } from './components/Footer';
 import { ContactModal } from './components/ContactModal';
 import { PrivacyModal } from './components/PrivacyModal';
+import { PrivacyPage } from './components/PrivacyNotice';
 import { PagePlaceholder } from './components/PagePlaceholder';
 import { AuthModal } from './components/AuthModal';
 import { AuthProvider } from './context/AuthContext';
@@ -140,6 +141,8 @@ function AppContent() {
               <TheTests />
             ) : currentPage === 'logic' ? (
               <TheLogic onNavigate={handleNavigate} />
+            ) : currentPage === 'privacy' ? (
+              <PrivacyPage />
             ) : currentPage === 'settings' ? (
               <UserSettings onNavigate={handleNavigate} />
             ) : (

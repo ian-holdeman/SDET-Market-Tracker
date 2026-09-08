@@ -32,8 +32,8 @@ For both features, preserve visitor access and use real, attributable evidence. 
 
 ## Overall
 
-- Next feature: finalize the Privacy modal and review application security and data handling. Scope collection, storage, providers, deletion, retention and applicable obligations before implementation. See [privacy/security preparation](privacy-security.md).
-- Data inventory prepared: [identified processing and minimization candidates](data-inventory.md). Review automatic font/logo requests, Auth/session cleanup and hosting/provider retention before finalizing the notice; documentation is not remediation or compliance certification.
+- Privacy/security: public notice copy owner-approved; local modal/direct-page implementation, local fonts, Auth cleanup and response-header controls are implemented and locally verified, awaiting owner review of the assembled feature. See [scope, evidence and launch requirements](privacy-security.md). This does not establish hosted readiness or legal certification.
+- Maintain the [data inventory](data-inventory.md) with processing changes. Existing direct Parqet logo delivery is retained by owner decision pending provider permission. Hosting/provider retention and production OAuth verification remain launch requirements.
 - Revise the Contact modal.
 - Revise the Settings draft.
 - Determine hosting solution: choose application hosting, database/Auth arrangement and private snapshot durability within the owner's budget. Selection does not authorize provisioning.
@@ -44,6 +44,7 @@ For both features, preserve visitor access and use real, attributable evidence. 
 These are known considerations, not additions to the owner's feature priority order:
 
 - Hosting selection and production verification are explicit todos above. Include exact OAuth URLs, configuration boundaries, provider access rights and costs in their acceptance criteria.
+- Investigate retry synchronization in the pipeline unavailable/invalid-evidence browser case; it produced a retry-only pass during privacy verification. Keep this separate from privacy feature acceptance.
 - Reassess distributed limits if deploying multiple instances. Extend the U.S. trading calendar before its current 2026–2028 coverage expires.
 - Existing duplicate MU/SNDK logo cases and bundle-size warnings need scoped attention. Reassess dependency advisories with a current audit instead of treating old audit counts as current.
 - Independent market-data reconciliation, corporate-action policy and load testing remain gaps; present their limits honestly.

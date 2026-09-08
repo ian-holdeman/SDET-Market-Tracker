@@ -20,6 +20,7 @@ export function parseRouteFromLocation(): RouteState {
   }
 
   const pathname = window.location.pathname.toLowerCase();
+  if (pathname === '/privacy' || pathname === '/privacy/') return { page: 'privacy' };
   const searchParams = new URLSearchParams(window.location.search);
   const paramSymbol = searchParams.get('symbol') || searchParams.get('ticker') || searchParams.get('s');
 
@@ -55,6 +56,7 @@ export function parseRouteFromLocation(): RouteState {
  */
 export function formatUrlForRoute(page: PageView, symbol?: string): string {
   switch (page) {
+    case 'privacy': return '/privacy';
     case 'board':
       if (symbol) {
         return `/board?symbol=${encodeURIComponent(symbol.toUpperCase())}`;

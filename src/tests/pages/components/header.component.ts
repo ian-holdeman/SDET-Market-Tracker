@@ -8,6 +8,10 @@ export class HeaderComponent {
   readonly navLogicBtn: Locator;
   readonly boardActivity: Locator;
   readonly testsActivity: Locator;
+  get profileButton() { return this.page.locator('#header-user-profile-btn'); }
+  get logoutButton() { return this.page.locator('#header-logout-btn'); }
+  get loginButton() { return this.page.getByRole('button', { name: 'Sign In', exact: true }); }
+  get username() { return this.page.locator('#header-username-display'); }
 
   constructor(page: Page) {
     this.page = page;
