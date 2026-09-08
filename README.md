@@ -27,9 +27,9 @@ npm run build
 npm start
 ```
 
-`lint` runs TypeScript checking. The build writes public Vite assets to `dist/client` and the private ESM server to `dist/server`. Only `dist/client` is served. Production paths resolve relative to the server bundle, not the working directory. Runtime deployment needs both directories, package manifests and production dependencies. `npm run preview` also starts the full server; only `npm run dev` enables Vite. Restart development after server changes.
+`lint` checks TypeScript source and syntax of maintained `.mjs` scripts. Generated output is excluded from TypeScript checking. The build writes public Vite assets to `dist/client` and the private ESM server to `dist/server`. Only `dist/client` is served. Production paths resolve relative to the server bundle, not the working directory. Runtime deployment needs both directories, package manifests and production dependencies. `npm run preview` also starts the full server; only `npm run dev` enables Vite. Restart development after server changes.
 
-The server reads `.env.local`, then `.env`, without overriding existing process variables. `PORT` defaults to 3000. `/api/health` checks application availability, not provider availability. No application hosting configuration is committed.
+Outside Cloud Run, the server reads `.env.local`, then `.env`, without overriding existing process variables. Hosted startup reads only supplied environment configuration. `PORT` defaults to 3000. `/api/health` checks application availability, not provider availability. The pinned Dockerfile and `deploy/production.json` prepare the accepted Cloud Run deployment; see [deployment and operation](docs/deployment.md) for approval, release, costs and rollback. Committed configuration does not establish a live deployment.
 
 ## Verification
 

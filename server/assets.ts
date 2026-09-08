@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { serverSupabase } from './account';
 import { providerSymbol, validateQuoteResponse } from './market';
+import { providerJson } from './provider-json';
 
 /** A quote must match the requested identity and pass the same checks as displayed data. */
 export async function validateAsset(symbol: string, request: typeof fetch = fetch) {
@@ -8,9 +9,9 @@ export async function validateAsset(symbol: string, request: typeof fetch = fetc
   let lastError: unknown;
   for (const host of ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']) {
     try {
-      const response = await request(`https://${host}/v8/finance/chart/${encodeURIComponent(providerSymbol(symbol))}?range=5d&interval=1d`, { signal });
+      const response = await request(`https://${host}/v8/finance/chart/${encodeURIComponent(providerSymbol(symbol))}?range=5d&interval=1d`, { signal, redirect: 'error' });
       if (!response.ok) throw new Error('Provider unavailable or symbol not found');
-      validateQuoteResponse(await response.json(), symbol);
+      validateQuoteResponse(await providerJson(response), symbol);
       return;
     } catch (error) { lastError = error; }
   }
@@ -19,6 +20,7 @@ export async function validateAsset(symbol: string, request: typeof fetch = fetc
 
 type Dependencies = {
   verify: (token: string) => Promise<string | null>;
+  claim?: (verifiedUser: string) => Promise<boolean>;
   validate: (symbol: string) => Promise<void>;
   register: (symbol: string) => Promise<void>;
 };
@@ -47,6 +49,11 @@ export function assetRouter(deps: Dependencies | null, origin: string | null) {
       try { user = await deps.verify(token); }
       catch { return res.status(503).json({ error: 'Account verification is unavailable. Your watchlist has not changed.' }); }
       if (!user) return res.status(401).json({ error: 'Your account could not be verified. Sign in again.' });
+      if (deps.claim) {
+        try {
+          if (!await deps.claim(user)) return res.status(429).json({ error: 'Too many symbol validation attempts. Please retry in a minute.' });
+        } catch { return res.status(503).json({ error: 'Asset validation is unavailable. Your watchlist has not changed.' }); }
+      }
       const now = Date.now();
       for (const [key, value] of attempts) if (value.expires <= now) attempts.delete(key);
       const budget = attempts.get(user) ?? { count: 0, expires: now + 60000 };
@@ -69,6 +76,11 @@ export function configuredAssetRouter(env: NodeJS.ProcessEnv) {
   if (!config) return assetRouter(null, null);
   const { client, origin } = config;
   return assetRouter({
+    claim: async verifiedUser => {
+      const {data,error} = await client.rpc('claim_asset_registration', { verified_user: verifiedUser });
+      if (error || typeof data !== 'boolean') throw Error('Registration budget unavailable');
+      return data;
+    },
     verify: async token => {
       const { data, error } = await client.auth.getUser(token);
       if (error && (!error.status || error.status >= 500)) throw error;

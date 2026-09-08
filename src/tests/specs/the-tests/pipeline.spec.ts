@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { HeaderComponent } from '../../pages/components/header.component';
 import { PipelineComponent } from '../../pages/components/pipeline.component';
-import { pipelineFixture } from '../../fixtures/pipeline';
+import { pipelineFixture, pipelineBrowserEvidence } from '../../fixtures/pipeline';
 import { feed } from '../../fixtures/testEvidence';
 test.beforeEach(async({page})=>{
   await page.route('https://supabase.example.invalid/**',route=>route.fulfill({json:[]}));
@@ -17,7 +17,7 @@ test('historical overview and replay preserve real overlap with accessible deskt
   await expect(view.job('database')).toContainText('1m 43s');
   await expect(view.position).toHaveValue('273000');
   await expect(view.job('test')).toContainText('Succeeded');
-  await expect(view.root.getByRole('link',{name:'View run #25 on GitHub'})).toHaveAttribute('href',/runs\/34213740343\/attempts\/1$/);
+  await expect(view.root.getByRole('link',{name:'View run #30 on GitHub'})).toHaveAttribute('href',/runs\/34259098175\/attempts\/1$/);
   await view.replay.focus();await page.keyboard.press('Enter');
   await page.clock.runFor(1000);
   await view.pause.click();
@@ -46,12 +46,22 @@ test('reduced motion keeps the overview and permits manual keyboard exploration'
   await expect(view.job('test')).toContainText('Not started');
 });
 test('unavailable and invalid evidence never falls back to successful replay',async({page})=>{
+  const now = Date.now();
+  await page.clock.install({time:now});
   let mode='missing';
-  await page.route('**/api/test-pipeline',route=>mode==='missing'?route.fulfill({status:404,json:{}}):route.fulfill({json:mode==='invalid'?{...pipelineFixture(),attempt:2}:pipelineFixture()}));
+  await page.route('**/api/test-pipeline',route=>mode==='missing'?route.fulfill({status:404,json:{}}):route.fulfill({json:mode==='invalid'?{...pipelineFixture(now),attempt:2}:pipelineFixture(now)}));
   const view=new PipelineComponent(page);await page.goto('/tests');
   await expect(view.retry).toBeVisible();await expect(view.position).toHaveCount(0);
-  mode='invalid';await view.retry.click();await expect(view.retry).toBeVisible();await expect(view.position).toHaveCount(0);
-  mode='valid';await view.retry.click();await expect(view.replay).toBeVisible();
+  mode='invalid';
+  const invalidResponse = page.waitForResponse(response => response.url().endsWith('/api/test-pipeline') && response.status() === 200);
+  await view.retry.click();
+  expect((await (await invalidResponse).json()).attempt).toBe(2);
+  await expect(view.retry).toBeVisible();await expect(view.position).toHaveCount(0);
+  mode='valid';
+  const validResponse = page.waitForResponse(response => response.url().endsWith('/api/test-pipeline') && response.status() === 200);
+  await view.retry.click();
+  expect((await (await validResponse).json()).attempt).toBe(1);
+  await expect(view.replay).toBeVisible();
 });
 test('expired verification removes the replay when the source disappears',async({page})=>{
   await page.clock.install();let failed=false;
@@ -155,6 +165,26 @@ test('browser results follow replay, pause and keyboard seeking without noisy li
   await view.position.press('End');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await view.results.screenshot({path:testInfo.outputPath('browser-results.png')});
+});
+
+test('an archived run remains historical months later and disappears after revocation', async ({page}) => {
+  const published = Date.parse('2026-09-08T12:00:00Z'), now = published + 180 * 86400000;
+  await page.clock.install({time:now});
+  let revoked = false;
+  await page.route('**/api/test-pipeline', route => revoked ? route.fulfill({status:410,json:{}}) : route.fulfill({json:{
+    ...pipelineFixture(now), source:'archive', archivePublishedAt:new Date(published).toISOString(), browserEvidence:pipelineBrowserEvidence(),
+  }}));
+  const view = new PipelineComponent(page);
+  await page.goto('/tests');
+  await expect(view.root).toContainText('Archived historical run #30');
+  await expect(view.root).toContainText('Sep 8, 2026');
+  await expect(view.replay).toBeVisible();
+  await view.root.getByText('About this pipeline', {exact:true}).click();
+  await expect(view.root).toContainText('this does not verify current CI or production correctness');
+  revoked = true;
+  await page.clock.runFor(61000);
+  await expect(view.retry).toBeVisible();
+  await expect(view.position).toHaveCount(0);
 });
 
 test('missing browser artifact leaves job timing usable without a successful counter',async({page})=>{

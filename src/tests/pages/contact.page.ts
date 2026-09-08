@@ -9,6 +9,7 @@ export class ContactPage {
   get close() { return this.dialog.getByRole('button', { name: 'Close Get in Touch', exact: true }); }
   get footerClose() { return this.dialog.getByRole('button', { name: 'Close', exact: true }); }
   get copy() { return this.dialog.getByRole('button', { name: 'Copy email to clipboard' }); }
+  get copyStatus() { return this.dialog.getByRole('status'); }
   async open() { await this.opener.click(); }
 }
 

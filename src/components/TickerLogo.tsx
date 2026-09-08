@@ -365,28 +365,11 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({
           </svg>
         );
 
-      case 'MU':
-        return (
-          <svg className="w-full h-full p-1" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="24" rx="4" fill="#003366" />
-            <path d="M4 17V8.5L8 14L12 8.5V17" stroke="#0072CE" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="17.5" cy="14" r="2.5" fill="#00A3E0" />
-          </svg>
-        );
-
       case 'MRVL':
         return (
           <svg className="w-full h-full p-1" viewBox="0 0 24 24" fill="none">
             <rect width="24" height="24" rx="4" fill="#0C2340" />
             <path d="M4 18L10 6L14 14L16 10L20 18" stroke="#E31837" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        );
-
-      case 'SNDK':
-        return (
-          <svg className="w-full h-full p-1" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="24" rx="4" fill="#D01923" />
-            <text x="12" y="16.5" textAnchor="middle" fill="#FFFFFF" fontSize="13" fontWeight="900" fontFamily="system-ui, sans-serif" letterSpacing="-1">SD</text>
           </svg>
         );
 

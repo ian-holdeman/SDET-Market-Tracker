@@ -41,6 +41,17 @@ test('real local Auth and REST enforce registered watchlist ownership and idempo
   assert.ok((await user.from('assets').insert({ symbol })).error);
   assert.equal((await save()).status, 200);
   assert.equal((await save()).status, 200);
+  // A fresh router models a second revision/instance with an independent local limiter.
+  const secondApp = express().use(express.json()).use(configuredAssetRouter({ SUPABASE_URL: status.API_URL, SUPABASE_SECRET_KEY: status.SECRET_KEY, VITE_AUTH_REDIRECT_URL: 'http://localhost:3000/auth/callback' }));
+  const secondServer = secondApp.listen(0, '127.0.0.1');
+  await new Promise<void>(resolve => secondServer.once('listening', resolve));
+  t.after(() => { secondServer.closeAllConnections(); secondServer.close(); });
+  const secondUrl = `http://127.0.0.1:${(secondServer.address() as {port:number}).port}/api/assets/register`;
+  const concurrent = await Promise.all(Array.from({length: 10}, (_, index) => fetch(index % 2 ? url : secondUrl, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${login.data.session!.access_token}` }, body: JSON.stringify({symbol}),
+  })));
+  assert.equal(concurrent.filter(response => response.status === 200).length, 8);
+  assert.equal(concurrent.filter(response => response.status === 429).length, 2);
   assert.equal((await user.from('watchlist_items').insert({ user_id: id, symbol })).error, null);
   assert.ok((await user.from('watchlist_items').insert({ user_id: '22222222-2222-4222-8222-222222222222', symbol })).error);
   assert.ok((await user.from('curated_assets').insert({ symbol })).error);

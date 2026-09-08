@@ -36,10 +36,10 @@ Keep one source of truth per concern: AGENTS.md for engineering and design stand
 
 ## Environment and evidence boundaries
 
-The tracked setup targets a local Supabase stack and a Node server. No application hosting configuration is committed. Verify ignored local configuration and the intended project before any environment-dependent work; a Google Cloud OAuth project is not a Supabase project. Google setup and the owner-reported manual round trip are documented in the account guide. Do not duplicate credentials here.
+The tracked local setup uses Supabase and Node; production packaging targets Cloud Run with private Cloud Storage and the separately configured Supabase Free project. See [deployment and operation](deployment.md). Hosted provisioning and verification remain separate. Verify ignored local configuration and the intended project before any environment-dependent work; a Google Cloud OAuth project is not a Supabase project. Google setup and the owner-reported manual round trip are documented in the account guide. Do not duplicate credentials here.
 
 During the preceding implementation work, local offline/browser checks, database/Auth integration checks, and read-only GitHub retrieval were exercised. The owner reported successful real Google sign-in, watchlist persistence and deletion/re-login behavior. These observations are not a permanent green baseline or proof of hosted durability. Rerun affected checks for new changes and inspect actual GitHub runs before claiming publication for a particular commit.
 
-Local snapshots survive a Node restart. Hosting them on an ephemeral filesystem will not provide durable cold-start data; a private persistent volume or a future durable-store implementation is required. Per-process caches and rate limits are not distributed protections. Market licensing, independent reconciliation, privacy wording and hosting readiness remain separate concerns.
+Cloud Run uses conditional private Cloud Storage snapshots and an independently published historical archive. Local file snapshots remain available for one process. Registration has a shared database budget; public market caches and concurrency limits remain per process. The private Finnhub comparison has limited, explicit coverage; provider rights and hosted verification remain separate concerns.
 
 Use [README](../README.md) for setup and [the roadmap](roadmap.md) for next work. Do not turn future ideas into implementation without a scoped task.

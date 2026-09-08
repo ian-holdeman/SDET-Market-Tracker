@@ -35,6 +35,34 @@ async function serve(t: any, router: any) {
   );
 }
 const fresh = () => ({ ...feed(), fetchedAt: new Date().toISOString() });
+
+test('snapshot storage starts only within an active request', async () => {
+  let reads = 0;
+  snapshotHistoryRouter(config,{read:async()=>{reads++;return null;},beginRefresh:async()=>async()=>{}},async()=>fresh(),Date.now,{requestScoped:true});
+  assert.equal(reads,0,'Creating a Cloud Run router must not start background storage work');
+});
+
+test('request-scoped refresh holds the response until persistence completes', async (t) => {
+  const store = await fixture(t);
+  let finishWrite!: () => void;
+  let writing!: () => void;
+  const writeStarted = new Promise<void>(resolve => { writing = resolve; });
+  const writeGate = new Promise<void>(resolve => { finishWrite = resolve; });
+  const original = store.write.bind(store);
+  store.write = async (value, generation) => { writing(); await writeGate; await original(value, generation); };
+  let response: express.Response | undefined;
+  const wrapper = express.Router().use((_req, res, next) => { response = res; next(); });
+  wrapper.use((snapshotHistoryRouter as any)(config, store, async () => fresh(), Date.now, { requestScoped: true }));
+  const url = await serve(t, wrapper);
+  const request = fetch(url);
+  await writeStarted;
+  try {
+    assert.equal(response?.writableEnded, false, 'CPU must remain allocated while the required write is pending');
+  } finally { finishWrite(); await request; }
+  const body = await (await request).json();
+  assert.equal(body.refreshing, false);
+  assert.deepEqual((await store.read())?.runs, body.runs);
+});
 test("snapshots validate scope/schema/size, strip extras and replace atomically in generation order", async (t) => {
   const store = await fixture(t);
   assert.equal(await store.read(), null);

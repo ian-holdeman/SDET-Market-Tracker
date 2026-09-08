@@ -1,13 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validatePipeline, pipelineWindow, jobAt, advanceReplay, selectedPipeline } from '../../src/telemetry/pipeline';
-import { fetchPipeline, pipelineRouter } from '../../server/test-pipeline';
+import { fetchPipeline, pipelineRouter, loadPipelineWithArchive } from '../../server/test-pipeline';
 import express from 'express';
 
 const now = Date.parse('2026-09-08T12:00:00Z');
 const config = { repository: 'ian-holdeman/SDET-Market-Tracker', branch: 'main', token: 'fixture-only' };
+test('corrupt archive cannot erase independently verified live job timing', async () => {
+  const live = await fixture();
+  const result = await loadPipelineWithArchive(config,{read:async()=>{throw Error('corrupt');}},async()=>live);
+  assert.deepEqual(result.jobs,live.jobs);
+  assert.equal(result.browserEvidence,null);
+  await assert.rejects(loadPipelineWithArchive(config,{read:async()=>null},async()=>{throw Error('source unavailable');}));
+});
 function raw() {
-  const run = { id: selectedPipeline.runId, run_number: 25, run_attempt: 1, workflow_id: 348891072,
+  const run = { id: selectedPipeline.runId, run_number: selectedPipeline.number, run_attempt: 1, workflow_id: 348891072,
     path: '.github/workflows/playwright.yml', head_branch: 'main', head_sha: String(selectedPipeline.commit),
     repository: { full_name: config.repository }, head_repository: { full_name: config.repository },
     event: 'push', status: 'completed', conclusion: 'success', run_started_at: '2026-09-08T10:07:17Z' };

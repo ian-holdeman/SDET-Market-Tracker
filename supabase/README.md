@@ -274,3 +274,9 @@ References:
 ### Board OAuth regression contract
 
 OAuth normalizes every allowed Board return route to `/board` both when saving and consuming the destination. Signing out from an expanded card must not reopen it after login. Ordinary direct asset links remain supported outside OAuth. Browser regressions cover query/path destinations and populated watchlists.
+
+### Production launch isolation
+
+The selected Free project is `ynopzjdajsrdjdcsmzqb` in West US (Oregon). Its creation does not establish migrations, OAuth or application readiness. Disable the owner-enabled GitHub integration **Deploy to production** before pushing the release: local config/fixtures must not automatically deploy to hosted data. Apply reviewed migrations explicitly and use `supabase/production/catalog.sql` once for the 88 shared symbols/curated memberships. It contains no identities, roles, watchlists or prices; repeated execution deliberately restores curation and is not routine deployment behavior.
+
+Keep local `.env.local` and local retained accounts unchanged. Store hosted configuration separately and never run fixture resets against it. Provision the real owner UUID only through the trusted procedure above. The registration-budget migration is additive, service-role-only and cascades on identity deletion. Free inactivity recovery, owner-managed backup/restoration, compatible migrations and key rotation are described in [deployment and operation](../docs/deployment.md).

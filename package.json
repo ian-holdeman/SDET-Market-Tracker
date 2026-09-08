@@ -15,7 +15,7 @@
     "preview": "npm start",
     "clean": "node scripts/clean.mjs",
     "test:baseline": "tsx --test scripts/tests/*.test.ts",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && node scripts/check-script-syntax.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ingest": "tsx scripts/ingest-test-results.ts",
     "test:e2e:ui": "playwright test --ui",
@@ -26,11 +26,14 @@
     "build:e2e": "node scripts/build-browser-tests.mjs",
     "test:market:live": "tsx scripts/check-market-provider.ts",
     "test:market:coverage": "tsx scripts/check-market-coverage.ts",
+    "test:market:compare": "tsx scripts/check-market-comparison.ts",
     "test:pipeline:live": "tsx scripts/check-pipeline.ts",
+    "archive": "tsx scripts/publish-archive.ts",
     "record:showcase": "node scripts/capture-showcase.mjs",
     "record:showcase:prepare": "tsx scripts/prepare-showcase.ts"
   },
   "dependencies": {
+    "@google-cloud/storage": "8.1.0",
     "@supabase/supabase-js": "2.116.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
@@ -56,6 +59,7 @@
     "vite": "^6.2.3"
   },
   "overrides": {
-    "qs": "6.16.0"
+    "qs": "6.16.0",
+    "gaxios": { "uuid": "11.1.1" }
   }
 }

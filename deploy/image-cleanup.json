@@ -1,0 +1,5 @@
+[
+  {"name":"old-images","action":{"type":"Delete"},"condition":{"tagState":"any","olderThan":"1209600s"}},
+  {"name":"recent-images","action":{"type":"Keep"},"mostRecentVersions":{"keepCount":3}},
+  {"name":"protected-release","action":{"type":"Keep"},"condition":{"tagState":"tagged","tagPrefixes":["current","rollback"]}}
+]

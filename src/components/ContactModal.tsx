@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Dialog } from './Dialog';
 import { Mail, FileText, HelpCircle, Check, Copy, ExternalLink, Briefcase, Sparkles } from 'lucide-react';
 
@@ -8,13 +8,39 @@ interface ContactModalProps {
 }
 
 export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'pending' | 'copied' | 'failed'>('idle');
+  const generation = useRef(0);
+  const copying = useRef(false);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const email = 'ianrholdeman@gmail.com';
 
-  const handleCopyEmail = () => {
-    navigator.clipboard.writeText(email);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  useEffect(() => {
+    setCopyState('idle');
+    copying.current = false;
+    return () => {
+      generation.current++;
+      copying.current = false;
+      clearTimeout(feedbackTimer.current);
+    };
+  }, [isOpen]);
+
+  const handleCopyEmail = async () => {
+    if (copying.current) return;
+    copying.current = true;
+    const attempt = ++generation.current;
+    clearTimeout(feedbackTimer.current);
+    setCopyState('pending');
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(email);
+      if (generation.current !== attempt) return;
+      setCopyState('copied');
+      feedbackTimer.current = setTimeout(() => setCopyState('idle'), 2000);
+    } catch {
+      if (generation.current === attempt) setCopyState('failed');
+    } finally {
+      if (generation.current === attempt) copying.current = false;
+    }
   };
 
   if (!isOpen) return null;
@@ -45,12 +71,16 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                 </a>
                 <button
                   onClick={handleCopyEmail}
+                  disabled={copyState === 'pending'}
                   title="Copy email to clipboard" aria-label="Copy email to clipboard"
                   className="p-2 rounded-lg bg-surface-800/80 hover:bg-surface-700 text-ink-secondary hover:text-ink-heading text-xs border border-line-strong transition-colors cursor-pointer"
                 >
-                  {copied ? <Check className="w-4 h-4 text-positive-ink-400" /> : <Copy className="w-4 h-4" />}
+                  {copyState === 'copied' ? <Check className="w-4 h-4 text-positive-ink-400" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
+              <p role="status" className={copyState === 'failed' ? 'text-xs text-warning-ink-400' : 'sr-only'}>
+                {copyState === 'copied' ? 'Email copied.' : copyState === 'failed' ? 'Could not copy. Select the email address to copy it manually.' : ''}
+              </p>
             </div>
 
             {/* 2. Full-Time SDET Hiring */}

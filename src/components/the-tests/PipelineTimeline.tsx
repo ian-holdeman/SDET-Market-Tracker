@@ -29,7 +29,7 @@ function Replay({data}:{data:Pipeline}) {
   const toggle=()=>{if(finished)setElapsed(0);setPlaying(!playing);};
   return <>
     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-ink-muted">
-      <p>Historical run #{data.number} · {new Date(data.startedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})} (UTC)</p>
+      <p>{data.source === 'archive' ? 'Archived historical run' : 'Historical run'} #{data.number} · {new Date(data.startedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})} (UTC)</p>
       <a className="inline-flex items-center gap-1 text-positive-ink-400 hover:underline focus-visible:outline-focus-positive" href={data.url} target="_blank" rel="noreferrer">View run #{data.number} on GitHub <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /></a>
     </div>
     <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
@@ -76,7 +76,7 @@ function Replay({data}:{data:Pipeline}) {
         <p><strong className="text-ink-secondary">Browser & offline:</strong> {descriptions.test} Runs directly on a GitHub Ubuntu runner.</p>
         <p><strong className="text-ink-secondary">Database & Auth:</strong> {descriptions.database} Runs on a separate GitHub Ubuntu runner.</p>
         <p>GitHub attempt {data.attempt}. Durations include setup and cleanup; job success does not mean every step ran. Current results are in the dashboard above.</p>
-        <p>Browser results use sanitized case evidence and actual completion times. Offline, database, and Auth checks are represented by job summaries. Provider calls in browser tests are mocked.</p><p>Historical replay only. Source availability is rechecked every minute.</p>
+        <p>Browser results use sanitized case evidence and actual completion times. Offline, database, and Auth checks are represented by job summaries. Provider calls in browser tests are mocked.</p><p>{data.source === 'archive' ? 'Independently retained historical evidence. Archive availability is rechecked every minute; this does not verify current CI or production correctness.' : 'Historical replay only. Source availability is rechecked every minute.'}</p>
       </div>
     </details>
   </>;

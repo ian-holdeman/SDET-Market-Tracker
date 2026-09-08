@@ -37,6 +37,18 @@ export async function fetchPipeline(config: HistoryConfig, request: typeof fetch
   return validatePipeline({version:1,...selected,url:pipelineUrl,startedAt:run.run_started_at,outcome:run.conclusion,
     checkedAt:new Date(now).toISOString(),expiresAt:new Date(now+60000).toISOString(),jobs,browserEvidence},now);
 }
+export async function loadPipelineWithArchive(config:HistoryConfig, archive:{read():Promise<Pipeline|null>}|null, load=fetchPipeline):Promise<Pipeline> {
+  let live:Pipeline|undefined;
+  try { live = await load(config); if (live.browserEvidence) return live; } catch { /* independent archive may remain available */ }
+  if (archive) {
+    try {
+      const historical = await archive.read();
+      if (historical) return historical;
+    } catch { console.warn('Archived pipeline evidence unavailable.'); }
+  }
+  if (live) return live;
+  throw Error('Pipeline evidence unavailable');
+}
 export function pipelineRouter(config: HistoryConfig|null, load=fetchPipeline, clock=Date.now) {
   const router=Router();let value: Pipeline|null=null,next=0,pending: Promise<void>|null=null;
   router.get('/api/test-pipeline',async(_req,res)=>{

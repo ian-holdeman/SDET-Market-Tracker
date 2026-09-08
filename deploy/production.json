@@ -1,0 +1,22 @@
+{
+  "projectId": "sdet-market-tracker",
+  "projectNumber": "855618435389",
+  "region": "us-west1",
+  "service": "sdet-market-tracker",
+  "origin": "https://sdet-market-tracker-855618435389.us-west1.run.app",
+  "supabaseUrl": "https://ynopzjdajsrdjdcsmzqb.supabase.co",
+  "registry": "us-west1-docker.pkg.dev/sdet-market-tracker/sdet-market-tracker/app",
+  "runtimeIdentity": "sdet-runtime@sdet-market-tracker.iam.gserviceaccount.com",
+  "deploymentIdentity": "sdet-deploy@sdet-market-tracker.iam.gserviceaccount.com",
+  "publicationIdentity": "sdet-archive@sdet-market-tracker.iam.gserviceaccount.com",
+  "snapshotBucket": "sdet-market-tracker-855618435389-snapshots",
+  "archiveBucket": "sdet-market-tracker-855618435389-archives",
+  "supabaseSecret": "sdet-supabase-secret",
+  "historySecret": "sdet-github-history",
+  "cpu": "1",
+  "memory": "1Gi",
+  "concurrency": 16,
+  "minimumInstances": 0,
+  "maximumInstances": 2,
+  "requestTimeoutSeconds": 30
+}

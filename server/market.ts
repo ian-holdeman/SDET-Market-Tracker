@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { providerJson } from './provider-json';
 import { chartSession } from '../src/utils/chartSession';
 
 export const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -132,11 +133,9 @@ export function marketRouter(fetcher: typeof fetch = fetch, clock = Date.now) {
   async function yahoo(path: string, signal: AbortSignal) {
     for (const host of ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']) {
       try {
-        const response = await fetcher(`https://${host}${path}`, { signal, headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' } });
+        const response = await fetcher(`https://${host}${path}`, { signal, redirect: 'error', headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' } });
         if (!response.ok) throw new Error('Provider HTTP failure');
-        const raw = await response.text();
-        if (raw.length > 5_000_000) throw new Error('Provider response too large');
-        return JSON.parse(raw);
+        return await providerJson(response);
       } catch { if (signal.aborted) break; }
     }
     throw new Error('Market provider unavailable');
@@ -197,7 +196,7 @@ export function marketRouter(fetcher: typeof fetch = fetch, clock = Date.now) {
     try {
       const results = await cached(`s:${q.trim().toUpperCase()}`, async () => {
         const body = await yahoo(`/v1/finance/search?q=${encodeURIComponent(q.trim())}&quotesCount=6&newsCount=0`, AbortSignal.timeout(12000));
-        if (!Array.isArray(body?.quotes)) throw new Error('Invalid search response');
+        if (!body || typeof body !== 'object' || !('quotes' in body) || !Array.isArray(body.quotes)) throw new Error('Invalid search response');
         return body.quotes.flatMap((item: any) => {
           try { return [{ symbol: symbolInput(item.symbol), name: text(item.longname) ?? text(item.shortname) ?? item.symbol, exchange: text(item.exchDisp), assetType: assetType(item) }]; } catch { return []; }
         }).slice(0, 6);

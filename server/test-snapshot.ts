@@ -1,10 +1,55 @@
-import { mkdir, open, readFile, rename, unlink } from "node:fs/promises";
+import { mkdir, open, rename, unlink } from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { Router } from "express";
 import { validateFeed, type TelemetryFeed } from "../src/telemetry/contract";
 import { fetchHistory, type HistoryConfig } from "./test-history";
+import type { ObjectStore } from './object-store';
 const MAX_BYTES = 4_000_000;
+type Scope = Pick<HistoryConfig, 'repository' | 'branch'>;
+export interface SnapshotStore {
+  read(): Promise<TelemetryFeed | null>;
+  beginRefresh(): Promise<(feed: TelemetryFeed) => Promise<void>>;
+}
+function checkedFeed(raw: unknown, scope: Scope) {
+  const feed = validateFeed(raw);
+  if (!feed.configured || feed.stale || Date.parse(feed.fetchedAt) > Date.now() + 60000) throw Error('Invalid snapshot');
+  for (const run of feed.runs) {
+    if (run.branch !== scope.branch || new URL(run.url).pathname !== `/${scope.repository}/actions/runs/${run.id}/attempts/${run.attempt}`) throw Error('Snapshot scope mismatch');
+  }
+  return { ...feed, refreshing: false, snapshot: false };
+}
+function encodeSnapshot(feed: TelemetryFeed, scope: Scope) {
+  const bytes = Buffer.from(JSON.stringify({ version: 1, ...scope, feed: checkedFeed(feed, scope) }));
+  if (bytes.length > MAX_BYTES) throw Error('Snapshot exceeds storage limit');
+  return bytes;
+}
+function decodeSnapshot(bytes: Buffer, scope: Scope) {
+  if (bytes.length > MAX_BYTES) throw Error('Snapshot exceeds storage limit');
+  const value = JSON.parse(bytes.toString('utf8'));
+  if (value.version !== 1 || value.repository !== scope.repository || value.branch !== scope.branch) throw Error('Invalid snapshot scope/version');
+  const feed = checkedFeed(value.feed, scope);
+  return Date.now() - Date.parse(feed.fetchedAt) > 90 * 86400000 ? null : feed;
+}
+
+export class CloudSnapshotStore implements SnapshotStore {
+  readonly name: string;
+  constructor(private readonly objects: ObjectStore, private readonly scope: Scope) {
+    this.name = `snapshots/${createHash('sha256').update(JSON.stringify(scope)).digest('hex')}.json`;
+  }
+  async read() {
+    try {
+      const object = await this.objects.read(this.name, MAX_BYTES);
+      return object ? decodeSnapshot(object.bytes, this.scope) : null;
+    } catch { console.warn('Saved test history unavailable.'); return null; }
+  }
+  async beginRefresh() {
+    // Capture the storage generation BEFORE contacting the upstream. No retry with
+    // a newer generation: that could restore evidence removed by a newer writer.
+    const before = await this.objects.read(this.name, MAX_BYTES);
+    return async (feed: TelemetryFeed) => this.objects.put(this.name, encodeSnapshot(feed, this.scope), before?.generation ?? '0');
+  }
+}
 /** Single-writer local store. A mounted persistent volume is required on ephemeral hosts. */
 export class TestSnapshotStore {
   readonly file: string;
@@ -19,6 +64,10 @@ export class TestSnapshotStore {
       createHash("sha256").update(JSON.stringify(scope)).digest("hex") +
         ".json",
     );
+  }
+  async beginRefresh() {
+    const generation = ++this.sequence;
+    return async (feed: TelemetryFeed) => { await this.write(feed, generation); };
   }
   private checked(raw: unknown) {
     const feed = validateFeed(raw);
@@ -96,9 +145,10 @@ export class TestSnapshotStore {
 }
 export function snapshotHistoryRouter(
   config: HistoryConfig,
-  store: TestSnapshotStore,
+  store: SnapshotStore,
   load = fetchHistory,
   clock = Date.now,
+  options: { requestScoped?: boolean } = {},
 ) {
   const router = Router();
   let value: TelemetryFeed | null = null,
@@ -107,18 +157,22 @@ export function snapshotHistoryRouter(
     failed = false,
     generation = 0;
   const reports: Parameters<typeof fetchHistory>[3] = new Map();
-  const ready = store.read().then((saved) => {
-    value = saved ? { ...saved, snapshot: true } : null;
-  });
+  let ready: Promise<void> | null = null;
   router.get("/api/test-history", async (req, res, nextRoute) => {
     // Older pages and malformed query strings retain the existing route's validation.
     if (Object.keys(req.query).length) return nextRoute();
     res.set("Cache-Control", "no-store");
-    await ready;
+    await (ready ??= store.read().then(saved => {
+      value = saved ? { ...saved, snapshot: true } : null;
+    }).catch(() => { console.warn('Saved test history unavailable.'); }));
     if (!pending && clock() >= next) {
       const ticket = ++generation;
       pending = (async () => {
         try {
+          // A storage failure must not prevent useful live retrieval, but cannot
+          // be reported as successful persistence.
+          let persist: ((feed: TelemetryFeed) => Promise<void>) | null = null;
+          try { persist = await store.beginRefresh(); } catch { console.warn('Snapshot persistence unavailable.'); }
           const fresh = validateFeed(
             await load(config, fetch, undefined, reports),
           );
@@ -128,7 +182,7 @@ export function snapshotHistoryRouter(
           value = { ...fresh, snapshot: false, refreshing: false };
           failed = false;
           try {
-            await store.write(fresh, ticket);
+            if (persist) await persist(fresh);
           } catch {
             console.warn(
               "Test snapshot persistence unavailable; serving validated memory results.",
@@ -142,6 +196,9 @@ export function snapshotHistoryRouter(
         }
       })();
     }
+    // Request-based Cloud Run CPU is not guaranteed after res.end(). Keep the
+    // initiating (and coalesced) request active through validation and persistence.
+    if (options.requestScoped && pending) await pending;
     if (!value && failed)
       return res
         .status(502)

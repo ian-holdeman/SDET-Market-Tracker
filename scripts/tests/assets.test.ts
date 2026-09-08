@@ -3,6 +3,24 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { assetRouter, validateAsset } from '../../server/assets';
 
+test('registration honors a shared account budget before provider or catalog operations', async t => {
+  const calls: string[] = [];
+  const router = assetRouter({
+    verify: async () => 'verified-owner',
+    claim: async user => { calls.push(user); return false; },
+    validate: async () => { calls.push('provider'); },
+    register: async () => { calls.push('write'); },
+  } as any, 'http://localhost:3000');
+  const server = express().use(express.json()).use(router).listen(0,'127.0.0.1');
+  await new Promise<void>(resolve => server.once('listening',resolve));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const response = await fetch(`http://127.0.0.1:${(server.address() as any).port}/api/assets/register`, {
+    method:'POST',headers:{Authorization:'Bearer fixture', 'Content-Type':'application/json'},body:JSON.stringify({symbol:'AAPL'}),
+  });
+  assert.equal(response.status,429);
+  assert.deepEqual(calls,['verified-owner']);
+});
+
 test('registration verifies the caller, rejects extra privileges, fails closed and bounds attempts', async t => {
   let mode = 'ok'; const writes: string[] = []; const validated: string[] = [];
   const app = express().use(express.json()).use(assetRouter({

@@ -35,3 +35,5 @@ The existing copy-email feedback issue below is deferred from this resume integr
 The copy-email handler currently reports success before its clipboard promise resolves and does not clean up its feedback timer. Cover success, rejected/unavailable clipboard and closure before adding reliable feedback. Email actions must remain user-initiated; tests inspect destinations without sending mail. Do not send emails as part of verification.
 
 Keep this work focused on Contact and the resume. Hosting choice, remote configuration, deployment and production verification remain separate authorized steps. Maintain [roadmap](roadmap.md) and [privacy/security launch requirements](privacy-security.md).
+
+Copy-email feedback waits for successful clipboard completion. Rejection/unavailability permits retry with an accessible failure message; pending requests cannot report success after closure and feedback timers are cleaned up. The resume application URL remains pending until the real Cloud Run origin is confirmed; update only that URL in the canonical editable source and verify all rendered pages plus extracted text before synchronizing both PDFs.

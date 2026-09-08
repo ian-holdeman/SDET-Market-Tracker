@@ -100,11 +100,16 @@ test('unavailable, invalid, and empty catalogs have honest states and remain ret
   await expect(retry).toBeVisible();
   await expect(showcase.root).toContainText('Recordings are unavailable');
   state = 1;
+  const invalidResponse = page.waitForResponse(response => response.url().endsWith('/recordings/manifest.json') && response.status() === 200);
   await retry.click();
+  expect((await (await invalidResponse).json()).recordings[0].src).toBe('https://example.com/video');
   await expect(retry).toBeVisible();
+  await expect(showcase.root).toContainText('Recordings are unavailable');
   await expect(showcase.video).toHaveCount(0);
   state = 2;
+  const emptyResponse = page.waitForResponse(response => response.url().endsWith('/recordings/manifest.json') && response.status() === 200);
   await retry.click();
+  expect((await (await emptyResponse).json()).recordings).toEqual([]);
   await expect(showcase.root).toContainText('This recording is not available yet');
   await expect(retry).toHaveCount(0);
   await showcase.tab('Safe deletion').click();

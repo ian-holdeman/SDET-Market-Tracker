@@ -13,6 +13,10 @@ const sourceRoot = 'https://github.com/ian-holdeman/SDET-Market-Tracker/blob/mai
 
 const evidence = [
   {
+    title: 'Independent quote comparison', path: 'docs/market-comparison.md',
+    text: 'An opt-in private check compares Yahoo and Finnhub quotes for three US stocks within a dated regular session and declared time and price tolerances. Unavailable or unaligned samples are inconclusive. Provider results stay private; this is separate from deterministic CI and does not establish accuracy across assets or historical adjustments.',
+  },
+  {
     title: 'Price calculation tests', path: 'scripts/tests/price-activity.test.ts',
     text: 'Injected prices and dates exercise month-end, weekends, leap days, zero baselines and short histories. These check the calculation rules; they do not independently reconcile Yahoo prices or corporate actions.',
   },
