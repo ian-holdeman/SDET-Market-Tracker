@@ -50,6 +50,8 @@ The offline suite covers server/configuration boundaries, provider validation, f
 
 The Tests showcase separately includes curated, reviewed local recordings in public client assets. Use `npm run record:showcase` to capture the selected browser scenarios; see [recording preparation, review, and playback limits](docs/test-recordings.md). These demonstrations use mocked services and do not establish current CI outcomes.
 
+The separate [parallel pipeline replay](docs/pipeline-replay.md) shows a selected successful run using revalidated GitHub job timing and a sanitized browser-results replay. `npm run test:pipeline:live` performs an opt-in read-only source check using the existing server-only history configuration.
+
 ## Published test history
 
 GitHub Actions runs browser/offline and local database checks in parallel jobs of `.github/workflows/playwright.yml`. Only sanitized test evidence is uploaded, keyed by run ID and workflow attempt. Database-job failure prevents the overall workflow from appearing passed, even if browser tests passed. PR runs execute checks but are not accepted as portfolio telemetry.
@@ -62,7 +64,7 @@ See [telemetry architecture and evidence semantics](docs/test-telemetry.md) for 
 
 ## Project guidance and roadmap
 
-Start new development tasks with [AGENTS.md](AGENTS.md), the [project overview](docs/project-overview.md), and the [owner roadmap](docs/roadmap.md). Keep durable standards in AGENTS.md, implementation details in the domain guides, and planned work in the roadmap.
+Start new development tasks with [AGENTS.md](AGENTS.md), the [project overview](docs/project-overview.md), and the [owner roadmap](docs/roadmap.md). Follow the feature workflow in AGENTS.md: inspect and clarify, agree on scope and a prompt, implement with meaningful tests, validate, review and polish, then record acceptance. Keep durable standards in AGENTS.md, implementation details in the domain guides, and completed or planned scope in the roadmap.
 
 ## Architecture and security references
 

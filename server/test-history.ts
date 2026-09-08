@@ -66,6 +66,90 @@ export function decodeArtifact(data: Uint8Array) {
   if (!files["telemetry.json"]) throw Error("Missing telemetry");
   return validateEvidence(JSON.parse(strFromU8(files["telemetry.json"])));
 }
+export async function readRunArtifact(config: HistoryConfig, head: {id:number;head_sha:string}, attempt:number, artifacts: any[], request:typeof fetch, signal:AbortSignal, reportCache=new Map<string,{until:number;evidence:Evidence}>()) {
+  const base=`https://api.github.com/repos/${config.repository}`;
+  const headers={Authorization:`Bearer ${config.token}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+  let evidence: PublishedRun['evidence']=null;
+  let evidenceState: PublishedRun['evidenceState']='missing';
+        const candidates = artifacts.filter(
+          (a) => a.name === `test-evidence-v1-${head.id}-${attempt}`,
+        );
+        if (candidates.length > 1) evidenceState = "invalid";
+        else if (candidates.length === 1) {
+          const a = candidates[0];
+          if (a.expired) evidenceState = "expired";
+          else if (
+            !Number.isSafeInteger(a.id) ||
+            a.id <= 0 ||
+            a.size_in_bytes > 1_000_000 ||
+            a.workflow_run?.id !== head.id ||
+            a.workflow_run?.head_sha !== head.head_sha ||
+            a.workflow_run?.head_branch !== config.branch
+          )
+            evidenceState = "invalid";
+          else {
+            const reportKey =
+              config.repository + ":" + a.id + ":" + head.head_sha;
+            const remembered = reportCache.get(reportKey);
+            if (
+              remembered &&
+              remembered.until > Date.now() &&
+              remembered.evidence.runId === String(head.id) &&
+              remembered.evidence.runAttempt === attempt
+            ) {
+              evidence = remembered.evidence;
+              evidenceState = "available";
+            } else {
+              const redirect = await request(
+                base + `/actions/artifacts/${a.id}/zip`,
+                { headers, signal, redirect: "manual" },
+              );
+              if (redirect.status !== 302)
+                throw Error("Artifact download unavailable");
+              const destination = new URL(
+                redirect.headers.get("location") || "",
+              );
+              if (
+                destination.protocol !== "https:" ||
+                destination.username ||
+                destination.password ||
+                ![".blob.core.windows.net", ".githubusercontent.com"].some(
+                  (suffix) => destination.hostname.endsWith(suffix),
+                )
+              )
+                throw Error("Untrusted artifact host");
+              // Never forward the GitHub credential to the signed storage URL.
+              const downloaded = await request(destination.href, {
+                signal,
+                redirect: "error",
+              });
+              if (!downloaded.ok) throw Error("Artifact download unavailable");
+              const data = await bytes(downloaded, 1_000_000);
+              try {
+                const parsed = decodeArtifact(data);
+                if (
+                  parsed.environment !== "github-actions" ||
+                  parsed.runId !== String(head.id) ||
+                  parsed.runAttempt !== attempt ||
+                  parsed.commitSha !== head.head_sha
+                )
+                  throw Error();
+                evidence = parsed;
+                evidenceState = "available";
+                if (reportCache.size >= 32)
+                  reportCache.delete(reportCache.keys().next().value!);
+                reportCache.set(reportKey, {
+                  until: Date.now() + 300000,
+                  evidence: parsed,
+                });
+              } catch {
+                evidenceState = "invalid";
+              }
+            }
+          }
+        }
+  return {evidence,evidenceState};
+}
 export function historyCursor(value?: string) {
   if (!value)
     return { anchor: new Date().toISOString(), page: 1, index: 0, attempt: 0 };
@@ -170,83 +254,7 @@ export async function fetchHistory(
             throw Error("Invalid artifact list");
           artifacts = listing.artifacts;
         }
-        const candidates = artifacts!.filter(
-          (a) => a.name === `test-evidence-v1-${head.id}-${attempt}`,
-        );
-        if (candidates.length > 1) evidenceState = "invalid";
-        else if (candidates.length === 1) {
-          const a = candidates[0];
-          if (a.expired) evidenceState = "expired";
-          else if (
-            !Number.isSafeInteger(a.id) ||
-            a.id <= 0 ||
-            a.size_in_bytes > 1_000_000 ||
-            a.workflow_run?.id !== head.id ||
-            a.workflow_run?.head_sha !== head.head_sha ||
-            a.workflow_run?.head_branch !== config.branch
-          )
-            evidenceState = "invalid";
-          else {
-            const reportKey =
-              config.repository + ":" + a.id + ":" + head.head_sha;
-            const remembered = reportCache.get(reportKey);
-            if (
-              remembered &&
-              remembered.until > Date.now() &&
-              remembered.evidence.runId === String(head.id) &&
-              remembered.evidence.runAttempt === attempt
-            ) {
-              evidence = remembered.evidence;
-              evidenceState = "available";
-            } else {
-              const redirect = await request(
-                base + `/actions/artifacts/${a.id}/zip`,
-                { headers, signal, redirect: "manual" },
-              );
-              if (redirect.status !== 302)
-                throw Error("Artifact download unavailable");
-              const destination = new URL(
-                redirect.headers.get("location") || "",
-              );
-              if (
-                destination.protocol !== "https:" ||
-                destination.username ||
-                destination.password ||
-                ![".blob.core.windows.net", ".githubusercontent.com"].some(
-                  (suffix) => destination.hostname.endsWith(suffix),
-                )
-              )
-                throw Error("Untrusted artifact host");
-              // Never forward the GitHub credential to the signed storage URL.
-              const downloaded = await request(destination.href, {
-                signal,
-                redirect: "error",
-              });
-              if (!downloaded.ok) throw Error("Artifact download unavailable");
-              const data = await bytes(downloaded, 1_000_000);
-              try {
-                const parsed = decodeArtifact(data);
-                if (
-                  parsed.environment !== "github-actions" ||
-                  parsed.runId !== String(head.id) ||
-                  parsed.runAttempt !== attempt ||
-                  parsed.commitSha !== head.head_sha
-                )
-                  throw Error();
-                evidence = parsed;
-                evidenceState = "available";
-                if (reportCache.size >= 32)
-                  reportCache.delete(reportCache.keys().next().value!);
-                reportCache.set(reportKey, {
-                  until: Date.now() + 300000,
-                  evidence: parsed,
-                });
-              } catch {
-                evidenceState = "invalid";
-              }
-            }
-          }
-        }
+        ({evidence,evidenceState}=await readRunArtifact(config,head,attempt,artifacts!,request,signal,reportCache));
       }
       runs.push({
         id: String(r.id),

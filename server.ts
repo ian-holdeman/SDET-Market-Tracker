@@ -1,3 +1,4 @@
+import { pipelineRouter } from './server/test-pipeline';
 import { TestSnapshotStore, snapshotHistoryRouter } from './server/test-snapshot';
 import { testActivityRouter } from './server/test-activity';
 import { historyRouter, historyConfig } from './server/test-history';
@@ -28,6 +29,7 @@ async function startServer() {
     app.use(snapshotHistoryRouter(history,new TestSnapshotStore(directory,{repository:history.repository,branch:history.branch})));
   }
   app.use(historyRouter(history));
+  app.use(pipelineRouter(history));
   app.use(testActivityRouter(historyConfig(process.env)));
   app.use(configuredAccountRouter(process.env));
   app.use(configuredAssetRouter(process.env));

@@ -1,0 +1,13 @@
+import dotenv from 'dotenv';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { historyConfig } from '../server/test-history';
+import { fetchPipeline } from '../server/test-pipeline';
+import { pipelineWindow } from '../src/telemetry/pipeline';
+dotenv.config({path:['.env.local','.env'],quiet:true});
+const config=historyConfig(process.env);
+if(!config)throw Error('Configure server-only test history access before verification.');
+const evidence=await fetchPipeline(config);
+mkdirSync('.telemetry/pipeline',{recursive:true});
+writeFileSync('.telemetry/pipeline/verified.json',JSON.stringify(evidence,null,2)+'\n');
+console.log(JSON.stringify({run:evidence.number,attempt:evidence.attempt,url:evidence.url,jobs:evidence.jobs,...pipelineWindow(evidence.jobs)},null,2));
+console.log('Read-only verification saved privately. No CI execution or publication performed.');

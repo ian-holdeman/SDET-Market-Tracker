@@ -1,14 +1,22 @@
 # Recorded test showcase
 
-The Tests page uses one player and four accessible tabs beneath the Automation Dashboard: watchlist re-login, cold-start recovery, history recovery, and safe account deletion. These are curated local executions of existing browser tests. Their selected outcomes are not current CI status. The separate pipeline demonstration remains future work.
+The Tests page uses one player and four accessible tabs beneath the Automation Dashboard: watchlist re-login, cold-start recovery, history recovery, and safe account deletion. These are curated local executions of existing browser tests. Their selected outcomes are not current CI status. The separate [pipeline replay](pipeline-replay.md) uses genuine GitHub job timing rather than browser video.
 
 ## Selection and evidence limits
 
 The watchlist recording uses WebKit with an iPhone 13 viewport; the remaining clips use desktop Chromium. WebKit device emulation is not a physical iPhone. The scenarios and exact test names live in `scripts/showcase-scenarios.mjs`. Browser playback, summaries, readable steps, and limitations live in `src/components/the-tests/RecordedShowcase.tsx` and `showcase.ts`.
 
-All account/provider/history responses are mocked. The browser executes real application code and assertions, but displayed prices, workflow identities, and outcomes inside a clip are fixtures. Capture-only market fixtures supply consistent quotes, charts, and price-activity metrics so the watchlist runs in a populated application. They are synthetic examples, not provider observations. Scenario failures remain intentional. Account deletion uses a synthetic member and cannot delete an actual account. Real Auth/PostgREST registration, RLS, deletion cascades, and recreated-identity isolation belong to the existing local integration suite and the later pipeline feature.
+All account/provider/history responses are mocked. The browser executes real application code and assertions, but displayed prices, workflow identities, and outcomes inside a clip are fixtures. Capture-only market fixtures supply consistent quotes, charts, and price-activity metrics so the watchlist runs in a populated application. They are synthetic examples, not provider observations. Scenario failures remain intentional. Account deletion uses a synthetic member and cannot delete an actual account. Real Auth/PostgREST registration, RLS, deletion cascades, and recreated-identity isolation belong to the existing local integration suite; inclusion in the later pipeline demonstration remains a selection decision.
 
 Clips retain natural speed, loading, and transitions; no sleeps or artificial actions lengthen them. Capture teardown waits for finite page animations and a painted final frame so a passing assertion does not leave the video ending mid-transition. Video duration includes recorder setup/teardown and differs from reported test duration. Visitors may pause, seek, use native fullscreen where available, or choose 0.5×/1×/2× playback. Silent recordings have a readable scenario description and step sequence in **About this test**.
+
+## Capture preparation
+
+Before recording the full lineup, prove one representative clip renders correctly through the real player in desktop Chromium and mobile WebKit. Check decoded dimensions/readiness, on-demand loading, and playback controls; an advancing clock alone is insufficient. This catches codec and delivery incompatibilities before expensive recaptures.
+
+Populate incidental services with coherent test fixtures rather than making every dependency unavailable. Verify that scenario-specific page routes do not shadow the capture fallback: the Auth mock explicitly delegates market requests to the shared capture fixture. Wait for meaningful rendered state and finite transitions, not arbitrary delays. Inspect complete clips and posters for readability as well as private data. A technically passing run can still be a poor demonstration.
+
+Cosmetic changes outside the demonstrated behavior do not require automatic recapture. Keep each recording's actual source provenance intact; regenerate when behavior, fixture assumptions, or explanatory claims materially change.
 
 ## Reproduce and review
 

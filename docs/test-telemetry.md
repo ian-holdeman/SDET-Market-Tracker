@@ -2,6 +2,8 @@
 
 Curated local browser recordings are a separate demonstration feature; see [recording selection, reproduction, and public media policy](test-recordings.md). Their media and outcomes never enter the authoritative GitHub telemetry feed described here.
 
+The separate [parallel pipeline replay](pipeline-replay.md) reads allowlisted job timing and reuses the selected attempt's sanitized browser artifact through `/api/test-pipeline`. It does not extend browser-case artifacts or alter dashboard result semantics.
+
 ## Publication and storage choice
 
 GitHub Actions artifacts are the storage layer: no additional database, write endpoint, CI secrets or paid service is introduced. Small JSON artifacts use the repository's existing Actions storage allowance. The server reads GitHub's workflow metadata and matching sanitized artifacts. Public visitors never call Actions APIs directly and cannot trigger execution.
@@ -88,3 +90,5 @@ GET /api/test-history without a cursor serves the file-backed snapshot immediate
 Home may show previous usable metrics while a newer attempt is incomplete, explicitly labeled with their run number; its footer still identifies the newest attempt and outcome. Skeleton values reserve tile dimensions, and changed values fade for 180 ms only when reduced motion is not requested. First installation with no verified snapshot must still obtain its first result from GitHub.
 
 No hosting is configured. Local files survive a Node restart, but an ephemeral/serverless filesystem may disappear on restart or redeploy. For this implementation, configure a private persistent volume and TEST_SNAPSHOT_DIRECTORY on a single long-running Node instance; do not place it under served assets or commit populated snapshots. Read-only/ephemeral hosting and multi-instance deployment require a durable store with conditional writes before promising restart persistence. No resource or deployment was created. Browser simulations establish presentation behavior; temporary-directory HTTP tests establish local persistence and ordering, not hosted-volume durability.
+
+The Automation Dashboard uses a static bold lightning bolt with two trailing speed lines, distinct from The Tests terminal icon. It is decorative and does not indicate live execution; the heading retains its existing size and spacing.

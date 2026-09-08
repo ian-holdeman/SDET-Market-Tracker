@@ -19,8 +19,16 @@ This project serves two purposes: personal market monitoring and a public portfo
 - Accounts currently enable watchlists. Admin curation is separate from personal data; Google metadata cannot assign roles. See [accounts and authorization](../supabase/README.md).
 - The Board shows six price/activity metrics: previous close, day range, 52-week range, volume, one-month change and one-year change. Google Finance links provide deeper research; inaccessible fundamentals are not estimated. See [market data](market-data.md).
 - Searched assets can be registered through a trusted server path and saved under owner-only RLS. Registration does not curate an asset. See [symbol registration](symbol-registration.md).
-- GitHub is the authority for public test results. Curated local browser recordings provide visual demonstrations, with mocks and provenance disclosed; visitors must not execute tests. See [telemetry](test-telemetry.md) and [recordings](test-recordings.md).
+- GitHub is the authority for public test results. Curated local browser recordings provide visual demonstrations, with mocks and provenance disclosed; a separate historical pipeline replay uses revalidated GitHub job timing and a sanitized browser-results replay. Visitors must not execute tests. See [telemetry](test-telemetry.md) and [recordings](test-recordings.md), and [pipeline replay](pipeline-replay.md).
 - Header dots indicate an in-progress trusted GitHub workflow and scheduled U.S. equity hours, respectively. The market dot excludes crypto and does not establish live prices or absence of halts. See [activity indicators](header-activity.md).
+
+## Working agreement
+
+Use the feature workflow in [AGENTS.md](../AGENTS.md) for each substantial feature. Initial questions and a concrete proposal precede the agreed implementation prompt; accepted work then proceeds through meaningful tests, focused implementation, desktop/mobile review, and owner feedback. Small refinements stay within the accepted scope. This workflow targets production quality without treating local checks as proof of hosted readiness.
+
+Preserve the owner’s stated acceptance milestone and any deferred scope in the roadmap. When scoping explanatory pages, check visible claims against actual code and evidence before drafting copy; describe engineering choices without promising zero defects or instantaneous upstream results.
+
+Keep one source of truth per concern: AGENTS.md for engineering and design standards, domain guides for accepted behavior and reproduction, and the roadmap for completion and unresolved future scope. Update existing guidance rather than accumulating session summaries. Test totals, running processes, browser tabs, and machine-specific temporary paths are not durable project facts.
 
 ## Environment and evidence boundaries
 

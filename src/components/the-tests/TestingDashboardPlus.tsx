@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { RefreshCw, Terminal, ArrowUpRight, AlertTriangle } from "lucide-react";
+import { RefreshCw, ArrowUpRight, AlertTriangle } from "lucide-react";
+import { AutomationMark } from "./AutomationMark";
 import { useTestHistory } from "../../services/testRunsService";
 import type { PublishedRun } from "../../telemetry/contract";
 import {
@@ -36,7 +37,7 @@ export const TestingDashboardPlus: React.FC = () => {
     >
       <header className="px-5 py-5 sm:px-7 flex items-center justify-between gap-3 border-b border-slate-800/80">
         <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2.5">
-          <Terminal className="h-5 w-5 text-emerald-400" />
+          <AutomationMark />
           Automation Dashboard
         </h2>
         <button

@@ -26,6 +26,7 @@
     "build:e2e": "node scripts/build-browser-tests.mjs",
     "test:market:live": "tsx scripts/check-market-provider.ts",
     "test:market:coverage": "tsx scripts/check-market-coverage.ts",
+    "test:pipeline:live": "tsx scripts/check-pipeline.ts",
     "record:showcase": "node scripts/capture-showcase.mjs",
     "record:showcase:prepare": "tsx scripts/prepare-showcase.ts"
   },
