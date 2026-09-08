@@ -1,3 +1,5 @@
+import { TestSnapshotStore, snapshotHistoryRouter } from './server/test-snapshot';
+import { testActivityRouter } from './server/test-activity';
 import { historyRouter, historyConfig } from './server/test-history';
 import { configuredAssetRouter } from './server/assets';
 import { marketRouter } from './server/market';
@@ -18,7 +20,15 @@ async function startServer() {
   }
 
   app.use(express.json());
-  app.use(historyRouter(historyConfig(process.env)));
+  const history = historyConfig(process.env);
+  if(history){
+    const directory=path.resolve(process.env.TEST_SNAPSHOT_DIRECTORY || '.telemetry/snapshots');
+    const publicDirectory=process.argv.includes('--development') ? path.resolve('dist/client') : path.resolve(fileURLToPath(new URL('../client/', import.meta.url)));
+    if(directory===publicDirectory || directory.startsWith(publicDirectory+path.sep))throw Error('TEST_SNAPSHOT_DIRECTORY must be outside public assets.');
+    app.use(snapshotHistoryRouter(history,new TestSnapshotStore(directory,{repository:history.repository,branch:history.branch})));
+  }
+  app.use(historyRouter(history));
+  app.use(testActivityRouter(historyConfig(process.env)));
   app.use(configuredAccountRouter(process.env));
   app.use(configuredAssetRouter(process.env));
 
@@ -38,7 +48,7 @@ async function startServer() {
   if (process.argv.includes('--development')) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { 
+      server: {
         middlewareMode: true,
         hmr: false,
       },

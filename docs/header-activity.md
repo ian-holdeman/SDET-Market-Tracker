@@ -1,0 +1,11 @@
+# Header activity indicators
+
+The Board dot means a scheduled U.S. equity trading session is open, including premarket and after-hours. It is independent of crypto prices and provider connection health. America/New_York time handles daylight saving. The checked-in NYSE calendar covers 2026–2028, including holidays and early closes; unsupported years show no dot until the calendar is updated. Standard sessions are 04:00–09:30, 09:30–16:00 and 16:00–20:00 Eastern; early-close dates use 13:00 and 17:00 closes. This is a session indicator, not exchange halt monitoring, overseas/futures activity or confirmation of individual trades. Unexpected closures and future session changes require calendar updates.
+
+Sources: [NYSE hours](https://www.nyse.com/markets/hours-calendars), [official 2026–2028 calendar](https://ir.theice.com/press/news-details/2025/NYSE-Group-Announces-2026-2027-and-2028-Holiday-and-Early-Closings-Calendar/).
+
+The Tests dot means GitHub reports an in-progress run of the configured trusted workflow/branch/repository. It includes any active workflow run in the first 100 in-progress results, even an older rerun; it does not depend on the latest completed result. Queued runs, PR/fork runs, local execution and missing configuration do not light it. The existing server-only TEST_HISTORY configuration supplies read-only access; no credentials or new execution controls reach the browser.
+
+GET /api/test-activity polls workflow metadata only, without artifact downloads. A 15-second process cache deduplicates callers, including failures. Visible pages check every 15 seconds and on visibility return. Cached active evidence expires after 60 seconds; request failures clear the indicator. Polling may briefly lag starts/stops. Unavailable status stays unlit rather than implying activity. [GitHub workflow API](https://docs.github.com/en/rest/actions/workflow-runs).
+
+Desktop and mobile use the same indicator element factory and accessible descriptions. Reduced-motion users receive a static dot. Header page-object locators scope stable indicator test IDs to the visible navigation buttons. Offline tests cover Eastern-time boundaries, DST, weekends/holidays/early closes, trusted run classification and cache failure behavior; browser tests cover active-to-idle/error transitions and weekend closure.

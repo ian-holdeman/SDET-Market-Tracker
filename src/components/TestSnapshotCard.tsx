@@ -5,9 +5,11 @@ import {
   runLabel,
   usableResults,
   latestNotice,
+  recentResults,
 } from "../telemetry/presentation";
 import {
   Metrics,
+  RefreshStatus,
   StatusBadge,
   Exceptions,
   RunReport,
@@ -17,6 +19,7 @@ export const TestSnapshotCard: React.FC<{ onExploreTests: () => void }> = ({
 }) => {
   const { feed, loading, error } = useTestHistory();
   const run = feed?.runs[0];
+  const metricsRun = recentResults(feed?.runs || [])[0] || run;
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -49,25 +52,36 @@ export const TestSnapshotCard: React.FC<{ onExploreTests: () => void }> = ({
             </h3>
           </div>
         </header>
-        {loading && (
-          <p role="status" className="text-sm text-slate-400">
-            Loading results…
-          </p>
-        )}
+        <RefreshStatus
+          updating={loading || !!feed?.refreshing}
+          snapshot={feed?.snapshot}
+          fetchedAt={feed?.fetchedAt}
+        />
         {error && (
           <p role="alert" className="text-sm text-amber-300">
             {error}
           </p>
         )}
-        {!loading && !error && !run && (
+        {!loading && !feed?.refreshing && !error && !run && (
           <p role="status" className="text-sm text-slate-400">
             No verified runs yet.
           </p>
         )}
+        <div className="min-h-4 text-xs text-slate-400">
+          {run && metricsRun !== run
+            ? `Previous results · ${runLabel(metricsRun)}`
+            : "\u00a0"}
+        </div>
+        <Metrics
+          run={metricsRun}
+          compact
+          snapshot
+          pending={!run && (loading || !!feed?.refreshing)}
+        />
+        {!run && <div aria-hidden="true" className="min-h-[49px]" />}
         {run && (
           <>
-            <Metrics run={run} compact snapshot />
-            <Exceptions run={run} />
+            <Exceptions run={metricsRun} />
             {!usableResults(run) && (
               <p className="text-sm text-amber-300">{latestNotice(run)}</p>
             )}

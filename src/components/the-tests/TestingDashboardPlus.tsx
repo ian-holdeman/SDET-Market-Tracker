@@ -13,6 +13,7 @@ import {
   RunReport,
   RunTable,
   Metrics,
+  RefreshStatus,
   StatusBadge,
   Exceptions,
 } from "./RunPresentation";
@@ -54,41 +55,15 @@ export const TestingDashboardPlus: React.FC = () => {
             {error}
           </p>
         )}
-        {loading && !latest && (
-          <p role="status" className="text-sm text-slate-400">
-            Loading results…
-          </p>
-        )}
-        {!loading && !error && !latest && (
+        <RefreshStatus
+          updating={loading || !!feed?.refreshing}
+          snapshot={feed?.snapshot}
+          fetchedAt={feed?.fetchedAt}
+        />
+        {!loading && !feed?.refreshing && !error && !latest && (
           <p role="status" className="text-sm text-slate-400">
             No verified runs yet.
           </p>
-        )}
-        {noLatest && (
-          <div
-            role="status"
-            className="flex items-start gap-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15 p-3.5 text-sm text-amber-200"
-          >
-            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-            <div>
-              {latestNotice(latest)}
-              {active && (
-                <span className="text-slate-400">
-                  {" "}
-                  Showing previous results below.
-                </span>
-              )}{" "}
-              <button
-                onClick={(event) => {
-                  event.currentTarget.focus();
-                  setReport(latest);
-                }}
-                className="underline underline-offset-4"
-              >
-                Details
-              </button>
-            </div>
-          </div>
         )}
         {(active || latest) && (
           <>
@@ -115,9 +90,39 @@ export const TestingDashboardPlus: React.FC = () => {
                 <ArrowUpRight className="h-4 w-4" />
               </button>
             </div>
-            <Metrics run={active || latest} />
-            <Exceptions run={active || latest} />
           </>
+        )}
+        {!latest && <div aria-hidden="true" className="h-[54px]" />}
+        <Metrics
+          run={active || latest}
+          pending={!latest && (loading || !!feed?.refreshing)}
+        />
+        {(active || latest) && <Exceptions run={active || latest} />}
+        {noLatest && (
+          <div
+            role="status"
+            className="flex items-start gap-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15 p-3.5 text-sm text-amber-200"
+          >
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              {latestNotice(latest)}
+              {active && (
+                <span className="text-slate-400">
+                  {" "}
+                  Showing previous results below.
+                </span>
+              )}{" "}
+              <button
+                onClick={(event) => {
+                  event.currentTarget.focus();
+                  setReport(latest);
+                }}
+                className="underline underline-offset-4"
+              >
+                Details
+              </button>
+            </div>
+          </div>
         )}
       </div>
       <section className="border-t border-slate-800/80 px-3 pb-3 sm:px-5 sm:pb-5">

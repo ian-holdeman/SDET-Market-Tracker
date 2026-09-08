@@ -1,3 +1,4 @@
+import { useHeaderActivity } from '../services/useHeaderActivity';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TrendingUp, Layers, Terminal, Brain, LogIn, LogOut, Star, ChevronDown, Settings } from 'lucide-react';
@@ -19,6 +20,8 @@ interface NavItem {
 }
 
 export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
+  const { session, testsActive } = useHeaderActivity();
+  const activityDot = (kind: string, label: string) => <span data-testid={kind+'-activity-indicator'} role="img" aria-label={label} title={label} className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse motion-reduce:animate-none shrink-0" />;
   const { user, isAdmin, openAuthModal, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -41,6 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
       mobileBtnId: 'mobile-nav-board-btn',
       label: 'The Board',
       icon: <Layers className="w-4 h-4" />,
+      badge: session ? activityDot('board', 'U.S. equity session: '+session) : null,
     },
     {
       id: 'tests',
@@ -48,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
       mobileBtnId: 'mobile-nav-tests-btn',
       label: 'The Tests',
       icon: <Terminal className="w-4 h-4" />,
-      badge: <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />,
+      badge: testsActive ? activityDot('tests', 'GitHub test workflow in progress') : null,
     },
     {
       id: 'logic',
@@ -243,9 +247,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
 
                 <span className="relative z-10 inline-flex items-center justify-center gap-1.5 leading-none">
                   <span>{item.label}</span>
-                  {item.badge && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                  )}
+                  {item.badge}
                 </span>
               </button>
             );

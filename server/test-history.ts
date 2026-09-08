@@ -6,6 +6,7 @@ import {
   runStatus,
   orderRuns,
   type PublishedRun,
+  type Evidence,
   type TelemetryFeed,
 } from "../src/telemetry/contract";
 
@@ -86,6 +87,7 @@ export async function fetchHistory(
   config: HistoryConfig,
   request: typeof fetch = fetch,
   cursor?: string,
+  reportCache = new Map<string, { until: number; evidence: Evidence }>(),
 ): Promise<TelemetryFeed> {
   const position = historyCursor(cursor);
   const encode = (page: number, index = 0, attempt = 0) =>
@@ -185,42 +187,63 @@ export async function fetchHistory(
           )
             evidenceState = "invalid";
           else {
-            const redirect = await request(
-              base + `/actions/artifacts/${a.id}/zip`,
-              { headers, signal, redirect: "manual" },
-            );
-            if (redirect.status !== 302)
-              throw Error("Artifact download unavailable");
-            const destination = new URL(redirect.headers.get("location") || "");
+            const reportKey =
+              config.repository + ":" + a.id + ":" + head.head_sha;
+            const remembered = reportCache.get(reportKey);
             if (
-              destination.protocol !== "https:" ||
-              destination.username ||
-              destination.password ||
-              ![".blob.core.windows.net", ".githubusercontent.com"].some(
-                (suffix) => destination.hostname.endsWith(suffix),
-              )
-            )
-              throw Error("Untrusted artifact host");
-            // Never forward the GitHub credential to the signed storage URL.
-            const downloaded = await request(destination.href, {
-              signal,
-              redirect: "error",
-            });
-            if (!downloaded.ok) throw Error("Artifact download unavailable");
-            const data = await bytes(downloaded, 1_000_000);
-            try {
-              const parsed = decodeArtifact(data);
-              if (
-                parsed.environment !== "github-actions" ||
-                parsed.runId !== String(head.id) ||
-                parsed.runAttempt !== attempt ||
-                parsed.commitSha !== head.head_sha
-              )
-                throw Error();
-              evidence = parsed;
+              remembered &&
+              remembered.until > Date.now() &&
+              remembered.evidence.runId === String(head.id) &&
+              remembered.evidence.runAttempt === attempt
+            ) {
+              evidence = remembered.evidence;
               evidenceState = "available";
-            } catch {
-              evidenceState = "invalid";
+            } else {
+              const redirect = await request(
+                base + `/actions/artifacts/${a.id}/zip`,
+                { headers, signal, redirect: "manual" },
+              );
+              if (redirect.status !== 302)
+                throw Error("Artifact download unavailable");
+              const destination = new URL(
+                redirect.headers.get("location") || "",
+              );
+              if (
+                destination.protocol !== "https:" ||
+                destination.username ||
+                destination.password ||
+                ![".blob.core.windows.net", ".githubusercontent.com"].some(
+                  (suffix) => destination.hostname.endsWith(suffix),
+                )
+              )
+                throw Error("Untrusted artifact host");
+              // Never forward the GitHub credential to the signed storage URL.
+              const downloaded = await request(destination.href, {
+                signal,
+                redirect: "error",
+              });
+              if (!downloaded.ok) throw Error("Artifact download unavailable");
+              const data = await bytes(downloaded, 1_000_000);
+              try {
+                const parsed = decodeArtifact(data);
+                if (
+                  parsed.environment !== "github-actions" ||
+                  parsed.runId !== String(head.id) ||
+                  parsed.runAttempt !== attempt ||
+                  parsed.commitSha !== head.head_sha
+                )
+                  throw Error();
+                evidence = parsed;
+                evidenceState = "available";
+                if (reportCache.size >= 32)
+                  reportCache.delete(reportCache.keys().next().value!);
+                reportCache.set(reportKey, {
+                  until: Date.now() + 300000,
+                  evidence: parsed,
+                });
+              } catch {
+                evidenceState = "invalid";
+              }
             }
           }
         }
@@ -270,6 +293,7 @@ export function historyRouter(
   load = fetchHistory,
 ) {
   const router = Router();
+  const reportCache = new Map<string, { until: number; evidence: Evidence }>();
   const cache = new Map<
     string,
     { cached?: TelemetryFeed; next: number; pending?: Promise<void> }
@@ -313,13 +337,13 @@ export function historyRouter(
     const entry = cache.get(key)!;
     try {
       if (Date.now() >= entry.next) {
-        entry.pending ??= load(config, fetch, cursor)
+        entry.pending ??= load(config, fetch, cursor, reportCache)
           .then((result) => {
             entry.cached = validateFeed(result);
           })
           .finally(() => {
             entry.pending = undefined;
-            entry.next = Date.now() + 60000;
+            entry.next = Date.now() + (cursor ? 60000 : 15000);
           });
         await entry.pending;
       }
@@ -330,11 +354,9 @@ export function historyRouter(
         entry.cached = { ...entry.cached, stale: true };
         return res.json(entry.cached);
       }
-      return res
-        .status(502)
-        .json({
-          error: "Test history could not be retrieved. Please retry shortly.",
-        });
+      return res.status(502).json({
+        error: "Test history could not be retrieved. Please retry shortly.",
+      });
     }
   });
   return router;

@@ -70,7 +70,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
             <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
           </div>
 
-          <h3 className="text-base sm:text-lg font-bold text-white tracking-tight truncate whitespace-nowrap">
+          <h3 className="text-base sm:text-lg lg:text-2xl font-bold text-white tracking-tight truncate whitespace-nowrap">
             Market Movers
           </h3>
         </div>

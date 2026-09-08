@@ -124,10 +124,12 @@ export function Metrics({
   run,
   compact = false,
   snapshot = false,
+  pending = false,
 }: {
   run?: PublishedRun;
   compact?: boolean;
   snapshot?: boolean;
+  pending?: boolean;
 }) {
   const { summary, durationMs } = runMetrics(run);
   const metrics = [
@@ -162,7 +164,17 @@ export function Metrics({
             data-testid="metric-value"
             className={`mt-3 font-mono font-black tracking-tight ${compact ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"} ${snapshot ? "lg:text-4xl xl:text-5xl" : ""} ${label === "Flaky Tests" && Number(value) > 0 ? "text-amber-300" : "text-white"}`}
           >
-            {value}
+            {pending ? (
+              <span
+                data-testid="metric-skeleton"
+                aria-label="Loading value"
+                className="inline-block h-[1em] w-20 rounded bg-slate-700/40 motion-safe:animate-pulse align-middle"
+              />
+            ) : (
+              <span key={String(value)} className="metric-reveal">
+                {value}
+              </span>
+            )}
           </p>
         </div>
       ))}
@@ -347,5 +359,30 @@ export function RunReport({
         </dl>
       </details>
     </ResultDialog>
+  );
+}
+
+export function RefreshStatus({
+  updating,
+  snapshot,
+  fetchedAt,
+}: {
+  updating: boolean;
+  snapshot?: boolean;
+  fetchedAt?: string;
+}) {
+  return (
+    <p
+      data-testid="result-refresh-status"
+      role="status"
+      className="min-h-4 text-xs text-slate-400"
+      title={
+        fetchedAt
+          ? "Retrieved " + new Date(fetchedAt).toLocaleString()
+          : undefined
+      }
+    >
+      {updating ? "Updating…" : snapshot ? "Saved results" : " "}
+    </p>
   );
 }

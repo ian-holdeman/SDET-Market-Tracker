@@ -37,3 +37,6 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
 }
+
+@keyframes metric-reveal { from { opacity: .35; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) { .metric-reveal { animation: metric-reveal 180ms ease-out; } }

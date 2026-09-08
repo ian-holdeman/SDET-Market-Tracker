@@ -201,6 +201,8 @@ export type PublishedRun = {
   evidenceState: "available" | "missing" | "invalid" | "expired" | "pending";
 };
 export type TelemetryFeed = {
+  refreshing?: boolean;
+  snapshot?: boolean;
   nextCursor?: string | null;
   historyLimited?: boolean;
   version: 1;
@@ -246,6 +248,8 @@ export function validateFeed(raw: any): TelemetryFeed {
     typeof raw.historyLimited !== "boolean"
   )
     fail();
+  for (const flag of ["refreshing", "snapshot"])
+    if (raw[flag] !== undefined && typeof raw[flag] !== "boolean") fail();
   const keys = new Set<string>();
   const runs = raw.runs.map((r: any): PublishedRun => {
     const id = text(r.id),
@@ -310,6 +314,8 @@ export function validateFeed(raw: any): TelemetryFeed {
   return {
     version: 1,
     configured: raw.configured,
+    refreshing: raw.refreshing ?? false,
+    snapshot: raw.snapshot ?? false,
     nextCursor: raw.nextCursor ?? null,
     historyLimited: raw.historyLimited ?? false,
     fetchedAt: date(raw.fetchedAt),

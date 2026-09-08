@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator } from "@playwright/test";
 
 export class HeaderComponent {
   readonly page: Page;
@@ -6,13 +6,31 @@ export class HeaderComponent {
   readonly navBoardBtn: Locator;
   readonly navTestsBtn: Locator;
   readonly navLogicBtn: Locator;
+  readonly boardActivity: Locator;
+  readonly testsActivity: Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.brandLogoBtn = page.getByRole('button', { name: "The SDET's Market Tracker home" });
-    this.navBoardBtn = page.getByRole('button', { name: 'The Board', exact: true });
-    this.navTestsBtn = page.getByRole('button', { name: 'The Tests', exact: true });
-    this.navLogicBtn = page.getByRole('button', { name: 'The Logic', exact: true });
+    this.brandLogoBtn = page.getByRole("button", {
+      name: "The SDET's Market Tracker home",
+    });
+    this.navBoardBtn = page.getByRole("button", {
+      name: "The Board",
+      exact: true,
+    });
+    this.navTestsBtn = page.getByRole("button", {
+      name: "The Tests",
+      exact: true,
+    });
+    this.navLogicBtn = page.getByRole("button", {
+      name: "The Logic",
+      exact: true,
+    });
+    this.boardActivity = this.navBoardBtn.getByTestId(
+      "board-activity-indicator",
+    );
+    this.testsActivity = this.navTestsBtn.getByTestId(
+      "tests-activity-indicator",
+    );
   }
 }
-

@@ -143,8 +143,8 @@ test("recent results hides empty runs while history paginates and nested details
   const homeMetrics = new HomePage(page).results;
   const home = homeMetrics.root;
   await expect(home).toContainText("Incomplete");
-  await expect(homeMetrics.value("pass-rate")).toContainText("—");
-  await expect(home).not.toContainText("100%");
+  await expect(homeMetrics.value("pass-rate")).toContainText("100%");
+  await expect(home).toContainText("Previous results · #8");
 });
 test("mobile and desktop results fit the viewport and failures remain prominent", async ({
   page,
@@ -166,4 +166,94 @@ test("mobile and desktop results fit the viewport and failures remain prominent"
       (e) => e.getBoundingClientRect().width <= window.innerWidth,
     ),
   ).toBe(true);
+});
+
+test("completed results appear automatically without reloading", async ({
+  page,
+}) => {
+  await page.clock.install();
+  let completed = false,
+    requests = 0;
+  await page.route("**/api/test-history**", async (route) => {
+    requests++;
+    const r = varied(3, completed ? "passed" : "incomplete");
+    await route.fulfill({ json: feed([r]) });
+  });
+  await page.goto("/");
+  const home = new HomePage(page);
+  await expect(home.results.root).toContainText("Incomplete");
+  completed = true;
+  await page.clock.runFor(15000);
+  await expect(home.results.value("pass-rate")).toHaveText("100%");
+  expect(requests).toBe(2);
+});
+
+test("navigation keeps cached metrics visible while revalidating a slow response", async ({
+  page,
+}) => {
+  let delay = false;
+  let release: (() => void) | undefined;
+  await page.route("**/api/test-history**", async (route) => {
+    if (delay)
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    await route.fulfill({ json: feed([varied(3, "passed")]) });
+  });
+  await page.goto("/");
+  const home = new HomePage(page);
+  await expect(home.results.value("pass-rate")).toHaveText("100%");
+  delay = true;
+  await home.testsCard.click();
+  const dashboard = new TheTestsPage(page);
+  await expect(dashboard.results.value("pass-rate")).toHaveText("100%");
+  await expect(
+    dashboard.results.root.getByText("Loading results…"),
+  ).toHaveCount(0);
+  await expect.poll(() => Boolean(release)).toBe(true);
+  release!();
+  delay = false;
+  await expect(
+    page.getByRole("button", { name: "Refresh test history" }),
+  ).toBeEnabled();
+});
+
+test("cold skeleton and saved snapshot stay mounted until a verified refresh arrives", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  let state = 0;
+  await page.route("**/api/test-history**", (route) =>
+    route.fulfill({
+      json: {
+        ...feed(
+          state === 0 ? [] : [varied(3, state === 1 ? "failed" : "passed")],
+        ),
+        refreshing: state < 2,
+        snapshot: state === 1,
+      },
+    }),
+  );
+  await page.goto("/");
+  const root = new HomePage(page).results.root;
+  await expect(root.getByTestId("metric-skeleton")).toHaveCount(4);
+  const tile = root.getByTestId("run-metric-pass-rate");
+  const before = await tile.boundingBox();
+  await tile.evaluate((el) => el.setAttribute("data-mounted", "yes"));
+  state = 1;
+  await expect(root.getByTestId("metric-value").first()).toContainText("0%");
+  await expect(root.getByTestId("result-refresh-status")).toHaveText(
+    "Updating…",
+  );
+  state = 2;
+  await expect(root.getByTestId("metric-value").first()).toContainText("100%");
+  await expect(tile).toHaveAttribute("data-mounted", "yes");
+  const after = await tile.boundingBox();
+  expect(after!.width).toBe(before!.width);
+  expect(Math.abs(after!.height - before!.height)).toBeLessThan(2);
+  expect(
+    await tile
+      .locator(".metric-reveal")
+      .evaluate((el) => getComputedStyle(el).animationName),
+  ).toBe("none");
 });

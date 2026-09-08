@@ -257,7 +257,7 @@ test("history retrieval deduplicates, caches, retains stale evidence and exposes
   await Promise.all([fetch(url), fetch(url)]);
   assert.equal(calls, 1);
   broken = true;
-  now += 61000;
+  now += 16000;
   const stale = await (await fetch(url)).json();
   assert.equal(stale.stale, true);
   assert.equal(stale.runs[0].id, "101");
@@ -316,4 +316,28 @@ test("ingestion missing report produces incomplete local evidence, exits nonzero
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("validated artifact cache avoids downloads but still observes upstream expiry", async () => {
+  const cache = new Map();
+  let downloads = 0;
+  const mock = githubMock("valid");
+  const request: typeof fetch = async (input, init) => {
+    if (String(input).includes("/zip")) downloads++;
+    return mock.request(input, init);
+  };
+  await fetchHistory(config, request, undefined, cache);
+  await fetchHistory(config, request, undefined, cache);
+  assert.equal(downloads, 1);
+  const expired = await fetchHistory(
+    config,
+    githubMock("expired").request,
+    undefined,
+    cache,
+  );
+  assert.equal(expired.runs[0].evidenceState, "expired");
+  assert.equal(expired.runs[0].evidence, null);
+  for (const item of cache.values()) item.until = 0;
+  await fetchHistory(config, request, undefined, cache);
+  assert.equal(downloads, 2);
 });
