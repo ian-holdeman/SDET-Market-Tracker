@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ian Holdeman - Senior SDET Resume</title>
+  <style>
+    @page { size: Letter; margin: 0.57in 0.65in; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #161616; font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.27; }
+    main { max-width: 7.2in; margin: 0 auto; }
+    h1, h2, h3, h4 { color: #000; break-after: avoid; }
+    h1 { font-size: 25pt; letter-spacing: -0.5pt; line-height: 1.1; margin: 0 0 5pt; }
+    .contact { margin: 0 0 13pt; font-size: 10.5pt; }
+    a { color: inherit; text-decoration: none; }
+    h2 { font-size: 12.2pt; line-height: 1.15; margin: 13pt 0 6pt; }
+    h3 { font-size: 10.8pt; margin: 9pt 0 5pt; }
+    h4 { font-size: 10.7pt; line-height: 1.25; margin: 0 0 2pt; }
+    p { margin: 0 0 5pt; }
+    .skills p { margin-bottom: 3pt; }
+    .job { break-inside: avoid; margin-bottom: 10pt; }
+    .meta { margin-bottom: 4pt; color: #333; font-size: 10pt; }
+    ul { margin: 4pt 0 0; padding-left: 14pt; }
+    li { padding-left: 1pt; margin: 0 0 3pt; }
+    .page-two { break-before: page; }
+    .page-two > h2 { margin-top: 0; }
+    .certificates p { margin-bottom: 3pt; }
+    .references { margin-top: 12pt; font-size: 10pt; }
+    @media screen {
+      body { background: #e9e9e9; padding: 24px 0; }
+      main { max-width: 8.5in; }
+      .page { background: white; padding: 0.57in 0.65in; margin-bottom: 24px; min-height: 11in; }
+    }
+    @media print { main { max-width: none; } }
+  </style>
+</head>
+<body>
+<main contenteditable="true" spellcheck="false" aria-label="Editable resume">
+  <section class="page">
+    <h1>Ian Holdeman</h1>
+    <p class="contact"><a href="tel:+17022837567">(702) 283-7567</a> &nbsp;|&nbsp; <a href="mailto:ianrholdeman@gmail.com">ianrholdeman@gmail.com</a></p>
+
+    <h2>Professional Summary</h2>
+    <p>I’m a Senior SDET with approximately eight years of technical experience. I’ve developed automation frameworks for UI and API testing and integrated regression suites into CI/CD pipelines to reduce repetitive manual testing. My work has covered finance and enterprise software, including web and mobile applications.</p>
+
+    <h2>Technical Skills</h2>
+    <div class="skills">
+      <p><strong>Languages:</strong> JavaScript/TypeScript (strongest current languages); Python (foundational language with extensive automation experience); C#/.NET (working proficiency); Java (earlier exposure). Additional experience: Groovy, Swift, HTML/CSS, SQL, scripting.</p>
+      <p><strong>Test Automation:</strong> Playwright, Selenium, Katalon; UI/API, regression, manual, web and mobile testing; framework development and test planning; Node test runner, pgTAP (personal project).</p>
+      <p><strong>CI/CD and Infrastructure:</strong> Azure DevOps, Jenkins, Docker, AWS; GitHub Actions (personal project).</p>
+      <p><strong>Platforms:</strong> Oracle Cloud Finance; Windows, Linux, macOS, iOS, Android; Node.js and SQL databases. Personal project: React, Express, Supabase Auth, PostgreSQL.</p>
+      <p><strong>Team Practices:</strong> Agile planning and facilitation, Jira, team leadership, communication, conflict resolution, working under pressure, attention to detail, creativity.</p>
+    </div>
+
+    <h2>Experience</h2>
+    <h3>Personal</h3>
+    <article class="job">
+      <h4>The SDET’s Market Tracker</h4>
+      <p class="meta">August 2026–Present</p>
+      <ul>
+        <li>Designed the features and test strategy for a React/TypeScript market tracker and directed AI-assisted development. Reviewed code changes and checked behavior through automated and manual testing.</li>
+        <li>Implemented Google sign-in and private watchlists using Supabase Auth and PostgreSQL row-level security. Tested ownership, role isolation, and account deletion against local database and Auth services.</li>
+        <li>Built Playwright UI tests alongside deterministic API and calculation tests. Covered failed requests, stale data, rejected asset registrations, and late responses during account and watchlist changes.</li>
+        <li>Integrated browser, offline, and database checks into GitHub Actions. Validated CI evidence so the application’s test dashboard showed failures, retry history, and missing results explicitly.</li>
+        <li>Live application: [hosting URL pending]</li>
+      </ul>
+    </article>
+
+    <h3>Professional</h3>
+    <article class="job">
+      <h4>SDET 3 - Finance</h4>
+      <p class="meta">Church of Jesus Christ of Latter-Day Saints | March 2025 - July 2026</p>
+      <ul>
+        <li>Developed a TypeScript/Playwright automation framework and regression suites for Oracle Cloud Finance applications, reducing repetitive manual testing.</li>
+        <li>Integrated automated UI tests into an Azure DevOps pipeline to make regression testing part of the CI/CD workflow.</li>
+        <li>Tested financial workflows involving sensitive data in a high-security environment.</li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="page page-two">
+    <h2>Professional Experience (continued)</h2>
+    <article class="job">
+      <h4>Quality Assurance Engineer</h4>
+      <p class="meta">Thetacore | September 2022 - June 2024</p>
+      <ul>
+        <li>Helped establish manual and automated testing processes as an early member of the startup’s QA team.</li>
+        <li>Developed a UI automation framework using Playwright with C#/.NET and tested APIs and user interfaces in an Azure DevOps environment.</li>
+        <li>Created test plans for the mobile and web versions of ThetaCore Connect. Worked closely with developers to build, test, and deploy features in an Agile team.</li>
+      </ul>
+    </article>
+    <article class="job">
+      <h4>Quality Assurance Engineer</h4>
+      <p class="meta">Software Technology Group | April 2021 - September 2022</p>
+      <ul>
+        <li>Automated manual test cases for the doTERRA contract using Groovy and Katalon for UI and API testing.</li>
+        <li>Developed and maintained a Python/Selenium framework for web application testing. Also maintained Python middleware that supported API calls.</li>
+      </ul>
+    </article>
+    <article class="job">
+      <h4>Quality Automation Engineer</h4>
+      <p class="meta">Kollective Technology | October 2020 - April 2021</p>
+      <ul>
+        <li>Took responsibility for extending a Playwright/Node.js automation framework to test front-end and back-end software.</li>
+        <li>Maintained Jenkins automation pipelines and tested CDN software APIs, user interfaces, and integrations with webcasting solutions.</li>
+      </ul>
+    </article>
+    <article class="job">
+      <h4>Associate QA Automation Engineer</h4>
+      <p class="meta">PrinterLogic | May 2018 - May 2020</p>
+      <ul>
+        <li>Designed, built, and maintained a Python/Selenium automation framework. Performed automated and manual UI and API testing for web and OS-based applications.</li>
+        <li>Worked with Jenkins build pipelines, Docker, and AWS cloud environments to support testing.</li>
+        <li>Led Agile sprint planning, backlog grooming, and daily stand-ups.</li>
+      </ul>
+    </article>
+    <article class="job">
+      <h4>Software Development Intern</h4>
+      <p class="meta">Busybusy | August 2015 - December 2015</p>
+      <ul>
+        <li>Shadowed a development team during a high school internship, learning how to build software and develop iOS applications with Swift.</li>
+        <li>Worked with fellow interns to build a basic game with collision detection.</li>
+      </ul>
+    </article>
+
+    <h2>Education</h2>
+    <p><strong>Associate of Science in Computer Information Technology</strong><br>Utah Tech University | May 2018</p>
+
+    <h2>Certificates</h2>
+    <div class="certificates">
+      <p><strong>Oracle University:</strong> ERP Process Essentials; EDM Cloud Implementation Professional</p>
+      <p><strong>Google, via Coursera:</strong> App Building; App Deployment; Data Analysis</p>
+    </div>
+    <p class="references">References available upon request (with respect to their privacy)</p>
+  </section>
+</main>
+</body>
+</html>

@@ -46,13 +46,11 @@ The live command samples SPY, BTC-USD, ^NDX and AGG. It checks current HTTP avai
 
 The prior 88-symbol audit found usable quote metrics and month/year history, with benchmark volume not applicable. This was point-in-time evidence; rerun the coverage command to establish current availability. Do not reuse historical test totals as current verification.
 
-## Remaining decisions and interview rationale
+## Remaining decisions and limitations
 
 The Yahoo endpoints used here have no versioned contract or SLA supplied to this project. Before launch, choose a provider/access arrangement suitable for intended use, confirm redistribution permissions and rate limits. The application now uses price/activity metrics rather than depending on inaccessible fundamentals. No privileged credentials were added.
 
 Independent price reconciliation, full venue coverage, exchange halt/calendar integration beyond the scheduled header indicator, corporate-action adjustment policy, total returns, load testing and distributed rate limiting remain unverified. An old provider observation can be legitimate on a closed market; stale here specifically indicates failed retrieval, not an assertion about every venue's trading calendar.
-
-Defend these choices in an interview: validate before arithmetic; distinguish unknown from zero; keep price, baseline and session semantics consistent; preserve provenance through caches; test failures deterministically; and separate contract availability from financial correctness. A visually plausible fallback is not a valid test oracle.
 
 Primary references: [Yahoo exchange delays](https://help.yahoo.com/kb/SLN2310.html), [Nasdaq-100 identity](https://finance.yahoo.com/quote/%5ENDX/), [Nasdaq Composite identity](https://ca.finance.yahoo.com/quote/%5EIXIC/), and [iShares AGG identity](https://www.ishares.com/us/products/239458/ishares-core-total-us-bond-market-etf).
 

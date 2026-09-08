@@ -6,12 +6,16 @@ export function Dialog({
   children,
   compact = false,
   fallbackFocus,
+  subtitle,
+  maxWidth,
 }: {
   title: string;
   close: () => void;
   children: React.ReactNode;
   compact?: boolean;
   fallbackFocus?: React.RefObject<HTMLElement | null>;
+  subtitle?: string;
+  maxWidth?: 'lg';
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     heading = useId();
@@ -68,13 +72,13 @@ export function Dialog({
             close();
         }
       }}
-      className={`m-auto w-[calc(100%-1.5rem)] ${compact ? 'max-w-md' : 'max-w-3xl'} max-h-[88dvh] p-0 rounded-2xl border border-line-strong/70 bg-panel text-ink-strong shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm`}
+      className={`m-auto w-[calc(100%-1.5rem)] ${maxWidth === 'lg' ? 'max-w-lg' : compact ? 'max-w-md' : 'max-w-3xl'} max-h-[88dvh] p-0 rounded-2xl border border-line-strong/70 bg-panel text-ink-strong shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm`}
     >
       <div className="flex max-h-[88dvh] flex-col overflow-hidden">
         <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-4 sm:px-6">
-          <h2 id={heading} className="text-lg font-bold text-ink-heading">
+          <div><h2 id={heading} className="text-lg font-bold text-ink-heading">
             {title}
-          </h2>
+          </h2>{subtitle && <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p>}</div>
           <button
             autoFocus
             onClick={close}

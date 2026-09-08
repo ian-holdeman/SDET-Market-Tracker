@@ -11,3 +11,7 @@ playwright-report/
 firebase-applet-config.json
 
 .telemetry/
+
+# Local artifact drafts and task scratch files; canonical resume files live in docs/resume.
+/output/
+/tmp/

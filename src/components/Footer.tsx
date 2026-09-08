@@ -26,7 +26,10 @@ export const Footer: React.FC<FooterProps> = ({
               {onOpenContact && (
                 <button
                   id="footer-contact-link"
-                  onClick={onOpenContact}
+                  onClick={event => {
+                    event.currentTarget.focus({ preventScroll: true });
+                    onOpenContact();
+                  }}
                   className="hover:text-info-ink-300 transition-colors cursor-pointer"
                 >
                   Contact

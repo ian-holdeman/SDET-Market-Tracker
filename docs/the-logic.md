@@ -1,23 +1,17 @@
-# The Logic: editorial and evidence guide
+# The Logic: architecture and test evidence
 
-## Accepted direction
+## Page structure
 
-The owner requested an initial local structure developed through a conversational interview. The page is a personal market tracker and Senior SDET portfolio explanation, ordered as:
+The Logic explains the market tracker and its engineering approach in four sections:
 
 1. Why I built this.
-2. How the app works, including compact Tools and workflow.
+2. How the app works, including Tools and workflow.
 3. How I test it.
 4. AI and what comes next.
 
-Use the existing typography, spacing, cards and responsive conventions. Preserve surrounding navigation and other pages. A readable data-flow diagram explains market, account and evidence relationships; compact tool groups and on-demand test evidence support the narrative. No benchmark, tool-logo wall or simulated activity is part of this scope.
+The initial version is complete and owner-accepted. The page uses the shared typography, spacing, cards and responsive layout. A data-flow diagram shows market, account and test-evidence relationships. The Board and The Tests navigation buttons follow Tools and workflow. Native disclosures expose source references and coverage limits without adding execution controls or simulated activity.
 
-The Tools and workflow subsection includes the owner's stated mobile-first design approach and invites visitors to inspect both mobile and desktop layouts. This describes design intent, not physical-device certification.
-
-The Board and The Tests navigation buttons sit at the end of How the app works, beneath Tools and workflow.
-
-Personal experience, project implementation and future interests must remain distinct. GitHub Actions is the implemented CI system; do not imply demonstrated GitLab expertise. Discuss AI assistance through owner direction, judgment and verification without implying unaided authorship. Each section requires owner approval before its copy is accepted for publication.
-
-Preserve the owner's original wording and voice. Apply light grammar and flow edits rather than rewriting answers into portfolio language or adding a professional narrative the owner did not supply. The owner permits more technical polishing of the backend/data-integrity answer, while preserving its principles and separating intended accuracy from demonstrated validation.
+The interface was designed for mobile and desktop layouts. Browser viewport checks do not establish physical-device compatibility. GitHub Actions is the implemented CI system. Development used AI assistance, with feature design, code review and verification directed by the project owner.
 
 ## Implementation and evidence references
 
@@ -35,19 +29,15 @@ Preserve the owner's original wording and voice. Apply light grammar and flow ed
 | Parallel CI responsibilities | `.github/workflows/playwright.yml`, [pipeline guide](pipeline-replay.md) | Historical timing is not application performance or current suite health |
 | Recorded demonstrations | [recordings guide](test-recordings.md) | Curated local captures with mocked dependencies, separate from CI results |
 
-Documented engineering decisions can be explained as project behavior. Personal reasons for choosing a technology or workflow require an interview answer; do not infer them from code.
+## Coverage limits and future work
 
-## Accepted editorial scope and deferred work
+- Market validation checks response structure, asset identity, timestamps and calculation rules. Independent price reconciliation is not implemented.
+- Failed asset validation leaves the watchlist unchanged. Browser tests cover that workflow; local SQL and Auth integration tests separately cover ownership and permissions.
+- The dashboard distinguishes first-attempt passes, successful retries, failures and missing evidence. Recorded demonstrations use disclosed local fixtures and are separate from published CI outcomes.
+- The page's visual regression review refers to manual inspection, not an automated screenshot-comparison suite. The reported build timeline is personal history, not a measured productivity benchmark.
+- AI assistance remains disclosed. Future team adoption is an interest, not evidence of an existing professional rollout.
 
-Status: initial version complete and owner-accepted. The owner accepted all personal narrative passages, supporting technical copy, evidence details and responsive layout. The editorial notice and interview placeholders are removed. This milestone does not establish deployment, current CI health or production verification.
-
-- Motivation: use two paragraphs with a practical, understated tone. The first starts “I wanted a market tracker that” and describes relevant assets, readable information, sorting and watchlists. The approved closing sentence acknowledges financial constraints and existing per-asset Google Finance links for deeper research. The earlier investing backstory and Yahoo UI comparison are removed; preserve the portfolio-purpose paragraph below it.
-- The approved additional motivation paragraph explains the portfolio purpose, renewed interest in engineering, and continued development. The one-month initial build timeline is owner-reported personal history, not an independently measured productivity benchmark. Preserve the owner's aside “(and more financially responsible)” with parentheses; AI assistance remains disclosed in the closing section.
-- Architecture: keep this section factual and focused on how the app works. At the owner's request, the personal backend-development backstory and rationale are removed. Preserve the technical overview, data-flow diagram, validation/provenance, database ownership, GitHub evidence, and tools/workflow details. The owner wants a future independent-source comparison test highlighted instead of a personal anecdote about informal comparisons; see the pre-launch requirement in [the roadmap](roadmap.md). Do not describe that test as implemented until evidence exists.
-- Testing: the approved narrative includes unsuccessful asset validation preventing a watchlist write. Market failure, registration failure and retry reporting support the owner's definition of valuable tests. Approved source references and coverage limits remain available in the disclosure.
-- AI and future: the owner-approved workflow passage and team-adoption closing are implemented. The requested phrase “visual regression check of the site” describes manual review, not an automated screenshot-comparison suite. Team adoption is a future contribution, not a claim of professional rollout experience. Keep tool comparisons grounded in the owner's experience and avoid disparagement or endorsement language. No quantified productivity claim is supported.
-
-No interview topics remain open for this initial version. Independent-source market comparison is deferred implementation work, not an unanswered personal section or existing coverage. Future copy changes should retain the distinction between owner experience, repository behavior and future interests.
+Independent-source market comparison and hosted verification remain in the [roadmap](roadmap.md). Feature acceptance does not establish current CI health, production availability or independent financial accuracy.
 
 ## Verification
 
@@ -61,4 +51,4 @@ npm run test:e2e -- src/tests/specs/logic/logic.spec.ts src/tests/specs/navigati
 npm run build
 ```
 
-The Logic page object contains scoped locators. Browser tests exercise public navigation and native keyboard disclosure under reduced motion, check content width, and capture desktop/mobile layouts on the isolated production server at port 3100. Inspect those captures for readability. Local checks cannot establish hosted behavior or current CI health. No database/Auth implementation is changed by this editorial work.
+The Logic page object contains scoped locators. Browser tests exercise public navigation and native keyboard disclosure under reduced motion, check content width, and capture desktop/mobile layouts on the isolated production server at port 3100. Inspect those captures for readability. Local checks cannot establish hosted behavior or current CI health. These page checks do not validate database authorization or external OAuth.

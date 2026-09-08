@@ -2,7 +2,7 @@
 
 Owner-provided roadmap, recorded 2026-09-08. This roadmap tracks accepted work and future scope; it is not authorization to implement every item. Start each substantial feature with a focused prompt, acceptance criteria, evidence requirements and review boundaries.
 
-Home, The Board, The Tests, The Logic, Privacy, and Settings/application themes are initial version complete and owner-accepted. This is a feature milestone, not deployment, current CI success, security/compliance certification or production verification.
+Home, The Board, The Tests, The Logic, Privacy, Settings/application themes, and Contact are initial version complete and owner-accepted. Feature development for this version is complete; hosting and deployment are the next phase. This is a feature milestone, not deployment, current CI success, security/compliance certification or production verification.
 
 ## Home / Landing
 
@@ -28,13 +28,13 @@ For both features, preserve visitor access and use real, attributable evidence. 
 
 ## The Logic
 
-- Initial version complete and owner-accepted: four interview-developed sections cover motivation, architecture/tools, testing, and AI/future perspective. Includes approved personal copy, a responsive data-flow diagram, compact tool groups, and expandable repository evidence with coverage limits. Unsupported zero-flakiness and instant-telemetry copy is removed. See [editorial direction and evidence](the-logic.md). Acceptance covers the local initial version, not deployment or current CI health. The independent-source market comparison remains separate pre-launch work.
+- Initial version complete and owner-accepted: four sections cover motivation, architecture/tools, testing, and AI/future perspective. Includes approved personal copy, a responsive data-flow diagram, compact tool groups, and expandable repository evidence with coverage limits. Unsupported zero-flakiness and instant-telemetry copy is removed. See [architecture and test evidence](the-logic.md). Acceptance covers the local initial version, not deployment or current CI health. The independent-source market comparison remains separate pre-launch work.
 
 ## Overall
 
 - Privacy/security: public notice copy owner-approved; local modal/direct-page implementation, local fonts, Auth cleanup and response-header controls are implemented and locally verified. Complete and owner-accepted, including the Settings full-notice link and narrow browser-appearance disclosure. See [scope, evidence and launch requirements](privacy-security.md). This does not establish hosted readiness or legal certification.
 - Maintain the [data inventory](data-inventory.md) with processing changes. Existing direct Parqet logo delivery is retained by owner decision pending provider permission. Hosting/provider retention and production OAuth verification remain launch requirements.
-- Contact is the remaining small feature before hosting: concise full-time hiring subtext is prepared; preserve the third-option joke. Await the owner’s resume upload for a light editorial cleanup and verified PDF integration, then review the assembled modal. See [Contact scope and readiness](contact.md).
+- Contact: initial version complete and owner-accepted, including the main resume and editable source, browser PDF preview, optional download, concise header subtitle and removal of the two badges. Update the pending resume application URL once the hosting destination is approved. See [Contact behavior and source paths](contact.md).
 - Settings and application themes: complete and owner-accepted, with Delete Account, confirmed owner-scoped Clear Watchlist, a browser-only Light/Dark choice (device default until an explicit selection), and the full public notice link. Settings stays behind sign-in in the user dropdown. Local browser/database evidence and limits are documented in [Settings](settings.md); hosted verification remains separate.
 - Determine hosting solution: choose application hosting, database/Auth arrangement and private snapshot durability within the owner's budget. Selection does not authorize provisioning.
 - Verify production functionality: after an explicitly authorized deployment, verify public pages, market data, OAuth, private watchlists, registration/deletion, published test evidence and failure behavior on the actual production origin. Local checks do not complete this item.
@@ -44,6 +44,7 @@ For both features, preserve visitor access and use real, attributable evidence. 
 These are known considerations, not additions to the owner's feature priority order:
 
 - Hosting selection and production verification are explicit todos above. Include exact OAuth URLs, configuration boundaries, provider access rights and costs in their acceptance criteria.
+- The pre-existing copy-email feedback issue remains maintenance work: await clipboard success, handle rejection/unavailability, and clean up feedback timers. It does not reopen the accepted Contact feature.
 - Investigate retry synchronization in the pipeline unavailable/invalid-evidence browser case; it produced a retry-only pass during privacy verification. Keep this separate from privacy feature acceptance.
 - Reassess distributed limits if deploying multiple instances. Extend the U.S. trading calendar before its current 2026–2028 coverage expires.
 - Existing duplicate MU/SNDK logo cases and bundle-size warnings need scoped attention. Reassess dependency advisories with a current audit instead of treating old audit counts as current.

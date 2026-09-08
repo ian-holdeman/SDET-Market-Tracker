@@ -23,6 +23,7 @@ Start with git status and the relevant implementation; preserve staged and unsta
 - Keep provider observation time separate from retrieval time. Cached data retains its provenance and original timestamps; refresh failure must remain visible.
 - Preserve asset identity metadata through the full provider-to-UI path. External finance links need explicit provider identifier/venue translation; never guess a venue or rely on a bare ticker redirect. Cover newly searched assets as well as curated assets, and label unresolved destinations as searches.
 - Document material decisions and limits with the implementation. Do not claim production readiness, financial accuracy, compliance or CI success without evidence supporting that specific claim.
+- Keep public documentation focused on product behavior, architecture, technical tradeoffs, reproduction and evidence limits. Exclude career coaching, suggested talking points, drafting transcripts and instructions about presenting the project to an evaluator. Keep the real AI-assistance disclosure and factual limitations; removing coaching must not conceal provenance or unsupported claims.
 
 ## UX and accessibility
 
@@ -33,6 +34,7 @@ Start with git status and the relevant implementation; preserve staged and unsta
 - Use semantic elements, accessible names and keyboard operation. Dialogs must close reliably, keep focus inside, and restore focus to the opener, including nested dialogs and Safari.
 - Prefer role/name locators for interactive controls. Use stable, scoped data-testid values for repeated data or nonsemantic elements; do not derive test identity from CSS or display copy. Scope duplicate Home/dashboard/report metrics to their containing view.
 - Keep selectors and reusable interactions in existing page objects/components under src/tests/pages. Share repeated locator logic; keep assertions and scenario intent in tests. Avoid arbitrary sleeps and structural selectors when semantic ones exist. Use locator actions that wait for scrolling/layout stability, and inspect the current route and state before repeating an action after reload: Board asset URLs already restore an expanded card. Control device color scheme explicitly when a scenario depends on its default.
+- Configure appearance independently in popup/new-tab tests; a page-level media override does not establish the popup's palette. Verify the resulting theme before taking captures.
 
 ## Security and domain invariants
 
@@ -61,6 +63,8 @@ Use Node from .nvmrc and the locked npm dependencies. Choose checks appropriate 
 - Browser tests use an isolated production server on port 3100 and mocked external APIs; do not point them at the interactive development server. Do not rebuild shared dist while browser tests are running. Finish builds before starting lint or baseline checks too: the current TypeScript configuration includes generated JavaScript, so cleaning dist concurrently can produce missing-file failures.
 - Prioritize boundary failures, ownership, retry history, race conditions and meaningful financial calculations. Avoid tests that merely mirror implementation or assert styling classes.
 - Exercise external-boundary feasibility early: for media, verify decoded frames and dimensions in the target browsers, not merely a moving playback clock. Reuse deterministic, populated fixtures for incidental services in demonstrations; keep the scenario’s intended failures and disclose simulated dependencies. Never improve appearance by hiding failed assertions or substituting a success state.
+- For document previews, verify MIME type, decoded pages, selectable text and downloaded bytes against the canonical artifact. Viewing must not trigger a download; test the explicit download action separately. Keep one canonical editable source and synchronize its public PDF after reviewed edits.
+- Test recovery after a failed module or worker load, not just the initial error. Failed imports can remain cached for the page lifetime; an isolated preview may need a reload to recover. Retain unaffected application state and clean up requests, workers and observers.
 - Browser mocks cannot prove RLS, OAuth-provider behavior, or independent market accuracy. Use real disposable local integration tests for database/Auth boundaries. Keep live provider checks outside the offline CI gate.
 - Report failed attempts and flakes honestly, investigate them, and rerun only when a change or unresolved concern justifies it. Never loosen assertions or hide retries to obtain green results. For replay and expiry tests, align the browser clock and fixture verification timestamps, then explicitly control time before timing-sensitive actions; do not let click latency decide the expected result.
 - Do not reset a database containing accounts the owner wants to retain. Prefer migration up --local for existing local data; reset only disposable fixtures with understood consequences. See supabase/README.md.
@@ -71,3 +75,5 @@ Use Node from .nvmrc and the locked npm dependencies. Choose checks appropriate 
 Continue routine edits and validation within the authorized task. Do not add unnecessary confirmation steps. Do not push, deploy, purchase services, create hosted resources, change machine settings or mutate remote data unless the user authorized that action; do not treat a previous slice's permission as blanket future authorization.
 
 Finish with a concise PR-style account of behavior changed, rationale, checks passed, remaining risks and unverified boundaries. Open the local changes for review when available. Keep documentation current; store durable decisions in domain guides and future work in the roadmap rather than appending conversational transcripts or evergreen test counts. Preserve UTF-8 explicitly when scripting text edits and inspect diffs for encoding damage.
+
+Keep generated drafts and QA artifacts in ignored local directories. Preserve canonical sources and useful failure evidence; remove obsolete task-specific builders only after their maintained replacement exists. Do not delete another task's files or erase evidence to make the workspace appear clean.

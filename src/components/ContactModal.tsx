@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, Mail, FileText, HelpCircle, Check, Copy, ExternalLink, Briefcase, Sparkles } from 'lucide-react';
+import { Dialog } from './Dialog';
+import { Mail, FileText, HelpCircle, Check, Copy, ExternalLink, Briefcase, Sparkles } from 'lucide-react';
 
 interface ContactModalProps {
   isOpen: boolean;
@@ -20,48 +20,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-        />
-
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="relative w-full max-w-lg bg-panel border border-line/90 rounded-2xl p-6 sm:p-7 shadow-2xl z-10 space-y-6"
-        >
-          {/* Header */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-info-surface-950/60 border border-info-surface-800/50 flex items-center justify-center text-info-ink-400">
-                <Briefcase className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-ink-heading">Get in Touch</h3>
-                <p className="text-xs text-ink-muted mt-0.5">
-                  Engineering inquiries, custom development, and SDET opportunities.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-ink-muted hover:text-ink-heading hover:bg-surface-800/60 transition-colors cursor-pointer"
-              aria-label="Close modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
+    <Dialog title="Get in Touch" subtitle="Engineering inquires and SDET opportunities" maxWidth="lg" close={onClose}>
           {/* 3 Outlined Services / Sections */}
           <div className="space-y-4">
             {/* 1. Custom App Development */}
@@ -71,9 +30,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                   <Sparkles className="w-4 h-4 text-info-ink-400" />
                   <span>Want a custom app like this one?</span>
                 </h4>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-info-surface-950 text-info-ink-400 border border-info-surface-800/50">
-                  Custom Build
-                </span>
               </div>
               <p className="text-xs text-ink-muted">
                 Email me for rates and project availability!
@@ -89,7 +45,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                 </a>
                 <button
                   onClick={handleCopyEmail}
-                  title="Copy email to clipboard"
+                  title="Copy email to clipboard" aria-label="Copy email to clipboard"
                   className="p-2 rounded-lg bg-surface-800/80 hover:bg-surface-700 text-ink-secondary hover:text-ink-heading text-xs border border-line-strong transition-colors cursor-pointer"
                 >
                   {copied ? <Check className="w-4 h-4 text-positive-ink-400" /> : <Copy className="w-4 h-4" />}
@@ -104,9 +60,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                   <Briefcase className="w-4 h-4 text-positive-ink-400" />
                   <span>Looking for a full-time SDET?</span>
                 </h4>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-positive-surface-950 text-positive-ink-400 border border-positive-surface-800/50">
-                  Open to Roles
-                </span>
               </div>
               <p className="text-xs text-ink-muted">
                 View my experience in test automation and quality engineering.
@@ -114,7 +67,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
 
               <div className="pt-2">
                 <a
-                  href="/resume.pdf"
+                  href="/resume"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-positive-600/20 hover:bg-positive-600/30 text-positive-ink-300 border border-positive-500/40 text-xs font-semibold transition-colors w-full cursor-pointer"
@@ -147,8 +100,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
               Close
             </button>
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    </Dialog>
   );
 };

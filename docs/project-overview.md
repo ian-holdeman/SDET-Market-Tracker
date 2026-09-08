@@ -2,7 +2,7 @@
 
 This project serves two purposes: personal market monitoring and a public portfolio demonstrating Senior SDET skills. The audience should see useful functionality and inspect credible engineering evidence without needing an account. Production-quality behavior and a minimalist interface take priority over breadth. Infrastructure cost matters; do not infer a budget or provision paid services.
 
-Home, The Board, The Tests, The Logic, Privacy, and Settings/application themes are complete and owner-accepted for the local initial version. Contact is the remaining small feature, with concise hiring copy prepared and a light resume review awaiting the owner’s upload. Hosting selection and production verification remain open. See [milestones and remaining scope](roadmap.md).
+Home, The Board, The Tests, The Logic, Privacy, Settings/application themes, and Contact are complete and owner-accepted for the local initial version. The main resume and browser PDF preview are also accepted. Feature development for this version is complete; the next phase is hosting selection, deployment preparation and verification on the production origin. The resume hosting URL remains pending. See [Contact behavior](contact.md) and the [roadmap](roadmap.md).
 
 ## Architecture map
 

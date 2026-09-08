@@ -1,20 +1,36 @@
 # Contact
 
-## Status and agreed direction
+## Status and interface
 
-Contact is the remaining small feature before hosting, pending the owner's resume upload and assembled review. Settings, application themes and Privacy are complete and owner-accepted; their acceptance does not complete Contact or production verification.
+Contact and the main two-page resume are complete and owner-accepted for the local initial version. Hosting and production verification remain separate.
 
-Keep the established three-option design, spacing, fonts and shared light/dark palette. The full-time hiring subtext is now: “View my experience in test automation and quality engineering.” Preserve the third-option joke: “Don't ask me! I'm just a guy who likes finance.” Keep the existing email address and custom-development option unless the owner requests a change.
+Keep the established three-option design, fonts and shared light/dark palette. The header subtitle is exactly “Engineering inquires and SDET opportunities”. The Custom Build and Open to Roles badges are removed. The full-time hiring subtext remains “View my experience in test automation and quality engineering.” Preserve the third-option joke: “Don't ask me! I'm just a guy who likes finance.” The existing email address and custom-development option remain.
 
 ## Resume scope
 
-The owner requested a light review and clean update, not a wholesale rewrite. Preserve their factual experience, dates, roles and personal voice. Improve clarity, grammar, consistency and concise professional phrasing; do not invent achievements, metrics, credentials or responsibilities. Review the uploaded source before deciding formatting changes. Use the relevant document/PDF workflow, render the final artifact and check readability and links.
+The canonical editable source is `docs/resume/ian-holdeman-resume.html`; its approved PDF is `docs/resume/ian-holdeman-resume.pdf`. `public/resume.pdf` is the identical public copy. Earlier drafts are local artifacts, not maintained sources. The resume has two pages with selectable text, professional and personal experience, education and a compact certificates section.
 
-The existing modal links to `/resume.pdf`; there is currently no file at `public/resume.pdf`. Do not treat an SPA fallback or HTTP 200 as a working PDF. After the owner supplies the resume, prepare the intended artifact under the public client assets for local review and verify PDF content type, decoded pages and the actual link in both browser projects. Publication remains part of separately authorized deployment.
+The project's “Live application: [hosting URL pending]” line is intentionally retained. The final URL will be set during hosting configuration. Once that URL is approved, edit the canonical HTML, then run `node scripts/render-resume.mjs` with Node 22 and the installed Playwright Chromium browser. The script updates the canonical and public PDFs together; it is never run automatically by an application build. Visually inspect every rendered page and verify text extraction after any resume edit. Credential links and award dates are not included in the source.
 
-## Remaining modal checks
+Contact opens `/resume` in a new tab, preserving the original page and modal. This standalone route mounts `ResumeViewer` without the market/Auth application providers. A lazily loaded, pinned PDF.js dependency and same-origin worker decode `/resume.pdf` into page canvases with selectable text layers. The paper remains white in both palettes, and the surrounding view follows the existing device/browser appearance preference. Rendering uses the PDF itself, not an HTML facsimile or pre-rendered page images. No third-party viewer service, new server endpoint, CSP relaxation, or visitor authentication is needed.
 
-`src/components/ContactModal.tsx` currently uses a custom animated overlay. Finish keyboard/modal semantics, focus containment and restoration, mobile scrolling and reduced-motion behavior using the shared `Dialog` where appropriate. Reuse existing Footer page-object controls and fixtures.
+Viewing never triggers a download action. A subtle “Download PDF” link explicitly downloads `Ian-Holdeman-Resume.pdf`. The PDF must have the correct content type and `%PDF-` signature, and downloaded bytes must match the canonical file. Missing files, HTML fallbacks, corrupt PDFs and unavailable workers show an error with a retry and optional download. Fetch/parse and page rendering have bounded deadlines; cancellation, render tasks, workers and resize observers are cleaned up. Retry reloads the standalone page so failed module/worker imports cannot poison later attempts.
+
+## Modal behavior and validation
+
+Contact now uses the shared native `Dialog`, preserving focus containment, Escape/close handling, bounded mobile scrolling and focus restoration. The Footer explicitly focuses the opener for Safari. Shared Dialog additions are optional subtitle and contact-width props; existing consumers retain their defaults.
+
+`src/tests/pages/contact.page.ts` owns Contact/Resume locators, reusing the Footer opener. Focused browser coverage uses an isolated production server on port 3100 and populated synthetic incidental services. It checks the actual popup, decoded page pixels and selectable text, both palettes, keyboard behavior, direct visits/reload, byte-for-byte optional downloads, malformed/missing PDF responses, worker recovery and stalled/late requests. The worker-recovery regression initially failed on both projects, including retries; reloading the preview clears the cached failed worker import. Local browser evidence does not establish physical-device support, hosted availability or current CI success.
+
+```sh
+npm run build:e2e
+npm run test:e2e -- src/tests/specs/contact/contact.spec.ts src/tests/specs/navigation/navigation.spec.ts src/tests/specs/settings/settings.spec.ts --workers=2
+npm run lint
+npm run test:baseline
+npm run build
+```
+
+The existing copy-email feedback issue below is deferred from this resume integration; no mail is sent by these tests.
 
 The copy-email handler currently reports success before its clipboard promise resolves and does not clean up its feedback timer. Cover success, rejected/unavailable clipboard and closure before adding reliable feedback. Email actions must remain user-initiated; tests inspect destinations without sending mail. Do not send emails as part of verification.
 
