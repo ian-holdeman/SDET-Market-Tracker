@@ -7,6 +7,7 @@ import { SettingsPage } from '../../pages/settings.page';
 import { TheBoardPage } from '../../pages/the-board.page';
 import { TheTestsPage } from '../../pages/the-tests.page';
 import { PrivacyPage } from '../../pages/privacy.page';
+import { HeaderComponent } from '../../pages/components/header.component';
 
 // Compute actual foreground/background contrast, compositing transparent ancestor surfaces.
 async function contrast(locator: Locator, property: 'color' | 'stroke' = 'color') {
@@ -71,8 +72,13 @@ for (const theme of ['dark', 'light'] as const) {
     await screenshot('board');
     const chartLine = await board.chart('AAPL').line.elementHandle();
     const path = await board.chart('AAPL').line.getAttribute('d');
+    const header = new HeaderComponent(page);
+    await header.switchAppearance(theme === 'dark' ? 'light' : 'dark');
+    expect(await chartLine!.evaluate(element => element.isConnected)).toBe(true);
+    await expect(board.chart('AAPL').line).toHaveAttribute('d', path!);
+    await header.switchAppearance(theme);
     await board.chart('AAPL').timeframe('1D').focus();
-    const themeTab = await context.newPage(); await mockApp(themeTab, true); await themeTab.goto('/settings');
+    const themeTab = await context.newPage(); await themeTab.emulateMedia({ colorScheme: theme }); await mockApp(themeTab, true); await themeTab.goto('/settings');
     const themeSettings = new SettingsPage(themeTab);
     await themeSettings[theme === 'dark' ? 'light' : 'dark'].check();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme === 'dark' ? 'light' : 'dark');
@@ -96,10 +102,19 @@ for (const theme of ['dark', 'light'] as const) {
     await tests.showcase.play.click();
     await expect.poll(async () => (await tests.showcase.mediaState()).width).toBeGreaterThan(0);
     const video = await tests.showcase.video.elementHandle();
+    await tests.showcase.speed.selectOption('2');
+    await tests.showcase.video.evaluate((element: HTMLVideoElement) => { element.currentTime = 5; });
+    await header.switchAppearance(theme === 'dark' ? 'light' : 'dark');
+    expect(await video!.evaluate(element => element.isConnected)).toBe(true);
+    const media = await tests.showcase.mediaState();
+    expect(media.time).toBeGreaterThanOrEqual(5);
+    expect(media.paused).toBe(false);
+    expect(media.speed).toBe(2);
+    await expect(tests.showcase.video).toHaveCSS('filter', 'none');
+    await header.switchAppearance(theme);
     await tests.showcase.video.focus();
-    const other = await context.newPage(); await mockApp(other, true); await other.goto('/settings');
-    const second = new SettingsPage(other);
-    await second[theme === 'dark' ? 'light' : 'dark'].check();
+    const other = await context.newPage(); await other.emulateMedia({ colorScheme: theme }); await mockApp(other, true); await other.goto('/settings');
+    await new HeaderComponent(other).switchAppearance(theme === 'dark' ? 'light' : 'dark');
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme === 'dark' ? 'light' : 'dark');
     expect(await video!.evaluate(element => element.isConnected)).toBe(true);
     expect((await tests.showcase.mediaState()).time).toBeGreaterThan(0);

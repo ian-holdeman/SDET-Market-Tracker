@@ -12,6 +12,27 @@ export class HeaderComponent {
   get logoutButton() { return this.page.locator('#header-logout-btn'); }
   get loginButton() { return this.page.getByRole('button', { name: 'Sign In', exact: true }); }
   get username() { return this.page.locator('#header-username-display'); }
+  get region() { return this.page.getByRole('banner'); }
+  get appearanceButton() { return this.region.getByRole('button', { name: /^Switch to (light|dark) mode$/ }); }
+  appearanceAction(theme: 'light' | 'dark') { return this.region.getByRole('button', { name: `Switch to ${theme} mode`, exact: true }); }
+  async switchAppearance(theme: 'light' | 'dark') { await this.appearanceAction(theme).click(); }
+  async observePaletteTransitions() {
+    await this.page.evaluate(() => {
+      (window as any).paletteTransitions = [];
+      document.addEventListener('transitionrun', event => {
+        if (/color|background|border|shadow|fill|stroke|^--tw-/.test(event.propertyName)) {
+          (window as any).paletteTransitions.push(event.propertyName);
+        }
+      });
+    });
+  }
+  async paletteTransitionsAfterPaint() {
+    return this.page.evaluate(() => new Promise<string[]>(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        resolve((window as any).paletteTransitions.splice(0));
+      }));
+    }));
+  }
 
   constructor(page: Page) {
     this.page = page;

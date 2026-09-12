@@ -13,6 +13,7 @@ export class SettingsPage {
   get confirmClear() { return this.dialog.getByRole('button', { name: 'Yes, Clear Watchlist' }); }
   get confirmDelete() { return this.dialog.getByRole('button', { name: 'Yes, Delete Account' }); }
   get cancel() { return this.dialog.getByRole('button', { name: 'Cancel', exact: true }); }
+  get closePending() { return this.dialog.getByRole('button', { name: 'Close', exact: true }); }
   async navigate() {
     await new HeaderComponent(this.page).profileButton.click();
     await this.page.getByRole('button', { name: 'Settings', exact: true }).click();

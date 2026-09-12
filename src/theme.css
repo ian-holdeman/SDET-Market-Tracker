@@ -88,6 +88,16 @@
   --color-negative-ink-400: oklch(70.4% 0.191 22.216);
   --color-on-action: #ffffff;
 }
+/* Suppress CSS interpolation only while the shared script commits a new palette.
+   CSS animations and mounted media remain untouched; normal transitions resume immediately. */
+:root[data-appearance-changing],
+:root[data-appearance-changing] *,
+:root[data-appearance-changing] *::before,
+:root[data-appearance-changing] *::after,
+:root[data-appearance-changing] *::backdrop {
+  transition: none !important;
+}
+
 :root { color-scheme: dark; }
 :root[data-theme="light"] {
   color-scheme: light;

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mockApp } from '../../fixtures/auth';
 import { SettingsPage } from '../../pages/settings.page';
+import { HeaderComponent } from '../../pages/components/header.component';
 
 test.use({ colorScheme: 'dark' });
 
@@ -49,6 +50,17 @@ test('Completely blocked storage still renders public pages', async ({ page }) =
   await page.goto('/settings');
   await expect(page.getByRole('button', { name: 'Sign In to Your Account' })).toBeVisible();
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(11, 14, 20)');
+  const header = new HeaderComponent(page);
+  await header.switchAppearance('light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(header.appearanceAction('dark')).toBeVisible();
+  await page.reload();
+  await expect(header.appearanceAction('light')).toBeVisible();
+  await header.switchAppearance('light');
+  await header.switchAppearance('dark');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 
 test('Open tabs synchronize explicit theme changes, key removal and full storage reset', async ({ page, context }) => {
@@ -96,10 +108,12 @@ test('A cross-tab appearance change preserves a pending dialog and duplicate con
   const dialog = await settings.dialog.elementHandle();
   await settings.confirmClear.evaluate((button: HTMLButtonElement) => { button.click(); button.click(); });
   await expect(settings.dialog.getByRole('status')).toContainText('Clearing');
+  await settings.closePending.focus();
   const other = await context.newPage(); await mockApp(other, true); await other.goto('/settings');
-  await new SettingsPage(other).light.check();
+  await new HeaderComponent(other).switchAppearance('light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   expect(await dialog!.evaluate(element => element.isConnected)).toBe(true);
+  await expect(settings.closePending).toBeFocused();
   await expect(settings.dialog.getByRole('status')).toContainText('Clearing');
   expect(state.clearRequests).toHaveLength(1);
   release();

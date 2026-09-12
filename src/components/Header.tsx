@@ -1,9 +1,10 @@
 import { useHeaderActivity } from '../services/useHeaderActivity';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, Layers, Terminal, Brain, LogIn, LogOut, Star, ChevronDown, Settings } from 'lucide-react';
+import { TrendingUp, Layers, Terminal, Brain, LogIn, LogOut, Star, ChevronDown, Settings, Sun, Moon } from 'lucide-react';
 import { PageView } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useAppearance } from '../hooks/useAppearance';
 
 interface HeaderProps {
   currentPage: PageView;
@@ -23,6 +24,9 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
   const { session, testsActive } = useHeaderActivity();
   const activityDot = (kind: string, label: string) => <span data-testid={kind+'-activity-indicator'} role="img" aria-label={label} title={label} className="w-2 h-2 rounded-full bg-positive-400 animate-pulse motion-reduce:animate-none shrink-0" />;
   const { user, isAdmin, openAuthModal, logout } = useAuth();
+  const { theme, setTheme } = useAppearance();
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
+  const appearanceLabel = `Switch to ${nextTheme} mode`;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -84,11 +88,11 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-lg font-bold tracking-tight text-ink-heading group-hover:text-info-ink-200 transition-colors">
-                  <span className="inline sm:hidden">SDET</span>
-                  <span className="hidden sm:inline">The SDET's Market Tracker</span>
+                  <span className="inline sm:hidden md:inline lg:hidden">SDET</span>
+                  <span className="hidden sm:inline md:hidden lg:inline">The SDET's Market Tracker</span>
                 </span>
               </div>
-              <p className="text-xs text-ink-muted hidden sm:block">
+              <p className="text-xs text-ink-muted hidden sm:block md:hidden lg:block">
                 Market Surveillance & Test Automation Suite
               </p>
             </div>
@@ -133,7 +137,16 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
           </nav>
 
           {/* User Account / Watchlist Auth Controls */}
-          <div className="flex items-center space-x-3">
+          <div className="flex shrink-0 items-center space-x-3">
+            <button
+              type="button"
+              aria-label={appearanceLabel}
+              title={appearanceLabel}
+              onClick={() => setTheme(nextTheme)}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted hover:text-ink-strong hover:bg-surface-800/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-focus cursor-pointer"
+            >
+              {theme === 'dark' ? <Sun aria-hidden="true" className="h-5 w-5" /> : <Moon aria-hidden="true" className="h-5 w-5" />}
+            </button>
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -144,7 +157,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                   <div className="w-5 h-5 rounded-full bg-info-600/30 border border-info-400/40 flex items-center justify-center text-info-ink-300 font-bold text-[10px]">
                     {user.username.charAt(0).toUpperCase()}
                   </div>
-                  <span id="header-username-display" className="font-semibold max-w-[100px] truncate">
+                  <span id="header-username-display" className="font-semibold max-w-[48px] min-[375px]:max-w-[100px] truncate">
                     {user.username}
                   </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-ink-muted transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />

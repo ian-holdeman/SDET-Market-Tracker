@@ -5,7 +5,18 @@
   const device = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: light)') : null;
   let preference = null;
   const apply = () => {
-    document.documentElement.dataset.theme = preference ?? (device?.matches ? 'light' : 'dark');
+    const root = document.documentElement;
+    const theme = preference ?? (device?.matches ? 'light' : 'dark');
+    const switching = root.dataset.theme && root.dataset.theme !== theme;
+    if (switching) root.dataset.appearanceChanging = '';
+    try {
+      root.dataset.theme = theme;
+      // Commit every surface and gradient together before restoring hover transitions.
+      // This is synchronous: no timer/frame can leave transitions disabled in a hidden tab.
+      if (switching) void root.offsetWidth;
+    } finally {
+      if (switching) delete root.dataset.appearanceChanging;
+    }
     window.dispatchEvent(new Event('appearancechange'));
   };
   try { preference = valid(localStorage.getItem(key)); } catch { /* Storage can be blocked. */ }
