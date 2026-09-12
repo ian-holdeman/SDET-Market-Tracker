@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { mockApp } from '../../fixtures/auth';
 import { HeaderComponent } from '../../pages/components/header.component';
 import { SettingsPage } from '../../pages/settings.page';
+import { settleSurfaceAnimations } from '../../pages/components/contrast';
 
 test.use({ colorScheme: 'dark' });
 
@@ -11,12 +12,18 @@ test('Palette changes apply without intermediate color transitions and retain no
   const header = new HeaderComponent(page), settings = new SettingsPage(page);
   await expect(settings.dark).toBeChecked();
   await header.appearanceButton.focus();
+  await settleSurfaceAnimations(header.appearanceButton);
   await header.observePaletteTransitions();
   await page.keyboard.press('Enter');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   expect(await header.paletteTransitionsAfterPaint()).toEqual([]);
   await expect(header.appearanceAction('dark')).toBeFocused();
-  await settings.dark.check();
+  // Finish normal focus/blur feedback before observing the next palette change.
+  // WebKit can dispatch the header's outline transition after a pointer check starts.
+  await settings.dark.focus();
+  await settleSurfaceAnimations(header.appearanceButton);
+  await header.paletteTransitionsAfterPaint();
+  await page.keyboard.press('Space');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(await header.paletteTransitionsAfterPaint()).toEqual([]);
 

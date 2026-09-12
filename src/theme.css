@@ -1,4 +1,6 @@
 /* Shared semantic palette. Dark retains the established colors; only tokens vary. */
+/* Scoped Light corrections reuse surfaces without changing unrelated token consumers. */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
 @theme {
   --color-commodity-surface: oklch(28.6% 0.066 53.813);
   --color-commodity-line: oklch(47.6% 0.114 61.907);

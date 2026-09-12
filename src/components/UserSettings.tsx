@@ -6,7 +6,8 @@ import { Dialog } from './Dialog';
 import type { PageView, UserProfile } from '../types';
 
 interface UserSettingsProps { onNavigate: (page: PageView) => void; }
-const actionStyle = 'shrink-0 rounded-xl border border-line-strong bg-surface-800 px-4 py-2.5 text-xs font-semibold text-ink-strong hover:bg-surface-700 disabled:opacity-50 disabled:cursor-not-allowed';
+const disabledStyle = 'disabled:opacity-50 disabled:cursor-not-allowed light:disabled:opacity-100 light:disabled:text-ink-muted light:disabled:bg-surface-800 light:disabled:hover:bg-surface-800';
+const actionStyle = `shrink-0 rounded-xl border border-line-strong bg-surface-800 px-4 py-2.5 text-xs font-semibold text-ink-strong hover:bg-surface-700 ${disabledStyle}`;
 
 export function UserSettings({ onNavigate }: UserSettingsProps) {
   const { user, loading, openAuthModal } = useAuth();
@@ -78,7 +79,7 @@ function AccountSettings({ user, onNavigate }: UserSettingsProps & { user: UserP
       </div>
       <div className="settings-row">
         <div><h2 className="settings-label">Delete Account</h2><p className="settings-description">Remove your app account and saved watchlist.</p></div>
-        <button id="btn-delete-account" className="shrink-0 rounded-xl border border-danger-surface-800 bg-danger-surface-950/50 px-4 py-2.5 text-xs font-semibold text-danger-ink-300 hover:bg-danger-surface-900/60 disabled:opacity-50" disabled={accountBusy} onClick={event => open('delete', event.currentTarget)}>Delete Account</button>
+        <button id="btn-delete-account" className={`shrink-0 rounded-xl border border-danger-surface-800 bg-danger-surface-950/50 px-4 py-2.5 text-xs font-semibold text-danger-ink-300 hover:bg-danger-surface-900/60 ${disabledStyle}`} disabled={accountBusy} onClick={event => open('delete', event.currentTarget)}>Delete Account</button>
       </div>
       <div className="settings-row">
         <h2 className="settings-label">Privacy</h2>
@@ -99,7 +100,7 @@ function AccountSettings({ user, onNavigate }: UserSettingsProps & { user: UserP
       {error && <p role="alert" className="text-sm text-danger-ink-300">{error}</p>}
       <div className="flex flex-wrap justify-end gap-3">
         <button className={actionStyle} onClick={() => setDialog(null)}>{pending ? 'Close' : 'Cancel'}</button>
-        <button id={dialog === 'delete' ? 'confirm-delete-account-btn' : undefined} disabled={!!pending || accountBusy} onClick={() => void submit()} className="rounded-xl bg-danger-600 px-4 py-2.5 text-xs font-semibold text-on-action hover:bg-danger-500 disabled:opacity-50">
+        <button id={dialog === 'delete' ? 'confirm-delete-account-btn' : undefined} disabled={!!pending || accountBusy} onClick={() => void submit()} className={`rounded-xl bg-danger-600 px-4 py-2.5 text-xs font-semibold text-on-action hover:bg-danger-500 ${disabledStyle}`}>
           {dialog === 'delete' ? 'Yes, Delete Account' : 'Yes, Clear Watchlist'}
         </button>
       </div>

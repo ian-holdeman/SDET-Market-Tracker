@@ -119,9 +119,9 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
                     <div className="font-mono text-xs sm:text-sm font-semibold text-ink-strong">
                       <span title={fullPriceLabel(item.price, item.currency, item.assetType)}>{priceLabel(item.price, item.currency, item.assetType)}</span>
                     </div>
-                    <div className={`font-mono text-xs sm:text-sm font-bold inline-flex items-center px-1.5 py-0.5 rounded ${
+                    <div data-testid="mover-change" className={`font-mono text-xs sm:text-sm font-bold inline-flex items-center px-1.5 py-0.5 rounded ${
                       isPos
-                        ? 'text-positive-ink-400 bg-positive-500/10 border border-positive-500/20'
+                        ? 'text-positive-ink-400 bg-positive-500/10 light:bg-positive-surface-950/50 border border-positive-500/20'
                         : 'text-danger-ink-400 bg-danger-500/10 border border-danger-500/20'
                     }`}>
                       {isPos ? '+' : ''}{fixed(item.changePercent)}%
@@ -173,9 +173,9 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
                     <div className="font-mono text-xs sm:text-sm font-semibold text-ink-strong">
                       <span title={fullPriceLabel(item.price, item.currency, item.assetType)}>{priceLabel(item.price, item.currency, item.assetType)}</span>
                     </div>
-                    <div className={`font-mono text-xs sm:text-sm font-bold inline-flex items-center px-1.5 py-0.5 rounded ${
+                    <div data-testid="mover-change" className={`font-mono text-xs sm:text-sm font-bold inline-flex items-center px-1.5 py-0.5 rounded ${
                       isPos
-                        ? 'text-positive-ink-400 bg-positive-500/10 border border-positive-500/20'
+                        ? 'text-positive-ink-400 bg-positive-500/10 light:bg-positive-surface-950/50 border border-positive-500/20'
                         : 'text-danger-ink-400 bg-danger-500/10 border border-danger-500/20'
                     }`}>
                       {isPos ? '+' : ''}{fixed(item.changePercent)}%

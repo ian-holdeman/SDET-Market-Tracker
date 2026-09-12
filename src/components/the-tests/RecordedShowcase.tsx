@@ -134,7 +134,7 @@ export function RecordedShowcase() {
             else if (event.key === 'End') next = showcaseScenarios.length - 1;
             else return;
             event.preventDefault(); setSelected(next); tabs.current[next]?.focus();
-          }} className={`shrink-0 rounded-lg px-3 py-2.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-positive ${selected === index ? 'bg-positive-500/10 text-positive-ink-300' : 'text-ink-muted hover:bg-surface-800 hover:text-ink-heading'}`}>
+          }} className={`shrink-0 rounded-lg px-3 py-2.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-positive ${selected === index ? 'bg-positive-500/10 light:bg-positive-surface-950/50 text-positive-ink-300' : 'text-ink-muted hover:bg-surface-800 hover:text-ink-heading'}`}>
           {item.label}
         </button>)}
       </div>

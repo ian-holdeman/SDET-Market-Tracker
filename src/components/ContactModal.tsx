@@ -100,7 +100,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                   href="/resume"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-positive-600/20 hover:bg-positive-600/30 text-positive-ink-300 border border-positive-500/40 text-xs font-semibold transition-colors w-full cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-positive-600/20 hover:bg-positive-600/30 light:bg-positive-surface-950/50 light:hover:bg-positive-surface-950/80 text-positive-ink-300 border border-positive-500/40 text-xs font-semibold transition-colors w-full cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>View Resume (PDF)</span>

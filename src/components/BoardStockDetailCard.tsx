@@ -702,7 +702,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 <TrendingDown className="w-3.5 h-3.5 mr-1 shrink-0" />
               )}
               {isPeriodPositive ? '+' : ''}{fixed(activeChangePercent, 2)}%
-              <span className="ml-1 text-[10px] sm:text-[11px] font-normal opacity-90">
+              <span data-testid="period-absolute-change" className="ml-1 text-[10px] sm:text-[11px] font-normal opacity-90 light:opacity-100">
                 (<span title={fullPriceLabel(activeChange, stock.currency, stock.assetType)}>{priceLabel(activeChange, stock.currency, stock.assetType)}</span>)
               </span>
             </span>

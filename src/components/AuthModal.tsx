@@ -21,7 +21,7 @@ export const AuthModal: React.FC = () => {
         <p className="mb-4 text-xs"><a href="/privacy" target="_blank" rel="noreferrer" className="rounded text-info-ink-300 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-focus">Privacy &amp; Data Notice</a></p>
         {error && <p role="alert" id="auth-error-message" className="mb-4 rounded-lg border border-danger-surface-800 p-3 text-sm text-danger-ink-300">{error}</p>}
         <button id="auth-submit-btn" onClick={() => void login()} disabled={loading}
-          className="w-full rounded-lg bg-info-600 px-4 py-3 text-sm font-semibold hover:bg-info-500 disabled:opacity-50">
+          className="w-full rounded-lg bg-info-600 px-4 py-3 text-sm font-semibold hover:bg-info-500 disabled:opacity-50 light:bg-info-surface-950 light:hover:bg-info-600/25 light:disabled:bg-surface-800 light:disabled:text-ink-muted light:disabled:opacity-100 light:disabled:hover:bg-surface-800">
           {loading ? 'Connecting…' : 'Continue with Google'}
         </button>
       </div>

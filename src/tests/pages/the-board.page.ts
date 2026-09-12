@@ -42,6 +42,7 @@ export class TheBoardPage extends BasePage {
     const card = this.page.locator(`#drilldown-card-${symbol.toLowerCase()}`);
     return {
       card,
+      absoluteChange: card.getByTestId('period-absolute-change'),
       financeLink: card.getByRole('link', { name: /^Google Finance/ }),
       highLabel: card.locator('#price-badge-high-' + symbol.toLowerCase()),
       surface: card.getByTestId('market-chart'),

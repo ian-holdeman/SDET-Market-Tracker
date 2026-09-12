@@ -1,5 +1,5 @@
-import { test, expect, type Locator } from '@playwright/test';
-import { mkdir } from 'node:fs/promises';
+import { test, expect } from '@playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { mockApp } from '../../fixtures/auth';
 import { feed } from '../../fixtures/testEvidence';
 import { pipelineFixture, pipelineBrowserEvidence } from '../../fixtures/pipeline';
@@ -8,26 +8,10 @@ import { TheBoardPage } from '../../pages/the-board.page';
 import { TheTestsPage } from '../../pages/the-tests.page';
 import { PrivacyPage } from '../../pages/privacy.page';
 import { HeaderComponent } from '../../pages/components/header.component';
+import { ContactPage } from '../../pages/contact.page';
+import { HomePage } from '../../pages/home.page';
 
-// Compute actual foreground/background contrast, compositing transparent ancestor surfaces.
-async function contrast(locator: Locator, property: 'color' | 'stroke' = 'color') {
-  return locator.evaluate((element, property) => {
-    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
-    const ctx = canvas.getContext('2d')!;
-    const rgba = (color: string) => { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = color; ctx.fillRect(0, 0, 1, 1); return Array.from(ctx.getImageData(0, 0, 1, 1).data); };
-    const ancestors = []; let node: Element | null = element;
-    while (node) { ancestors.unshift(node); node = node.parentElement; }
-    let background = [255, 255, 255];
-    for (const ancestor of ancestors) {
-      const c = rgba(getComputedStyle(ancestor).backgroundColor), a = c[3] / 255;
-      background = background.map((v, i) => c[i] * a + v * (1 - a));
-    }
-    const foreground = rgba(getComputedStyle(element)[property]);
-    const lum = (rgb: number[]) => rgb.slice(0, 3).map(v => { const c = v / 255; return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; }).reduce((sum, c, i) => sum + c * [.2126, .7152, .0722][i], 0);
-    const a = lum(background), b = lum(foreground);
-    return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
-  }, property);
-}
+import { contrast, textContrastInventory } from '../../pages/components/contrast';
 
 for (const theme of ['dark', 'light'] as const) {
   test(`Populated pages, charts and dialogs remain readable in ${theme}, with playback and focus preserved`, async ({ page, context }, testInfo) => {
@@ -42,12 +26,14 @@ for (const theme of ['dark', 'light'] as const) {
       (window as any).cspViolations = [];
       window.addEventListener('securitypolicyviolation', event => (window as any).cspViolations.push(event.violatedDirective));
     });
-    const directory = `.telemetry/settings/${testInfo.project.name}/${theme}`;
+    const directory = `.telemetry/light-visibility/${process.env.VISIBILITY_PHASE || 'after'}/${testInfo.project.name}/${theme}`;
     await mkdir(directory, { recursive: true });
     const screenshot = async (name: string) => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       if (!await page.getByRole('dialog').count()) await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: `${directory}/${name}.png`, fullPage: true });
+      const root = await page.getByRole('dialog').count() ? page.getByRole('dialog') : page.getByRole('main');
+      await writeFile(`${directory}/${name}-contrast.json`, JSON.stringify(await textContrastInventory(root), null, 2));
     };
     await page.goto('/settings');
     const settings = new SettingsPage(page);
@@ -65,11 +51,21 @@ for (const theme of ['dark', 'light'] as const) {
     await page.goto('/');
     await expect(page.getByTestId('test-snapshot').getByTestId('metric-value').first()).toBeVisible();
     await screenshot('home');
+    if (theme === 'light') {
+      const changes = new HomePage(page).moverChanges;
+      await expect(changes).toHaveCount(2);
+      for (const change of await changes.all()) {
+        expect.soft(await contrast(change)).toBeGreaterThanOrEqual(4.5);
+        await change.hover();
+        expect.soft(await contrast(change)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
     await page.goto('/board?symbol=AAPL');
     const board = new TheBoardPage(page);
     await expect(board.chart('AAPL').line).toBeVisible();
     expect(await contrast(board.chart('AAPL').line, 'stroke')).toBeGreaterThanOrEqual(3);
     await screenshot('board');
+    if (theme === 'light') expect.soft(await contrast(board.chart('AAPL').absoluteChange)).toBeGreaterThanOrEqual(4.5);
     const chartLine = await board.chart('AAPL').line.elementHandle();
     const path = await board.chart('AAPL').line.getAttribute('d');
     const header = new HeaderComponent(page);
@@ -92,10 +88,19 @@ for (const theme of ['dark', 'light'] as const) {
     await page.goto('/privacy');
     expect(await contrast(new PrivacyPage(page).article.getByRole('heading').first())).toBeGreaterThanOrEqual(4.5);
     await screenshot('privacy');
+    const contact = new ContactPage(page);
+    await contact.open();
+    await screenshot('contact');
+    if (theme === 'light') expect.soft(await contrast(contact.resume)).toBeGreaterThanOrEqual(4.5);
+    await contact.resume.hover();
+    await screenshot('contact-hover');
+    if (theme === 'light') expect.soft(await contrast(contact.resume)).toBeGreaterThanOrEqual(4.5);
+    await contact.close.click();
     await page.goto('/tests');
     const tests = new TheTestsPage(page);
     await expect(tests.results.value('pass-rate')).toHaveText('100%');
     await screenshot('tests');
+    if (theme === 'light') expect.soft(await contrast(tests.showcase.tab('Watchlist re-login'))).toBeGreaterThanOrEqual(4.5);
     await page.getByRole('button', { name: 'Details for run #3' }).click();
     await screenshot('test-dialog');
     await page.keyboard.press('Escape');

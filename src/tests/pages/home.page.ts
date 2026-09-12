@@ -3,6 +3,7 @@ import { Page, Locator } from "@playwright/test";
 import { BasePage } from "./base.page";
 
 export class HomePage extends BasePage {
+  get moverChanges() { return this.page.getByTestId('mover-change'); }
   readonly heroHeading: Locator;
   readonly boardCard: Locator;
   readonly testsCard: Locator;
