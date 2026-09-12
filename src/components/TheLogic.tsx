@@ -40,6 +40,10 @@ const evidence = [
     title: 'Reporting integrity tests', path: 'scripts/tests/telemetry.test.ts',
     text: 'Controlled reports and GitHub responses exercise retries, missing cases, invalid provenance and expired artifacts. Passing ingestion is never substituted for passing tests. These fixtures do not establish current GitHub availability.',
   },
+  {
+    title: 'Nightly CI and publication', path: 'docs/test-telemetry.md',
+    text: 'The Application baseline workflow targets 2:17 a.m. America/Denver daily, including weekends and unchanged commits. GitHub moves the spring-forward gap to 3:00 a.m.; runs can be delayed or missed, and public schedules can be disabled after 60 days of repository inactivity. The server accepts sanitized evidence only from the configured repository, branch and workflow, with matching commit, run and attempt. Local checks and manual runs do not prove scheduled publication.',
+  },
 ];
 
 export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => (
@@ -96,7 +100,7 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => (
             ['Delivery checks', 'GitHub Actions · Docker / local Supabase'],
           ].map(([purpose, tools]) => <div key={purpose}><dt className="text-ink-heading font-medium">{purpose}</dt><dd className="text-ink-muted mt-1">{tools}</dd></div>)}
         </dl>
-        <p className="text-sm text-ink-muted">The repository workflow starts behavior changes with a failing test or reproduction, then implementation and focused checks. CI separates browser/offline checks from database/Auth checks. Docker runs the local Supabase stack; application hosting is still undecided.</p>
+        <p className="text-sm text-ink-muted">Behavior changes start with a failing test or reproduction. GitHub Actions is configured for nightly checks at 2:17 a.m. Denver time: build, offline and browser checks run alongside SQL and local Auth checks. Trusted results populate The Tests. The app is hosted on Cloud Run; nightly CI does not deploy it.</p>
       </div>
       <div className="flex flex-wrap gap-3 pt-1">
         <button onClick={() => onNavigate('board')} className={`px-4 py-2 rounded-xl bg-info-600 hover:bg-info-500 text-on-action text-sm font-semibold cursor-pointer ${focus}`}>The Board</button>
@@ -118,7 +122,7 @@ export const TheLogic: React.FC<TheLogicProps> = ({ onNavigate }) => (
           </div>)}
           <p className="text-ink-muted">Source links describe test scenarios on the main branch, not a current passing run. The Tests page separates published browser-case results, curated recordings with mocked services, and a historical CI timeline. Database job status does not supply database case counts.</p>
           <p className="text-ink-muted">Pass Rate counts first-attempt passes over all collected browser test-project cases. A passing retry stays flaky; missing evidence is unavailable, never a perfect score.</p>
-          <p className="text-ink-muted">Independent market reconciliation, load testing, hosted configuration and physical-device checks remain gaps. Test duration is not application performance. No benchmark is claimed here.</p>
+          <p className="text-ink-muted">The nightly baseline keeps live-provider checks opt-in. The private quote comparison and hosted verification have limited, dated coverage; broad market reconciliation, load testing and physical-device checks remain gaps. Test duration is not application performance. No benchmark is claimed here.</p>
         </div>
       </details>
 

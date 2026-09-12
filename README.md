@@ -58,6 +58,8 @@ The separate [parallel pipeline replay](docs/pipeline-replay.md) shows a selecte
 
 GitHub Actions runs browser/offline and local database checks in parallel jobs of `.github/workflows/playwright.yml`. Only sanitized test evidence is uploaded, keyed by run ID and workflow attempt. Database-job failure prevents the overall workflow from appearing passed, even if browser tests passed. PR runs execute checks but are not accepted as portfolio telemetry.
 
+The workflow also targets 2:17 a.m. America/Denver nightly, including weekends and unchanged commits; spring-forward advances to 3:00 a.m. Nightly runs publish evidence without deploying the app. Scheduling, notification, budget and release-verification limits are recorded in the [telemetry guide](docs/test-telemetry.md#nightly-execution). The local update is complete and owner-accepted on September 12, 2026; genuine scheduled publication verification remains a release check.
+
 Configure server-only `TEST_HISTORY_REPOSITORY`, `TEST_HISTORY_BRANCH` and `TEST_HISTORY_TOKEN` to read trusted workflow history. The token needs Actions read access to that repository; there is no browser token or publishing endpoint. Leaving all three unset shows “No verified runs yet.” Read-only retrieval of published GitHub evidence has been exercised locally. Verify the specific workflow run for each new commit; this is separate from hosted application configuration.
 
 `npm run test:e2e:ingest` writes local evidence only. `--github` is reserved for the Actions workflow. Missing/invalid reports produce incomplete evidence and exit nonzero. Failed reports remain failed even when validation succeeds. The dashboard never treats ingestion success as test success.

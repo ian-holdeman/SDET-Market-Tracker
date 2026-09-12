@@ -55,6 +55,7 @@ test('source validation rejects foreign, mismatched, missing, failed and impossi
     d => { d.run.head_repository.full_name = 'fork/repo'; }, d => { d.run.repository.full_name = 'fork/repo'; },
     d => { d.run.run_attempt = 2; }, d => { d.run.workflow_id++; }, d => { d.run.path = 'other.yml'; },
     d => { d.run.event = 'pull_request'; }, d => { d.run.head_branch = 'other'; }, d => { d.run.head_sha = 'b'.repeat(40); },
+    d => { d.run.event = 'schedule'; }, // Nightly support must not broaden the selected historical source.
     d => { d.run.conclusion = 'failure'; }, d => { d.jobs.jobs.pop(); }, d => { d.jobs.total_count = 3; },
     d => { d.jobs.jobs[1] = d.jobs.jobs[0]; }, d => { d.jobs.jobs[0].run_attempt = 2; },
     d => { d.jobs.jobs[0].head_sha = 'b'.repeat(40); }, d => { d.jobs.jobs[0].conclusion = 'skipped'; },

@@ -200,7 +200,7 @@ export async function fetchHistory(
   const trusted = listing.workflow_runs.filter(
     (r: any) =>
       r.head_branch === config.branch &&
-      ["push", "workflow_dispatch"].includes(r.event) &&
+      ["push", "workflow_dispatch", "schedule"].includes(r.event) &&
       r.head_repository?.full_name === config.repository &&
       r.path === ".github/workflows/playwright.yml",
   );
@@ -237,7 +237,7 @@ export async function fetchHistory(
         r.head_branch !== config.branch ||
         r.path !== ".github/workflows/playwright.yml" ||
         r.head_repository?.full_name !== config.repository ||
-        !["push", "workflow_dispatch"].includes(r.event)
+        !["push", "workflow_dispatch", "schedule"].includes(r.event)
       )
         throw Error("Mismatched GitHub attempt");
       const complete = r.status === "completed";

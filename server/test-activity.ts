@@ -31,7 +31,7 @@ export async function fetchTestActivity(
       r.head_branch === config.branch &&
       r.head_repository?.full_name === config.repository &&
       r.path === ".github/workflows/playwright.yml" &&
-      ["push", "workflow_dispatch"].includes(r.event),
+      ["push", "workflow_dispatch", "schedule"].includes(r.event),
   );
 }
 export function testActivityRouter(

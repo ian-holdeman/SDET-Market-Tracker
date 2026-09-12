@@ -40,6 +40,13 @@ test("activity requires in-progress trusted workflow; queued, PR, foreign and co
   };
   for (const [patch, expected] of [
     [{}, true],
+    [{ event: "workflow_dispatch" }, true],
+    [{ event: "schedule" }, true],
+    [{ event: "schedule", status: "queued" }, false],
+    [{ event: "schedule", status: "completed" }, false],
+    [{ event: "schedule", head_branch: "other" }, false],
+    [{ event: "schedule", path: ".github/workflows/other.yml" }, false],
+    [{ event: "schedule", head_repository: { full_name: "fork/repo" } }, false],
     [{ status: "queued" }, false],
     [{ status: "completed" }, false],
     [{ event: "pull_request" }, false],

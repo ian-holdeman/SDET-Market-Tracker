@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+  schedule:
+    # GitHub advances the nonexistent spring-forward time to 03:00 local.
+    - cron: '17 2 * * *'
+      timezone: 'America/Denver'
 
 permissions:
   contents: read
@@ -33,11 +37,11 @@ jobs:
       - run: npm run test:e2e
         id: browser_tests
       - name: Validate sanitized evidence
-        if: always() && steps.dependencies.outcome == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: always() && steps.dependencies.outcome == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
         run: npm run test:e2e:ingest -- --github
       - name: Retain public-safe evidence only
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
         with:
           name: test-evidence-v1-${{ github.run_id }}-${{ github.run_attempt }}
           path: .telemetry/publish/telemetry.json

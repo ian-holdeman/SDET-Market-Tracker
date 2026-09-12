@@ -16,7 +16,7 @@ async function ingest() {
   if (
     github &&
     (process.env.GITHUB_ACTIONS !== "true" ||
-      !["push", "workflow_dispatch"].includes(
+      !["push", "workflow_dispatch", "schedule"].includes(
         process.env.GITHUB_EVENT_NAME || "",
       ))
   )
