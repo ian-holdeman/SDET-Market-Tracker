@@ -12,7 +12,7 @@ Reuse server-only SUPABASE_URL and SUPABASE_SECRET_KEY plus VITE_AUTH_REDIRECT_U
 - Run SQL authorization tests: `npm run db:test`
 - Run offline endpoint/provider tests: `npm run test:baseline`
 - Run disposable local Auth/REST integration tests: `npm run test:auth`
-- Run browser checks: `npm run build:e2e` then `npm run test:e2e -- src/tests/specs/auth/auth.spec.ts --workers=2`
+- Run browser checks: `npm run build:e2e` then `npm run test:e2e -- src/tests/specs/auth/auth.spec.ts src/tests/specs/board/the-board.spec.ts --workers=2`
 - Restore normal build: `npm run build`
 - Restart `npm run dev` after server changes.
 
@@ -20,7 +20,7 @@ The migration grants service_role only SELECT/INSERT on assets. It retains no ta
 
 ## Evidence and limits
 
-Offline tests prove malformed/mismatched provider data cannot reach registration, caller verification precedes writes, extra privilege fields are rejected, and failures/rate limits are explicit. SQL tests prove grants and RLS. Local integration tests exercise the real Auth and PostgREST APIs with disposable accounts and a simulated Yahoo response. Browser tests simulate external APIs and verify save/error UI behavior. None establishes perpetual Yahoo availability or market-data licensing rights.
+Offline tests prove malformed/mismatched provider data cannot reach registration, caller verification precedes writes, extra privilege fields are rejected, and failures/rate limits are explicit. SQL tests prove grants and RLS. Local integration tests exercise the real Auth and PostgREST APIs with disposable accounts and a simulated Yahoo response. Browser tests simulate external APIs. The uncurated MongoDB journey in `src/tests/specs/board/the-board.spec.ts` searches and inspects MDB, recovers from registration/save/removal failures, reloads saved membership, and removes only MDB while MSFT remains saved. The shared fixture returns requested symbols and distinguishes owner-wide clear from symbol removal. Admin add/remove curation and callback failure/recovery remain in the Auth browser suite. None establishes perpetual Yahoo availability or market-data licensing rights.
 
 Validation allows ten attempts per verified account per minute. The trusted server claims a database-backed budget through `claim_asset_registration` after verifying the UUID with Auth. This budget is shared across instances and revisions; browser roles cannot invoke it or inspect its private table. Expired rows are removed on the next claim, capacity is bounded to 1,000 active accounts, and account deletion cascades the row. This is a registration limit, not global denial-of-service protection.
 

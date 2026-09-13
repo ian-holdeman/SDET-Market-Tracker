@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../fixtures/showcase-test";
 import { HeaderComponent } from "../../pages/components/header.component";
 test("header indicators follow sessions and verified activity, then clear on failure", async ({
   page,

@@ -2,7 +2,7 @@
 
 ## Status and interface
 
-Contact and the main two-page resume are complete and owner-accepted for the local initial version. Hosting and production verification remain separate.
+Contact and the main two-page resume are complete and owner-accepted for the local initial version. The deployment guide records the initial hosted checks; September 12 resume polish is accepted locally and requires its own release verification.
 
 Keep the established three-option design, fonts and shared light/dark palette. The header subtitle is exactly “Engineering inquires and SDET opportunities”. The Custom Build and Open to Roles badges are removed. The full-time hiring subtext remains “View my experience in test automation and quality engineering.” Preserve the third-option joke: “Don't ask me! I'm just a guy who likes finance.” The existing email address and custom-development option remain.
 
@@ -10,7 +10,7 @@ Keep the established three-option design, fonts and shared light/dark palette. T
 
 The canonical editable source is `docs/resume/ian-holdeman-resume.html`; its approved PDF is `docs/resume/ian-holdeman-resume.pdf`. `public/resume.pdf` is the identical public copy. Earlier drafts are local artifacts, not maintained sources. The resume has two pages with selectable text, professional and personal experience, education and a compact certificates section.
 
-The project's live-application link is [https://sdet-market-tracker-855618435389.us-west1.run.app](https://sdet-market-tracker-855618435389.us-west1.run.app). Only the pending URL was changed; approved wording and credentials were preserved. Both regenerated pages were rendered and inspected, extraction was compared with the approved text, and the canonical/public PDFs match byte for byte. For future authorized edits, update the canonical HTML, then run `node scripts/render-resume.mjs` with Node 22 and the installed Playwright Chromium browser. The script updates the canonical and public PDFs together; it is never run automatically by an application build. Visually inspect every rendered page and verify text extraction after any resume edit. Credential links and award dates are not included in the source.
+The project's live-application link is [https://sdet-market-tracker-855618435389.us-west1.run.app](https://sdet-market-tracker-855618435389.us-west1.run.app). Both regenerated pages were rendered and inspected, extraction was compared with the approved text, and the canonical/public PDFs match byte for byte. For resume edits, update the canonical HTML, then run `node scripts/render-resume.mjs` with Node 22 and the installed Playwright Chromium browser. The script updates the canonical and public PDFs together; it is never run automatically by an application build. Visually inspect every rendered page and verify text extraction after any resume edit. Credential links and award dates are not included in the source.
 
 Contact opens `/resume` in a new tab, preserving the original page and modal. This standalone route mounts `ResumeViewer` without the market/Auth application providers. A lazily loaded, pinned PDF.js dependency and same-origin worker decode `/resume.pdf` into page canvases with selectable text layers. The paper remains white in both palettes, and the surrounding view follows the existing device/browser appearance preference. Rendering uses the PDF itself, not an HTML facsimile or pre-rendered page images. No third-party viewer service, new server endpoint, CSP relaxation, or visitor authentication is needed.
 
@@ -34,6 +34,8 @@ npm run build
 
 Email actions remain user-initiated; tests inspect destinations without sending mail. Do not send emails as part of verification.
 
-Keep this work focused on Contact and the resume. Hosting choice, remote configuration, deployment and production verification remain separate authorized steps. Maintain [roadmap](roadmap.md) and [privacy/security launch requirements](privacy-security.md).
+Maintain the canonical source and both PDF copies together. Record completed scope in the [roadmap](roadmap.md) and verify each release through the [deployment guide](deployment.md).
 
 Copy-email feedback waits for successful clipboard completion. Rejection/unavailability permits retry with an accessible failure message; pending requests cannot report success after closure and feedback timers are cleaned up. The resume URL is synchronized with the confirmed Cloud Run origin.
+
+The HTTP-only PDF MIME/signature/canonical-byte contract now runs once in scripts/tests/baseline.test.ts against the generated server. contact.spec.ts retains real popup decoding, selectable text, explicit download byte equality, independent popup palettes and worker recovery in both browser engines.

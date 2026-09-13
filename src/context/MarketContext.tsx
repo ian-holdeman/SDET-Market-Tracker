@@ -82,6 +82,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const tickClearTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const isFetchingRef = useRef<boolean>(false);
+  const latestRefresh = useRef<(() => Promise<void>) | null>(null);
 
   // Primary Live Sync: Fetch quotes via server Yahoo proxy
   const fetchLiveMarketData = useCallback(async () => {
@@ -154,7 +155,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsInitialLoadComplete(true);
     } finally {
       isFetchingRef.current = false;
-      setIsLoadingLiveMetrics(false);
+      if (universeRef.current !== currentUniverse && latestRefresh.current) {
+        void latestRefresh.current();
+      } else setIsLoadingLiveMetrics(false);
     }
   }, [user?.watchlist, curatedStocks, universe]);
 
@@ -214,6 +217,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Eagerly preload all ticker logo assets across the board universe into the browser cache
     preloadTickerLogos(curatedStocks.map(s => s.symbol));
 
+    latestRefresh.current = fetchLiveMarketData;
     fetchLiveMarketData();
 
     const refreshTimer = setInterval(() => {
@@ -221,6 +225,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, 15000);
 
     return () => {
+      latestRefresh.current = null;
       clearInterval(refreshTimer);
       Object.values(tickClearTimers.current).forEach(clearTimeout);
     };

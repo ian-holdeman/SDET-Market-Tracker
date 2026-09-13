@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 import { env } from './src/tests/config/env';
 
+const runDirectory = process.env.IMT_BROWSER_ARTIFACTS ??= `.telemetry/browser-runs/${new Date().toISOString().replace(/[:.]/g, '-')}-${process.pid}`;
+
 /**
  * Playwright Test Configuration
  * 
@@ -9,6 +11,7 @@ import { env } from './src/tests/config/env';
  */
 export default defineConfig({
   testDir: './src/tests/specs',
+  outputDir: `${runDirectory}/artifacts`,
   
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -27,7 +30,8 @@ export default defineConfig({
     ['html', { open: 'never' }],
     ['list'],
     ['./scripts/evidence-reporter.ts'],
-    ['json', { outputFile: 'test-results/results.json' }]
+    ['json', { outputFile: 'test-results/results.json' }],
+    ['json', { outputFile: `${runDirectory}/results.json` }]
   ],
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -46,6 +50,7 @@ export default defineConfig({
 
     /* Consistent custom test ID attribute attribute for React components */
     testIdAttribute: 'data-testid',
+    serviceWorkers: 'block',
   },
 
   /* Configure projects for major browsers and mobile viewports */
@@ -66,14 +71,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm start',
+    command: 'node scripts/showcase-server.mjs',
     url: `${env.BASE_URL}/api/health`,
-    env: {
-      PORT: new URL(env.BASE_URL).port || '3100',
-      VITE_SUPABASE_URL: 'https://supabase.example.invalid',
-      // Browser fixtures intercept trusted operations. Never inherit real server credentials.
-      SUPABASE_URL: '', SUPABASE_SECRET_KEY: '', VITE_AUTH_REDIRECT_URL: '',
-    },
     reuseExistingServer: false,
     timeout: 120 * 1000,
   },

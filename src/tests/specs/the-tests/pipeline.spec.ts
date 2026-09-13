@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { HeaderComponent } from '../../pages/components/header.component';
 import { PipelineComponent } from '../../pages/components/pipeline.component';
 import { pipelineFixture, pipelineBrowserEvidence } from '../../fixtures/pipeline';

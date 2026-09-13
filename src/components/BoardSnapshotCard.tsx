@@ -99,6 +99,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
               return (
                 <div
                   key={`riser-${item.symbol}-${idx}`}
+                  data-testid="market-mover" data-symbol={item.symbol}
                   onClick={() => handleStockClick(item.symbol)}
                   className="flex items-center justify-between p-1.5 sm:p-2 -mx-1 rounded-lg hover:bg-surface-800/60 transition-colors cursor-pointer group/row"
                 >
@@ -153,6 +154,7 @@ export const BoardSnapshotCard: React.FC<BoardSnapshotCardProps> = ({ onExploreB
               return (
                 <div
                   key={`faller-${item.symbol}-${idx}`}
+                  data-testid="market-mover" data-symbol={item.symbol}
                   onClick={() => handleStockClick(item.symbol)}
                   className="flex items-center justify-between p-1.5 sm:p-2 -mx-1 rounded-lg hover:bg-surface-800/60 transition-colors cursor-pointer group/row"
                 >

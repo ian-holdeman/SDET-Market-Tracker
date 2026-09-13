@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { ContactPage } from '../../pages/contact.page';
 import { mockApp } from '../../fixtures/auth';
 

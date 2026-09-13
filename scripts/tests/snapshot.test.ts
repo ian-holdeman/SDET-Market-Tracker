@@ -14,6 +14,15 @@ const config = {
   branch: "main",
   token: "never-persist-this",
 };
+async function settled(url: string) {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const response = await fetch(url);
+    if (response.status === 502 || !(await response.json()).refreshing) return;
+    await new Promise<void>(resolve => setImmediate(resolve));
+  }
+  throw Error('Snapshot refresh/persistence did not settle');
+}
 async function fixture(t: any) {
   const directory = await mkdtemp(path.join(tmpdir(), "test-snapshot-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -125,7 +134,7 @@ test("cold server serves persisted snapshot during slow refresh, deduplicates an
     assert.equal(page.runs[0].status, "passed");
   }
   release();
-  await new Promise((resolve) => setTimeout(resolve, 30));
+  await settled(url);
   const updated = await (await fetch(url)).json();
   assert.deepEqual(updated.runs, []);
   assert.equal(updated.snapshot, false);
@@ -144,7 +153,7 @@ test("missing snapshot gives pending empty evidence; refresh failure keeps saved
   assert.equal(empty.refreshing, true);
   assert.deepEqual(empty.runs, []);
   reject(Error());
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await settled(url);
   assert.equal((await fetch(url)).status, 502);
   const saved = fresh();
   await store.write(saved, 1);
@@ -159,7 +168,7 @@ test("missing snapshot gives pending empty evidence; refresh failure keeps saved
     ),
   );
   await fetch(failed);
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await settled(failed);
   const result = await (await fetch(failed)).json();
   assert.equal(result.stale, true);
   assert.equal(result.fetchedAt, saved.fetchedAt);

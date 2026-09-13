@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { mockApp } from '../../fixtures/auth';
 import { HeaderComponent } from '../../pages/components/header.component';
 import { SettingsPage } from '../../pages/settings.page';
@@ -100,7 +100,7 @@ test('Guest header supports Tab, Enter and Space with visible focus retained acr
 });
 
 for (const signedIn of [false, true]) {
-  for (const width of [320, 360, 375, 390, 640, 768, 900, 1024, 1440]) {
+  for (const width of [320, 639, 640, 767, 768, 1023, 1024, 1440]) {
     test(`Header controls fit ${width}px in both palettes (${signedIn ? 'member' : 'guest'})`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       const state = await mockApp(page, signedIn);
@@ -109,7 +109,7 @@ for (const signedIn of [false, true]) {
       const header = new HeaderComponent(page);
       const account = signedIn ? header.profileButton : header.loginButton;
       await expect(account).toBeVisible();
-      const directory = `.telemetry/header-appearance/${testInfo.project.name}/${signedIn ? 'member' : 'guest'}`;
+      const directory = testInfo.outputPath('header-appearance');
       await mkdir(directory, { recursive: true });
       for (const theme of ['dark', 'light'] as const) {
         if (await header.appearanceAction(theme).isVisible()) await header.switchAppearance(theme);

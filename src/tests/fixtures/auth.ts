@@ -15,7 +15,7 @@ export async function mockApp(page: Page, authenticated = false, admin = false) 
       sessionStorage.setItem('test-session-initialized', 'yes');
     }
   }, session);
-  const state = { failRegistration: true, catalogAvailable: true, curated: ['AAPL', 'MSFT'], googleEnabled: true, failDeletion: true, watchlist: [] as string[], writes: [] as unknown[], exchanges: 0, accountRequests: 0, clearRequests: [] as string[], failClear: false, clearAppliedButLost: false, clearGate: null as Promise<void> | null, profileGate: null as Promise<void> | null, populated: false, falling: false, failWatchlistRead: false, mutationGate: null as Promise<void> | null, deletionGate: null as Promise<void> | null, identity, watchlists: null as Record<string, string[]> | null };
+  const state = { failRegistration: true, failSave: false, failRemove: false, catalogAvailable: true, catalog: new Set(['AAPL', 'MSFT']), registrations: [] as string[], curated: ['AAPL', 'MSFT'], googleEnabled: true, failDeletion: true, watchlist: [] as string[], writes: [] as unknown[], exchanges: 0, accountRequests: 0, clearRequests: [] as string[], failClear: false, clearAppliedButLost: false, clearGate: null as Promise<void> | null, profileGate: null as Promise<void> | null, populated: false, falling: false, failWatchlistRead: false, mutationGate: null as Promise<void> | null, deletionGate: null as Promise<void> | null, identity, watchlists: null as Record<string, string[]> | null };
   await page.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -32,6 +32,11 @@ export async function mockApp(page: Page, authenticated = false, admin = false) 
       if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 });
       if (url.pathname === '/rest/v1/rpc/current_user_is_admin') return route.fulfill({ json: admin });
       if (url.pathname === '/rest/v1/curated_assets') {
+        if (request.method() === 'POST') {
+          const { symbol } = request.postDataJSON();
+          if (!state.curated.includes(symbol)) state.curated.push(symbol);
+          return route.fulfill({ json: [{ symbol }] });
+        }
         if (request.method() === 'DELETE') {
           const symbol = url.searchParams.get('symbol')!.slice(3);
           state.curated = state.curated.filter((item) => item !== symbol);
@@ -39,7 +44,10 @@ export async function mockApp(page: Page, authenticated = false, admin = false) 
         }
         return route.fulfill({ json: state.curated.map((symbol) => ({ symbol })) });
       }
-      if (url.pathname === '/rest/v1/assets') return route.fulfill({ json: state.catalogAvailable ? { symbol: 'AAPL' } : null });
+      if (url.pathname === '/rest/v1/assets') {
+        const symbol = url.searchParams.get('symbol')?.slice(3);
+        return route.fulfill({ json: state.catalogAvailable && state.catalog.has(symbol!) ? { symbol } : null });
+      }
       if (url.pathname === '/rest/v1/watchlist_items') {
         const requestedOwner = url.searchParams.get('user_id')?.slice(3) || state.identity.id;
         const items = state.watchlists?.[requestedOwner] ?? state.watchlist;
@@ -47,15 +55,21 @@ export async function mockApp(page: Page, authenticated = false, admin = false) 
           state.clearRequests.push(request.url());
           await state.clearGate;
           if (state.failClear) return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
-          const removed = [...items];
-          if (state.watchlists) state.watchlists[requestedOwner] = []; else state.watchlist = [];
+          const filter = url.searchParams.get('symbol');
+          expect(url.searchParams.get('user_id')).toMatch(/^eq\./);
+          if (filter) expect(filter).toMatch(/^eq\./);
+          if (filter && state.failRemove) return route.fulfill({ status: 503, json: { message: 'Removal unavailable' } });
+          const removed = items.filter(symbol => !filter || symbol === filter.slice(3));
+          const remaining = items.filter(symbol => !removed.includes(symbol));
+          if (state.watchlists) state.watchlists[requestedOwner] = remaining; else state.watchlist = remaining;
           if (state.clearAppliedButLost) return route.abort();
           return route.fulfill({ json: removed.map(symbol => ({ symbol })) });
         }
         if (request.method() === 'POST') {
           const body = request.postDataJSON(); state.writes.push(body);
           await state.mutationGate;
-          items.push(body.symbol);
+          if (state.failSave) return route.fulfill({ status: 503, json: { message: 'Save unavailable' } });
+          if (!items.includes(body.symbol)) items.push(body.symbol);
           return route.fulfill({ json: [{ symbol: body.symbol }] });
         }
         if (state.failWatchlistRead) return route.fulfill({ status: 503, json: { message: 'Read unavailable' } });
@@ -66,10 +80,13 @@ export async function mockApp(page: Page, authenticated = false, admin = false) 
     if (url.origin !== 'http://127.0.0.1:3100') return route.abort();
     if (url.pathname === '/api/assets/register') {
       expect(request.headers().authorization).toBe('Bearer ' + token);
-      expect(request.postDataJSON()).toEqual({ symbol: 'AAPL' });
+      const { symbol } = request.postDataJSON();
+      expect(request.postDataJSON()).toEqual({ symbol });
+      expect(symbol).toMatch(/^[A-Z0-9^][A-Z0-9.^=-]*$/);
+      state.registrations.push(symbol);
       if (state.failRegistration) return route.fulfill({ status: 502, json: { error: 'Yahoo could not validate this symbol.' } });
-      state.catalogAvailable = true;
-      return route.fulfill({ json: { symbol: 'AAPL' } });
+      state.catalogAvailable = true; state.catalog.add(symbol);
+      return route.fulfill({ json: { symbol } });
     }
     if (url.pathname === '/api/test-history') return route.fulfill({ json: { version: 1, configured: true, fetchedAt: new Date().toISOString(), stale: false, runs: [] } });
     if (url.pathname === '/api/account') {

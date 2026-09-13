@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
+import { fulfillShowcaseMarket } from '../../fixtures/showcase-market';
 import { TheBoardPage } from '../../pages/the-board.page';
 
 test('holiday handoff and premarket transition keep a partial day chart; failure stops the pulse', async ({ page }, testInfo) => {
@@ -23,6 +24,7 @@ test('holiday handoff and premarket transition keep a partial day chart; failure
         sessionStartUnix: first, sessionEndUnix: first + 16 * 3600000, sessionSource: 'provider' } });
     }
     if (url.pathname === '/api/quotes') return route.fulfill({ json: { quotes: [{ symbol: 'SOFI', price: 18.1, prevClose: 18, change: .1, changePercent: .55, currency: 'USD', asOf: new Date(start).toISOString(), fetchedAt: new Date(fetched).toISOString(), sparkline: [18, 18.1] }] } });
+    if (await fulfillShowcaseMarket(route)) return;
     if (url.pathname.startsWith('/api/')) return route.fulfill({ status: 503, json: { error: 'Incidental service unavailable' } });
     return route.continue();
   });
@@ -62,4 +64,11 @@ test('holiday handoff and premarket transition keep a partial day chart; failure
   await expect(chart.card.getByRole('status')).toContainText('Showing stale historical data');
   await expect(chart.line).toHaveAttribute('d', path!);
   await expect(chart.pulse).toHaveCount(0);
+  phase = 'regular'; fetched += 30000;
+  await page.clock.runFor(31000);
+  await expect(chart.card.getByRole('status')).toHaveCount(0);
+  await expect(chart.line).toHaveAttribute('d', path!);
+  await expect(chart.pulse).toHaveCount(1);
+  // Resume the simulated clock so capture teardown can paint the verified final frame.
+  if (process.env.SHOWCASE_CAPTURE === '1') await page.clock.resume();
 });

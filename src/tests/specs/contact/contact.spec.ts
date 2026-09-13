@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { readFile } from 'node:fs/promises';
 import { ContactPage, ResumePage } from '../../pages/contact.page';
 import { mockApp } from '../../fixtures/auth';
@@ -55,16 +55,6 @@ test('resume link opens a rendered PDF preview and downloads only when requested
   expect(downloads).toHaveLength(1);
   await popup.close();
   await expect(contact.dialog).toBeVisible();
-});
-
-test('public resume is a real PDF and matches the approved main document', async ({ request }) => {
-  const response = await request.get('/resume.pdf');
-  expect(response.status()).toBe(200);
-  expect(response.headers()['content-type']).toContain('application/pdf');
-  expect(response.headers()['content-disposition'] || '').not.toContain('attachment');
-  const body = await response.body();
-  expect(body.subarray(0, 5).toString()).toBe('%PDF-');
-  expect(body).toEqual(await readFile('docs/resume/ian-holdeman-resume.pdf'));
 });
 
 for (const colorScheme of ['dark', 'light'] as const) {

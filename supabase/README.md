@@ -1,8 +1,6 @@
 # Accounts and local database
 
-Supabase now backs frontend authentication, watchlists and curated membership.
-Test telemetry now uses GitHub Actions artifacts. No hosted project is linked. PostgreSQL 17 and the exact Supabase
-CLI version in package.json provide the local baseline.
+Supabase backs authentication, private watchlists and shared curated membership. Test telemetry uses GitHub Actions artifacts. PostgreSQL 17 and the pinned Supabase CLI in package.json provide the isolated local baseline. The separately provisioned production project is documented under [Production launch isolation](#production-launch-isolation); local fixtures must never be applied to it.
 
 ## Setup and reset
 
@@ -14,12 +12,12 @@ on Windows), then run from the repository root:
 ```sh
 npm ci
 npm run db:start
-npm run db:reset
+node scripts/supabase.mjs migration up --local
 npm run db:test
 npm run db:lint
 ```
 
-`db:reset` destroys and recreates **this local project's database**, applying migrations
+For a disposable fixture database only, `npm run db:reset` destroys and recreates **this local project's database**, applying migrations
 and fixtures. It is deliberately passed `--local`. Do not add `--linked`, `--db-url`,
 or run a remote push with these local fixtures. First startup downloads container
 images and uses disk/RAM, but does not provision paid services. Stop with
@@ -117,9 +115,7 @@ deleted-user tokens. Use the seeded local stack; reset only when its data is dis
 
 ## Google sign-in and frontend integration
 
-The frontend now uses Supabase for accounts, UUID-owned watchlists, and curated
-membership. Test history is read from GitHub Actions artifacts. No hosted
-Supabase project has been verified or linked in this workspace.
+The frontend uses Supabase for accounts, UUID-owned watchlists and curated membership. The following configuration targets the local stack. Use the [deployment guide](../docs/deployment.md) for verified production targets and hosted acceptance evidence.
 
 ### Local configuration
 
@@ -188,11 +184,11 @@ owner-created local test identities; enabling local Google signup also enables
 the global signup setting. Before hosted rollout, separately restrict unwanted
 providers and validate the hosted configuration.
 
-For a future hosted project, Google's redirect URI becomes
+For a separately configured hosted project, Google's redirect URI becomes
 `https://<verified-project-ref>.supabase.co/auth/v1/callback`. Use the exact deployed
 HTTPS origin for the app Site URL and `<origin>/auth/callback` for the additional
 redirect and VITE setting. Avoid wildcard redirect rules. Verify the project/ref
-before applying migrations; do not upload local Auth fixtures. Application hosting is not configured in this repository. Existing Google console settings are environment-specific; verify them before making changes.
+before applying migrations; do not upload local Auth fixtures. Cloud Run hosting configuration and the existing production target are recorded in [deployment and operation](../docs/deployment.md). Google console settings are environment-specific; verify them before making changes.
 
 ### Authorization and deletion
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 test('production starts outside the project root and serves only public artifacts', { timeout: 20000 }, async (t) => {
@@ -55,6 +55,13 @@ test('production starts outside the project root and serves only public artifact
     const response = await fetch(`${base}${route}`);
     assert.equal(response.status, 404, route);
   }
+  const pdf = await fetch(base + '/resume.pdf');
+  assert.equal(pdf.status, 200);
+  assert.match(pdf.headers.get('content-type') ?? '', /application\/pdf/);
+  assert.doesNotMatch(pdf.headers.get('content-disposition') ?? '', /attachment/);
+  const document = Buffer.from(await pdf.arrayBuffer());
+  assert.equal(document.subarray(0, 5).toString(), '%PDF-');
+  assert.deepEqual(document, await readFile(new URL('../../docs/resume/ian-holdeman-resume.pdf', import.meta.url)));
   const unknown = await fetch(`${base}/api/not-real`);
   assert.equal(unknown.status, 404);
   assert.match(unknown.headers.get('content-type')!, /application\/json/);

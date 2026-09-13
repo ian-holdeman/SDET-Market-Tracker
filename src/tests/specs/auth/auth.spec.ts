@@ -158,3 +158,24 @@ test('confirmed sign-out removes orphaned OAuth storage without clearing unrelat
   expect(await page.evaluate(() => sessionStorage.getItem('imt_oauth_return'))).toBeNull();
   expect(await page.evaluate(() => localStorage.getItem('unrelated-preference'))).toBe('keep');
 });
+
+
+test('admin add-curation preserves saved membership and survives reload', async ({ page }) => {
+  const state = await mockApp(page, true, true); state.curated = ['MSFT']; state.watchlist = ['AAPL'];
+  await page.goto('/board?symbol=AAPL');
+  await page.getByRole('button', { name: 'Add to curated Board' }).click();
+  await expect(page.getByRole('button', { name: 'Remove from curated Board' })).toBeVisible();
+  expect(state.curated).toEqual(['MSFT', 'AAPL']);
+  expect(state.watchlist).toEqual(['AAPL']);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Remove from curated Board' })).toBeVisible();
+});
+
+test('OAuth callback cancellation is visible and a fresh sign-in recovers', async ({ page }) => {
+  const state = await mockApp(page);
+  await page.goto('/auth/callback?error=access_denied&error_description=Sign-in%20cancelled');
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText(/cancelled|denied/);
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await expect(new HeaderComponent(page).username).toHaveText('Test Member');
+  expect(state.exchanges).toBe(1);
+});

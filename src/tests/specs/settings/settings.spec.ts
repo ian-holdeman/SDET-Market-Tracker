@@ -1,5 +1,5 @@
 import { TheBoardPage } from '../../pages/the-board.page';
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { mockApp, id } from '../../fixtures/auth';
 import { SettingsPage } from '../../pages/settings.page';
 import { HeaderComponent } from '../../pages/components/header.component';
@@ -78,6 +78,7 @@ test('Clear requires confirmation, traps focus, preserves state on failure and s
   await settings.clear.click(); await settings.confirmClear.click();
   await expect(settings.dialog.getByRole('alert')).toContainText('not confirmed');
   expect(state.watchlist).toEqual(['AAPL', 'MSFT']);
+  await page.screenshot({ path: test.info().outputPath('clear-failure.png') });
   state.failClear = false;
   let release!: () => void; state.clearGate = new Promise(resolve => { release = resolve; });
   await settings.confirmClear.click();
@@ -88,6 +89,7 @@ test('Clear requires confirmation, traps focus, preserves state on failure and s
   await expect(settings.panel.getByRole('status')).toContainText('does not cancel');
   await expect(settings.clear).toBeDisabled();
   release();
+  await expect(settings.panel).toContainText('Your watchlist is empty');
   await expect(settings.clear).toBeDisabled();
   expect(state.clearRequests).toHaveLength(2);
   for (const request of state.clearRequests) {
@@ -96,5 +98,12 @@ test('Clear requires confirmation, traps focus, preserves state on failure and s
     expect(url.searchParams.has('symbol')).toBe(false);
   }
   await page.goto('/board');
-  await expect(new TheBoardPage(page).watchlistCount).toHaveCount(0);
+  const board = new TheBoardPage(page);
+  await expect(board.header.username).toBeVisible();
+  await expect(board.watchlistCount).toHaveCount(0);
+  await board.watchlistTab.click();
+  await expect(page.getByText('Your Watchlist is Empty', { exact: true })).toBeVisible();
+  await expect(board.rows).toHaveCount(0);
+  expect(state.watchlist).toEqual([]);
+  expect(state.curated).toEqual(['AAPL', 'MSFT']);
 });

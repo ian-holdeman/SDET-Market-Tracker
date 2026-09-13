@@ -133,6 +133,7 @@ test("recent results hides empty runs while history paginates and nested details
   await detail.click();
   const report = page.getByRole("dialog", { name: "Run #9", exact: true });
   await expect(report).toContainText("No test results were recorded.");
+  await page.screenshot({ path: test.info().outputPath('incomplete-details.png') });
   await page.keyboard.press("Escape");
   await expect(report).toHaveCount(0);
   await expect(detail).toBeFocused();

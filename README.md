@@ -46,13 +46,13 @@ npm run test:auth
 npm run build
 ```
 
-Playwright launches an isolated production server on `127.0.0.1:3100`, with fake public Supabase configuration and intercepted external APIs. It cannot reuse your development server. Restore the normal build afterwards. Browser tests do not prove database authorization: SQL and local Auth/PostgREST tests exercise those boundaries separately with transactional/disposable fixtures. Test cases have at most one retry; every attempt is retained in evidence.
+Playwright launches an isolated production server on `127.0.0.1:3100`, from an empty temporary directory with an OS environment allowlist, fake public Supabase configuration and shared external-API interception. It cannot reuse your development server. Restore the normal build afterwards. Browser tests do not prove database authorization: SQL and local Auth/PostgREST tests exercise those boundaries separately with transactional/disposable fixtures. Test cases have at most one retry; every attempt is retained in evidence. Private browser diagnostics use unique `.telemetry/browser-runs/` directories with separate attempt paths. See the [completed test audit](docs/test-audit-implementation.md) for changes, retained assertions and evidence limits.
 
 The offline suite covers server/configuration boundaries, provider validation, financial calculations, ownership endpoints and telemetry integrity. Opt-in `npm run test:market:live` and `npm run test:market:coverage` access Yahoo; they establish point-in-time availability rather than independent financial correctness. HTML reports, traces and recordings are local diagnostic artifacts and are not published by CI.
 
-The Tests showcase separately includes curated, reviewed local recordings in public client assets. Use `npm run record:showcase` to capture the selected browser scenarios; see [recording preparation, review, and playback limits](docs/test-recordings.md). These demonstrations use mocked services and do not establish current CI outcomes.
+The Tests showcase includes four reviewed local recordings: watchlist re-login, chart session handoff, Settings clear/recovery and nested history recovery. Use `npm run record:showcase` to capture the selected browser scenarios; see [recording preparation, review, and playback limits](docs/test-recordings.md). These demonstrations use mocked services and do not establish current CI outcomes.
 
-The separate [parallel pipeline replay](docs/pipeline-replay.md) shows a selected successful run using revalidated GitHub job timing and a sanitized browser-results replay. `npm run test:pipeline:live` performs an opt-in read-only source check using the existing server-only history configuration.
+The separate [nightly pipeline replay](docs/pipeline-replay.md) follows genuine completed scheduled runs, including failures and unchanged commits, with independent job/browser evidence and an explicitly older archived fallback. `npm run test:pipeline:live` performs an opt-in read-only source check using the existing server-only history configuration.
 
 ## Published test history
 
@@ -68,7 +68,7 @@ See [telemetry architecture and evidence semantics](docs/test-telemetry.md) for 
 
 ## Project guidance and roadmap
 
-Start new development tasks with [AGENTS.md](AGENTS.md), the [project overview](docs/project-overview.md), and the [owner roadmap](docs/roadmap.md). Follow the feature workflow in AGENTS.md: inspect and clarify, agree on scope and a prompt, implement with meaningful tests, validate, review and polish, then record acceptance. Keep durable standards in AGENTS.md, implementation details in the domain guides, and completed or planned scope in the roadmap.
+Use [AGENTS.md](AGENTS.md) for contribution and validation standards, the [project overview](docs/project-overview.md) for architecture, and the [roadmap](docs/roadmap.md) for completed and deferred scope. Domain guides document behavior, reproduction and evidence limits.
 
 ## Architecture and security references
 
@@ -76,9 +76,8 @@ Start new development tasks with [AGENTS.md](AGENTS.md), the [project overview](
 - [Accounts and database authorization](supabase/README.md): Google sign-in, UUID ownership, curation and deletion.
 - [Searched-asset registration](docs/symbol-registration.md): trusted validation without curation privileges.
 - [Test telemetry](docs/test-telemetry.md): authoritative CI evidence and public-safe publication.
-
 - [Header activity](docs/header-activity.md): trusted workflow activity and scheduled equity sessions.
 
-For immediate cold-load evidence, the server stores an ignored snapshot under `.telemetry/snapshots`. Set server-only `TEST_SNAPSHOT_DIRECTORY` to a private persistent volume for hosting; ephemeral filesystems cannot guarantee restart persistence. See the telemetry guide for limits and failure behavior.
+The server caches validated evidence privately. Local mode defaults to `.telemetry/snapshots`; `TEST_SNAPSHOT_DIRECTORY` may select a private persistent directory for one process. Cloud Run uses server-only `TEST_SNAPSHOT_BUCKET` with conditional Cloud Storage writes. Snapshots preserve original timestamps and cannot publish results. See the telemetry guide for expiry, recovery and persistence limits.
 
 Future feature scope and maintenance considerations are tracked in the [roadmap](docs/roadmap.md). Visitors never trigger test runs.

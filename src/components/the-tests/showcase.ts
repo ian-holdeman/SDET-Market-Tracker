@@ -7,25 +7,25 @@ export const showcaseScenarios = [
     limits: 'Sign-in and storage are mocked; this checks the browser flow, not Google OAuth or database permissions.',
   },
   {
-    id: 'cold-start', label: 'Cold-start recovery',
-    summary: 'Saved results stay useful while fresh results arrive.',
-    significance: 'The same metric tiles stay in place through loading, saved results, and a completed refresh.',
-    steps: ['Start with no results.', 'Load a saved run while refresh continues.', 'Show the new run without shifting the layout, including with reduced motion.'],
-    limits: 'Run history is test data. This checks refresh behavior, not GitHub publishing.',
+    id: 'chart', label: 'Chart session handoff',
+    summary: 'A partial trading day stays readable through a session change and a failed refresh.',
+    significance: 'The chart preserves usable prices, marks stale evidence and restores fresh activity after recovery.',
+    steps: ['Move from a holiday into premarket and a partial trading day.', 'Fail a refresh, check the stale chart, then restore fresh prices.'],
+    limits: 'Market responses and clock progression are controlled fixtures, not live market observations.',
+  },
+  {
+    id: 'settings', label: 'Settings clear recovery',
+    summary: 'Clearing a watchlist requires confirmation and can recover from an uncertain response.',
+    significance: 'Cancel keeps saved assets. A failed request preserves them, and retry clears only the signed-in owner’s watchlist.',
+    steps: ['Cancel the confirmation, then receive a clear failure.', 'Retry, close the pending dialog, then open Watchlist to confirm it is empty.'],
+    limits: 'Mocked account and market data. All contains AAPL and MSFT; clearing the watchlist leaves that shared Board intact.',
   },
   {
     id: 'history', label: 'History recovery',
     summary: 'A failed request should not be a dead end.',
     significance: 'Retrying older results works without losing your place. Closing nested reports returns keyboard focus where it belongs.',
     steps: ['Open history, recover from a failed page request, then inspect an incomplete run.', 'Close the reports with Escape and check that Home still shows the last usable results.'],
-    limits: 'The runs and request failure are mocked; their displayed outcomes are examples.',
-  },
-  {
-    id: 'deletion', label: 'Safe deletion',
-    summary: 'Only confirmed success signs you out after account deletion.',
-    significance: 'An uncertain response must leave you signed in, with a clear error and a way to retry.',
-    steps: ['Request deletion, receive an error, then retry successfully. The test checks the session is kept on failure and cleared on success.'],
-    limits: 'No real account is deleted. Auth deletion and database cleanup are checked separately in local integration tests.',
+    limits: 'The runs and request failure are mocked; their displayed outcomes are examples. The market fixture contains only AAPL and MSFT.',
   },
 ] as const;
 
@@ -53,7 +53,7 @@ export function parseRecordings(value: unknown): Recording[] {
       !/^[a-f0-9]{40}$/.test(r.commit) || typeof r.workingTreeModified !== 'boolean' ||
       !text(r.capturedAt) || !Number.isFinite(Date.parse(r.capturedAt)) ||
       ![r.testTitle, r.browser, r.viewport, r.node, r.playwright].every(text) ||
-      !/^src\/tests\/specs\/(auth\/auth|telemetry\/history)\.spec\.ts$/.test(r.sourceFile) ||
+      !/^src\/tests\/specs\/(auth\/auth|telemetry\/history|board\/chart-session|settings\/settings)\.spec\.ts$/.test(r.sourceFile) ||
       r.src !== `/recordings/${r.id}-${r.sha256.slice(0, 12)}.mp4` ||
       r.poster !== `/recordings/${r.id}-${r.sha256.slice(0, 12)}.png` ||
       !Number.isFinite(r.durationMs) || r.durationMs < 0 ||

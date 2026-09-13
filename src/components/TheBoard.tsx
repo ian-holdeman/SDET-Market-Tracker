@@ -29,6 +29,7 @@ import { BoardStockDetailCard } from './BoardStockDetailCard';
 import { TickerLogo, preloadTickerLogos } from './TickerLogo';
 import { useAuth } from '../context/AuthContext';
 import { searchProxyAssets } from '../services/yahooMarket';
+import { Dialog } from './Dialog';
 
 interface TheBoardProps {
   initialExpandedSymbol?: string;
@@ -119,6 +120,12 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
         data-market-status={stock.dataStatus}
         title={stock.dataStatus === 'stale' ? 'Stale market data: update failed' : stock.dataStatus === 'unavailable' ? 'Market data unavailable' : undefined}
         onClick={() => onToggleExpand(stock.symbol)}
+        onKeyDown={event => {
+          if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            onToggleExpand(stock.symbol);
+          }
+        }}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`group cursor-pointer select-none transition-colors duration-150 border-l-2 outline-none focus:outline-none scroll-mt-28 sm:scroll-mt-32 ${
           isExpanded
@@ -539,6 +546,15 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; latency?: number } | null>(null);
 
+  const diagnosticRequest = useRef<AbortController | null>(null);
+  const closeDiagnostics = () => {
+    diagnosticRequest.current?.abort();
+    diagnosticRequest.current = null;
+    setIsTestingConnection(false);
+    setShowSettingsModal(false);
+  };
+  useEffect(() => () => diagnosticRequest.current?.abort(), []);
+
   // Toggle single stock drilldown expansion
   const toggleExpand = useCallback((symbol: string) => {
     const next = new Set(expandedSymbols);
@@ -582,35 +598,33 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
   // Test live connection to backend Yahoo Finance engine
   const handleTestConnection = async () => {
+    if (diagnosticRequest.current) return;
+    const controller = new AbortController();
+    diagnosticRequest.current = controller;
+    const deadline = setTimeout(() => controller.abort(), 15000);
     setIsTestingConnection(true);
     setTestResult(null);
     const start = Date.now();
     try {
-      const res = await fetch('/api/quotes?symbols=SPY');
-      const elapsed = Date.now() - start;
-      if (!res.ok) {
-        throw new Error(`Proxy returned HTTP ${res.status}`);
-      }
+      const res = await fetch('/api/quotes?symbols=SPY', { signal: controller.signal });
+      if (!res.ok) throw new Error('Proxy returned HTTP ' + res.status);
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0 && typeof data[0].price === 'number') {
-        setTestResult({
-          success: true,
-          latency: elapsed,
-          message: `Yahoo returned a quote for SPY at $${data[0].price.toFixed(2)} with ${elapsed}ms round-trip latency.`,
-        });
-      } else {
-        setTestResult({
-          success: false,
-          message: 'Backend proxy responded but returned an empty quote set.',
-        });
+      const quote = Array.isArray(data?.quotes) && data.quotes.find((q: any) => q?.symbol === 'SPY');
+      if (!quote || !finite(quote.price) || !Number.isFinite(Date.parse(quote.asOf)) || !Number.isFinite(Date.parse(quote.fetchedAt))) {
+        throw new Error('Backend proxy did not return a valid SPY quote.');
       }
-    } catch (err: any) {
-      setTestResult({
-        success: false,
-        message: `Connection check failed: ${err?.message || 'Network error'}`,
-      });
+      const elapsed = Date.now() - start;
+      if (diagnosticRequest.current === controller) setTestResult({ success: true, latency: elapsed,
+        message: 'Yahoo returned a quote for SPY at $' + quote.price.toFixed(2) + ' with ' + elapsed + 'ms round-trip latency.' });
+    } catch (error) {
+      if (diagnosticRequest.current === controller) setTestResult({ success: false,
+        message: 'Connection check failed: ' + (controller.signal.aborted ? 'Request timed out.' : error instanceof Error ? error.message : 'Network error') });
     } finally {
-      setIsTestingConnection(false);
+      clearTimeout(deadline);
+      if (diagnosticRequest.current === controller) {
+        diagnosticRequest.current = null;
+        setIsTestingConnection(false);
+      }
     }
   };
 
@@ -738,7 +752,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           {/* Feed Status Display: Clickable diagnostic button for all users */}
           <button
             id="board-feed-status-btn"
-            onClick={() => setShowSettingsModal(true)}
+            onClick={event => { event.currentTarget.focus(); setShowSettingsModal(true); }}
             title="Click to view live Yahoo Finance engine sync diagnostics & telemetry"
             className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-panel hover:bg-hover-panel border border-line hover:border-line-strong font-mono text-xs shadow-inner transition-all group cursor-pointer"
           >
@@ -1303,34 +1317,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
       </div>
 
       {/* Feed Diagnostics & Live Telemetry Modal */}
-      <AnimatePresence>
-        {showSettingsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] sm:max-h-[88vh] bg-panel border border-line-strong/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-            >
-              {/* Modal Header */}
-              <div className="p-4 sm:p-5 border-b border-line flex items-center justify-between bg-inset/70 shrink-0">
-                <div className="flex items-center space-x-2.5">
-                  <div className="p-2 rounded-xl bg-info-500/10 border border-info-500/20 text-info-ink-400 shrink-0">
-                    <Radio className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-ink-heading font-mono">Market Provider Polling</h3>
-                    <p className="text-xs text-ink-muted">Yahoo Finance Backend Engine</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowSettingsModal(false)}
-                  className="p-1.5 rounded-lg text-ink-muted hover:text-ink-heading hover:bg-surface-800 transition-colors shrink-0 cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
+      {showSettingsModal && (
+        <Dialog title="Market Provider Polling" subtitle="Yahoo Finance Backend Engine" close={closeDiagnostics} maxWidth="lg">
               {/* Modal Body */}
               <div className="p-4 sm:p-5 space-y-4 text-xs text-ink-secondary overflow-y-auto flex-1 overscroll-contain">
 
@@ -1390,16 +1378,14 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                 </button>
 
                 <button
-                  onClick={() => setShowSettingsModal(false)}
+                  onClick={closeDiagnostics}
                   className="px-4 py-2 rounded-xl bg-info-600 hover:bg-info-500 text-on-action font-mono text-xs font-bold transition-all shadow-lg shadow-info-shadow-900/30 cursor-pointer"
                 >
                   Done
                 </button>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+        </Dialog>
+      )}
     </div>
   );
 };

@@ -6,11 +6,11 @@ export const selectedPipeline = {
   commit: '7b3b9f6049cb809f5fffa96c1ac8054fb89c1b18',
 } as const;
 export const pipelineUrl = `https://github.com/${selectedPipeline.repository}/actions/runs/${selectedPipeline.runId}/attempts/${selectedPipeline.attempt}`;
-export type PipelineJob = { id: number; name: 'test' | 'database'; startedAt: string; completedAt: string; outcome: 'success' };
-export type Pipeline = { version: 1; runId: number; attempt: number; number: number; repository: string; branch: string;
-  workflow: string; workflowId: number; commit: string; url: string; startedAt: string; outcome: 'success';
+export type PipelineJob = { id: number; name: string; startedAt: string; completedAt: string; outcome: import('./nightlyPipeline').Conclusion };
+export type Pipeline = { version: 1 | 2; runId: number; attempt: number; number: number; repository: string; branch: string;
+  workflow: string; workflowId: number; commit: string; url: string; startedAt: string; outcome: import('./nightlyPipeline').Conclusion;
   checkedAt: string; expiresAt: string; jobs: PipelineJob[]; browserEvidence?: Evidence|null;
-  source?: 'archive'; archivePublishedAt?: string };
+  source?: 'archive' | 'nightly'; archivePublishedAt?: string };
 export function pipelineDate(value: unknown): string {
   if (typeof value !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(value)) throw Error('Invalid pipeline timestamp');
   const time = Date.parse(value);
@@ -64,7 +64,8 @@ export function pipelineWindow(jobs: PipelineJob[]) {
   return {start,end,durationMs:end-start,overlapMs};
 }
 export function jobAt(job: PipelineJob, time: number) {
-  return time < Date.parse(job.startedAt) ? 'Not started' : time < Date.parse(job.completedAt) ? 'In progress' : 'Succeeded';
+  const outcomes = { success: 'Succeeded', failure: 'Failed', cancelled: 'Cancelled', timed_out: 'Timed out', action_required: 'Action required', neutral: 'Neutral', skipped: 'Skipped', startup_failure: 'Startup failed', stale: 'Stale' };
+  return time < Date.parse(job.startedAt) ? 'Not started' : time < Date.parse(job.completedAt) ? 'In progress' : outcomes[job.outcome];
 }
 export function advanceReplay(elapsed: number, delta: number, speed: number, duration: number) {
   return Math.min(duration,elapsed + Math.max(0,delta)*speed);

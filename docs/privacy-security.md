@@ -2,9 +2,9 @@
 
 ## Status and operator policy
 
-The owner approved the assembled public notice on 2026-09-08. The notice is implemented in the public Privacy modal and `/privacy`, with one shared copy source in `src/content/privacy.ts` and shared presentation in `src/components/PrivacyNotice.tsx`. Sign-in links to the direct notice. The owner requested Operator appear last so the notice opens with information and use; the request instructions point to the contact below. The owner accepted the Settings full-notice integration and narrow appearance-storage amendment on September 8, 2026, completing the local Privacy feature. This is local implementation, not deployment, legal certification or confirmation of hosted controls.
+The owner approved the assembled public notice on 2026-09-08. The notice is implemented in the public Privacy modal and `/privacy`, with one shared copy source in `src/content/privacy.ts` and shared presentation in `src/components/PrivacyNotice.tsx`. Sign-in links to the direct notice. Operator appears last so the notice opens with information and use; request instructions point to the contact below. The owner accepted the Settings full-notice integration and narrow appearance-storage amendment on September 8, 2026, completing the local Privacy feature. The [deployment guide](deployment.md) separately records dated hosted checks. Feature acceptance does not establish legal certification or permanent verification of hosted controls.
 
-Ian Holdeman operates personally from Utah; contact: ianrholdeman@gmail.com. The general-public application primarily serves U.S. visitors and is not directed at children under 13. Google Cloud Run in Oregon is selected for public hosting; Supabase Free in Oregon provides database/Auth. Actual deployment/retention verification remains pending. Public market browsing, optional Google sign-in and private watchlists define the permitted data use. Analytics, advertising, subscriptions, behavioral profiling and secondary use of personal data are excluded. No age collection is added.
+Ian Holdeman operates personally from Utah; contact: ianrholdeman@gmail.com. The general-public application primarily serves U.S. visitors and is not directed at children under 13. Google Cloud Run in Oregon hosts the application; Supabase Free in Oregon provides database/Auth. Provider retention and recovery limits remain explicit in the deployment guide. Public market browsing, optional Google sign-in and private watchlists define the permitted data use. Analytics, advertising, subscriptions, behavioral profiling and secondary use of personal data are excluded. No age collection is added.
 
 ## Implemented controls and decisions
 
@@ -47,6 +47,6 @@ Record only what is needed to address the request, its verification and outcome.
 
 Publish policy changes with an updated date; identify material changes to data use before they take effect. Review the inventory and notice together when processing changes.
 
-## Remaining launch requirements
+## Operational requirements
 
-Verify the selected targets, HTTPS/redirect URLs, operational access, log redaction/retention, backup/recovery and request handling against [deployment.md](deployment.md). Obtain Parqet permission or agree on an alternative. Google branding uses the real application home and /privacy URLs, and basic identity/email/profile scopes. The named deployment and hosted checks are authorized and underway; their actual evidence and remaining Google sign-in acceptance are recorded in the deployment guide.
+Verify the selected targets, HTTPS/redirect URLs, operational access, log redaction/retention, backup/recovery and request handling against [deployment.md](deployment.md). Obtain Parqet permission or agree on an alternative. Google branding uses the real application home and /privacy URLs, and basic identity/email/profile scopes. Initial deployment and hosted Google sign-in checks are complete as recorded in the deployment guide. Subsequent releases and configuration changes require their own verification; provider permission remains unresolved.

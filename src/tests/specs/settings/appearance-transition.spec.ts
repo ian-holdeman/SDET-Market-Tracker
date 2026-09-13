@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { mockApp } from '../../fixtures/auth';
 import { HeaderComponent } from '../../pages/components/header.component';
 import { SettingsPage } from '../../pages/settings.page';

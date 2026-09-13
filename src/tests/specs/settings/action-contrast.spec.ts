@@ -1,4 +1,5 @@
-import { test, expect, type Locator } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
+import type { Locator } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { mockApp } from '../../fixtures/auth';
 import { AuthModalComponent } from '../../pages/components/auth-modal.component';

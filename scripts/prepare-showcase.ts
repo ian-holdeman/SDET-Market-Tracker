@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -9,6 +9,7 @@ const hash = (file: string) => createHash('sha256').update(readFileSync(file)).d
 const directory = path.resolve(JSON.parse(readFileSync('.telemetry/showcase/latest.json', 'utf8')).directory);
 if (!directory.startsWith(path.resolve('.telemetry/showcase') + path.sep)) throw Error('Invalid private capture directory');
 const prepared = path.join(directory, 'prepared');
+const posterTimes = existsSync(path.join(directory, 'poster-times.json')) ? JSON.parse(readFileSync(path.join(directory, 'poster-times.json'), 'utf8')) : {};
 const report = JSON.parse(readFileSync(path.join(directory, 'capture.json'), 'utf8'));
 if (report.version !== 1 || report.outcome !== 'passed' || !Array.isArray(report.attempts)) throw Error('Capture did not complete successfully. Inspect its private results.');
 const fingerprint = createHash('sha256').update(JSON.stringify(report.sourceFiles)).digest('hex');
@@ -36,7 +37,7 @@ if (process.argv.includes('--reviewed')) {
   if (!ffmpeg) throw Error('Set SHOWCASE_FFMPEG to an FFmpeg executable with libx264.');
   mkdirSync(prepared, { recursive: true });
   const recordings: Recording[] = [];
-  for (const scenario of scenarios) {
+  for (const scenario of scenarios.filter(s => report.attempts.some((a: any) => a.id === s.id))) {
     const attempts = report.attempts.filter((a: any) => a.id === scenario.id);
     const last = attempts.at(-1);
     if (!last || last.title !== scenario.title || last.file !== scenario.file || last.project !== scenario.project || !last.video) throw Error('Missing or mismatched scenario recording');
@@ -53,7 +54,9 @@ if (process.argv.includes('--reviewed')) {
     const mediaHash = hash(encoded);
     const base = `${scenario.id}-${mediaHash.slice(0, 12)}`;
     copyFileSync(encoded, path.join(prepared, `${base}.mp4`));
-    const poster = spawnSync(ffmpeg, ['-y', '-ss', String(Math.min(seconds / 2, 2)), '-i', video, '-frames:v', '1', path.join(prepared, `${base}.png`)], { encoding: 'utf8', windowsHide: true });
+    const posterTime = posterTimes[scenario.id] ?? Math.min(seconds / 2, 2);
+    if (!Number.isFinite(posterTime) || posterTime < 0 || posterTime >= seconds) throw Error('Invalid reviewed poster time');
+    const poster = spawnSync(ffmpeg, ['-y', '-ss', String(posterTime), '-i', video, '-frames:v', '1', path.join(prepared, `${base}.png`)], { encoding: 'utf8', windowsHide: true });
     if (poster.status !== 0) throw Error('Poster generation failed: ' + poster.stderr);
     const review = path.join(directory, 'review', scenario.id);
     mkdirSync(review, { recursive: true });

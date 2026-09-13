@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
+import { responsePainted } from '../../fixtures/response-barrier';
 import { mockApp, id, identity, session } from '../../fixtures/auth';
 import { SettingsPage } from '../../pages/settings.page';
 import { HeaderComponent } from '../../pages/components/header.component';
@@ -21,6 +22,7 @@ for (const operation of ['clear', 'delete'] as const) {
     await settings[operation].click();
     await (operation === 'clear' ? settings.confirmClear : settings.confirmDelete).click();
     await expect(settings.dialog.getByRole('status')).toBeVisible();
+    await expect.poll(() => operation === 'clear' ? state.clearRequests.length : state.accountRequests).toBe(1);
     state.identity = secondIdentity;
     await page.evaluate(value => {
       localStorage.setItem('imt_supabase_auth', JSON.stringify(value));
@@ -28,7 +30,9 @@ for (const operation of ['clear', 'delete'] as const) {
       channel.postMessage({ event: 'SIGNED_IN', session: value }); channel.close();
     }, secondSession);
     await expect(settings.name).toHaveText('Second Member');
+    const response = page.waitForResponse(r => operation === 'clear' ? r.url().includes('/watchlist_items') && r.request().method() === 'DELETE' : r.url().endsWith('/api/account'));
     release();
+    await responsePainted(page, response);
     await expect(settings.delete).toBeEnabled();
     await expect(settings.name).toHaveText('Second Member');
     await expect(settings.panel).toContainText('1 saved asset');
@@ -117,7 +121,9 @@ test('Signing out while clear runs removes Settings and ignores the late respons
   await page.keyboard.press('Escape');
   await header.profileButton.click(); await header.logoutButton.click();
   await expect(settings.panel).toHaveCount(0);
+  const response = page.waitForResponse(r => r.url().includes('/watchlist_items') && r.request().method() === 'DELETE');
   release();
+  await responsePainted(page, response);
   await expect(page.getByRole('button', { name: 'Sign In to Your Account' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('imt_supabase_auth'))).toBeNull();
 });

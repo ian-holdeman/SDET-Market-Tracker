@@ -3,113 +3,113 @@
   "recordings": [
     {
       "id": "watchlist",
-      "src": "/recordings/watchlist-425f35c6fba3.mp4",
-      "poster": "/recordings/watchlist-425f35c6fba3.png",
-      "sha256": "425f35c6fba3275cf9f511dd611508f8c76779766f3bd3231016e9e07a55aae3",
-      "originalSha256": "37957db9330bd3851767687b499130f0d9e4cb5032a8162966408d79f774fa10",
+      "src": "/recordings/watchlist-de2d98398b2e.mp4",
+      "poster": "/recordings/watchlist-de2d98398b2e.png",
+      "sha256": "de2d98398b2e43385e9e157e13487dc39c429afdb0b4f83ee1e2af4c85f72dee",
+      "originalSha256": "6229231afba22640c3f09f41d523f86f0bfc4ee07c69777057bc6f4d51f5e281",
       "testTitle": "A saved watchlist does not reopen a card after card collapse and Google re-login",
       "sourceFile": "src/tests/specs/auth/auth.spec.ts",
-      "sourceFileSha256": "770474a69770aab9c3484b05e3d1d78b9c3485b50bdf1403642cd28b48b9abe0",
-      "commit": "964fb55963c8705b048cb3e16a3d4902753c5d14",
-      "sourceDigest": "90c744a55c1371185508e79cfd091cef87f291f183dba822586b54fbd31ff726",
+      "sourceFileSha256": "34fde65f02b909240b975d48ad16cafa52a61ea8c446830275ccc3505e4651b3",
+      "commit": "05ba32cccc4fcb09fdbef6f69f550c4b9527e49f",
+      "sourceDigest": "f21d2b05c4cad61b96404665eb1960cccef5307b572e75362781730265eb073d",
       "workingTreeModified": true,
-      "capturedAt": "2026-09-08T09:53:27.848Z",
+      "capturedAt": "2026-09-12T23:09:44.210Z",
       "browser": "WebKit · iPhone 13 emulation · Windows",
       "viewport": "390 × 664",
       "node": "v22.23.2",
       "playwright": "1.62.1",
       "outcome": "passed",
-      "durationMs": 6378,
-      "videoDurationSeconds": 7.16,
+      "durationMs": 6114,
+      "videoDurationSeconds": 6.88,
       "attempts": [
         {
           "retry": 0,
           "status": "passed",
-          "durationMs": 6378
+          "durationMs": 6114
         }
       ]
     },
     {
-      "id": "cold-start",
-      "src": "/recordings/cold-start-7a5a4882d53d.mp4",
-      "poster": "/recordings/cold-start-7a5a4882d53d.png",
-      "sha256": "7a5a4882d53db10f9da07fc8ec40f0d9e5018bff2a2178fe6bc054999f268c97",
-      "originalSha256": "b1f612744d079334991752136a4e2d6ee5d339034ae24a621313792e49345a39",
-      "testTitle": "cold skeleton and saved snapshot stay mounted until a verified refresh arrives",
-      "sourceFile": "src/tests/specs/telemetry/history.spec.ts",
-      "sourceFileSha256": "a224735cc6510242569f69d4366da8d4ff2a0e9195f94fa5fad9116071e27907",
-      "commit": "964fb55963c8705b048cb3e16a3d4902753c5d14",
-      "sourceDigest": "90c744a55c1371185508e79cfd091cef87f291f183dba822586b54fbd31ff726",
+      "id": "chart",
+      "src": "/recordings/chart-10de608cb32c.mp4",
+      "poster": "/recordings/chart-10de608cb32c.png",
+      "sha256": "10de608cb32c8fa7e0c2dbf437770f425f42ade05f07435d97b3036af615c87e",
+      "originalSha256": "3ff59933a586ab2e34f480bc2bae29004d1c0dc16e61a1a4e326b9064f0bd828",
+      "testTitle": "holiday handoff and premarket transition keep a partial day chart; failure stops the pulse",
+      "sourceFile": "src/tests/specs/board/chart-session.spec.ts",
+      "sourceFileSha256": "5e63f2faff36db92aa5679b0b41a579dcc232d6e6ae3a77e7c6d8aef707e287a",
+      "commit": "05ba32cccc4fcb09fdbef6f69f550c4b9527e49f",
+      "sourceDigest": "f21d2b05c4cad61b96404665eb1960cccef5307b572e75362781730265eb073d",
       "workingTreeModified": true,
-      "capturedAt": "2026-09-08T09:53:40.513Z",
+      "capturedAt": "2026-09-12T23:09:51.039Z",
       "browser": "Chromium · Windows",
       "viewport": "1440 × 900",
       "node": "v22.23.2",
       "playwright": "1.62.1",
       "outcome": "passed",
-      "durationMs": 6146,
-      "videoDurationSeconds": 6.96,
+      "durationMs": 3234,
+      "videoDurationSeconds": 3.56,
       "attempts": [
         {
           "retry": 0,
           "status": "passed",
-          "durationMs": 6146
+          "durationMs": 3234
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "src": "/recordings/settings-8c83989dabae.mp4",
+      "poster": "/recordings/settings-8c83989dabae.png",
+      "sha256": "8c83989dabae34133a56dbd7e219176c29f0045c3d24b5b55b336a73ac9723c4",
+      "originalSha256": "d55083ece0341eaed5d8177e7a0e1eb95487afb76b1f35f504d57caec91a1cd0",
+      "testTitle": "Clear requires confirmation, traps focus, preserves state on failure and sends one owner-scoped delete",
+      "sourceFile": "src/tests/specs/settings/settings.spec.ts",
+      "sourceFileSha256": "65a96df4ce224b2b618e4d8220934bbabaf395316e3956601c784c8eb41f7b29",
+      "commit": "05ba32cccc4fcb09fdbef6f69f550c4b9527e49f",
+      "sourceDigest": "277bdee4687ac8c2771da7f265a39d62aa73a7e50385530db5f0f4f34cc3c738",
+      "workingTreeModified": true,
+      "capturedAt": "2026-09-12T23:47:27.324Z",
+      "browser": "Chromium · Windows",
+      "viewport": "1440 × 900",
+      "node": "v22.23.2",
+      "playwright": "1.62.1",
+      "outcome": "passed",
+      "durationMs": 3248,
+      "videoDurationSeconds": 3.48,
+      "attempts": [
+        {
+          "retry": 0,
+          "status": "passed",
+          "durationMs": 3248
         }
       ]
     },
     {
       "id": "history",
-      "src": "/recordings/history-2fbea022b85d.mp4",
-      "poster": "/recordings/history-2fbea022b85d.png",
-      "sha256": "2fbea022b85da842d0fab1c02e0046c01f9abba5a2bd251ffc1076572e2ddd56",
-      "originalSha256": "cc51962ac502d860ed6f832f43107432ad7e472175bb9c050a1d4f655bd76ff8",
+      "src": "/recordings/history-e03485db2dcf.mp4",
+      "poster": "/recordings/history-e03485db2dcf.png",
+      "sha256": "e03485db2dcf16e1b2820eeef0a27c58593160bb9773f41b200945b4348c7315",
+      "originalSha256": "e6445a7d5933ab7e4d369966eff9d5b3c9cc369f72a88881ff4027d546b6a6a3",
       "testTitle": "recent results hides empty runs while history paginates and nested details restore focus",
       "sourceFile": "src/tests/specs/telemetry/history.spec.ts",
-      "sourceFileSha256": "a224735cc6510242569f69d4366da8d4ff2a0e9195f94fa5fad9116071e27907",
-      "commit": "964fb55963c8705b048cb3e16a3d4902753c5d14",
-      "sourceDigest": "90c744a55c1371185508e79cfd091cef87f291f183dba822586b54fbd31ff726",
+      "sourceFileSha256": "7308afe36208fdcc4451c3e253ea19379b679984bddbcdbeb139f6adf13b107e",
+      "commit": "05ba32cccc4fcb09fdbef6f69f550c4b9527e49f",
+      "sourceDigest": "f21d2b05c4cad61b96404665eb1960cccef5307b572e75362781730265eb073d",
       "workingTreeModified": true,
-      "capturedAt": "2026-09-08T09:53:38.505Z",
+      "capturedAt": "2026-09-12T23:09:58.290Z",
       "browser": "Chromium · Windows",
       "viewport": "1440 × 900",
       "node": "v22.23.2",
       "playwright": "1.62.1",
       "outcome": "passed",
-      "durationMs": 1996,
-      "videoDurationSeconds": 2.44,
+      "durationMs": 2140,
+      "videoDurationSeconds": 2.48,
       "attempts": [
         {
           "retry": 0,
           "status": "passed",
-          "durationMs": 1996
-        }
-      ]
-    },
-    {
-      "id": "deletion",
-      "src": "/recordings/deletion-f2a3c8f78322.mp4",
-      "poster": "/recordings/deletion-f2a3c8f78322.png",
-      "sha256": "f2a3c8f783229d9fe9fba4c4e34bae65cb6e20f1dfff862d247cd98560fcee5f",
-      "originalSha256": "8a71bb8b0b3af48afee94ff64db9a77a8d620b06c2095643bfd0ebadeadc3fd5",
-      "testTitle": "Deletion errors retain the account; confirmed deletion clears the browser session",
-      "sourceFile": "src/tests/specs/auth/auth.spec.ts",
-      "sourceFileSha256": "770474a69770aab9c3484b05e3d1d78b9c3485b50bdf1403642cd28b48b9abe0",
-      "commit": "964fb55963c8705b048cb3e16a3d4902753c5d14",
-      "sourceDigest": "90c744a55c1371185508e79cfd091cef87f291f183dba822586b54fbd31ff726",
-      "workingTreeModified": true,
-      "capturedAt": "2026-09-08T09:53:34.938Z",
-      "browser": "Chromium · Windows",
-      "viewport": "1440 × 900",
-      "node": "v22.23.2",
-      "playwright": "1.62.1",
-      "outcome": "passed",
-      "durationMs": 2159,
-      "videoDurationSeconds": 2.28,
-      "attempts": [
-        {
-          "retry": 0,
-          "status": "passed",
-          "durationMs": 2159
+          "durationMs": 2140
         }
       ]
     }

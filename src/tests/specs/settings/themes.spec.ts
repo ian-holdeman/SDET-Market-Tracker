@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { mockApp } from '../../fixtures/auth';
 import { feed } from '../../fixtures/testEvidence';
@@ -13,8 +13,7 @@ import { HomePage } from '../../pages/home.page';
 
 import { contrast, textContrastInventory } from '../../pages/components/contrast';
 
-for (const theme of ['dark', 'light'] as const) {
-  test(`Populated pages, charts and dialogs remain readable in ${theme}, with playback and focus preserved`, async ({ page, context }, testInfo) => {
+async function prepareTheme(page: import('@playwright/test').Page, theme: 'dark'|'light', testInfo: import('@playwright/test').TestInfo) {
     test.setTimeout(60000);
     const state = await mockApp(page, true); state.populated = true; state.watchlist = ['AAPL'];
     await page.route('**/api/test-history*', route => route.fulfill({ json: { ...feed(), fetchedAt: new Date().toISOString() } }));
@@ -26,7 +25,7 @@ for (const theme of ['dark', 'light'] as const) {
       (window as any).cspViolations = [];
       window.addEventListener('securitypolicyviolation', event => (window as any).cspViolations.push(event.violatedDirective));
     });
-    const directory = `.telemetry/light-visibility/${process.env.VISIBILITY_PHASE || 'after'}/${testInfo.project.name}/${theme}`;
+    const directory = testInfo.outputPath('visibility');
     await mkdir(directory, { recursive: true });
     const screenshot = async (name: string) => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -35,6 +34,15 @@ for (const theme of ['dark', 'light'] as const) {
       const root = await page.getByRole('dialog').count() ? page.getByRole('dialog') : page.getByRole('main');
       await writeFile(`${directory}/${name}-contrast.json`, JSON.stringify(await textContrastInventory(root), null, 2));
     };
+    return { screenshot, verifyRequests: async () => {
+    expect(await page.evaluate(() => (window as any).cspViolations)).toEqual(violations);
+    expect([...destinations].sort()).toEqual(['http://127.0.0.1:3100', 'https://assets.parqet.com', 'https://supabase.example.invalid'].sort());
+    } };
+}
+
+for (const theme of ['dark', 'light'] as const) {
+  test(`Populated page and dialog readability in ${theme}`, async ({ page, context }, testInfo) => {
+    const { screenshot, verifyRequests } = await prepareTheme(page, theme, testInfo);
     await page.goto('/settings');
     const settings = new SettingsPage(page);
     await expect(settings.name).toHaveText('Test Member');
@@ -60,28 +68,6 @@ for (const theme of ['dark', 'light'] as const) {
         expect.soft(await contrast(change)).toBeGreaterThanOrEqual(4.5);
       }
     }
-    await page.goto('/board?symbol=AAPL');
-    const board = new TheBoardPage(page);
-    await expect(board.chart('AAPL').line).toBeVisible();
-    expect(await contrast(board.chart('AAPL').line, 'stroke')).toBeGreaterThanOrEqual(3);
-    await screenshot('board');
-    if (theme === 'light') expect.soft(await contrast(board.chart('AAPL').absoluteChange)).toBeGreaterThanOrEqual(4.5);
-    const chartLine = await board.chart('AAPL').line.elementHandle();
-    const path = await board.chart('AAPL').line.getAttribute('d');
-    const header = new HeaderComponent(page);
-    await header.switchAppearance(theme === 'dark' ? 'light' : 'dark');
-    expect(await chartLine!.evaluate(element => element.isConnected)).toBe(true);
-    await expect(board.chart('AAPL').line).toHaveAttribute('d', path!);
-    await header.switchAppearance(theme);
-    await board.chart('AAPL').timeframe('1D').focus();
-    const themeTab = await context.newPage(); await themeTab.emulateMedia({ colorScheme: theme }); await mockApp(themeTab, true); await themeTab.goto('/settings');
-    const themeSettings = new SettingsPage(themeTab);
-    await themeSettings[theme === 'dark' ? 'light' : 'dark'].check();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', theme === 'dark' ? 'light' : 'dark');
-    expect(await chartLine!.evaluate(element => element.isConnected)).toBe(true);
-    await expect(board.chart('AAPL').line).toHaveAttribute('d', path!);
-    await expect(board.chart('AAPL').timeframe('1D')).toBeFocused();
-    await themeSettings[theme].check(); await themeTab.close();
     await page.goto('/logic');
     expect(await contrast(page.getByRole('main').getByRole('button', { name: 'The Board', exact: true }))).toBeGreaterThanOrEqual(4.5);
     await screenshot('logic');
@@ -104,6 +90,40 @@ for (const theme of ['dark', 'light'] as const) {
     await page.getByRole('button', { name: 'Details for run #3' }).click();
     await screenshot('test-dialog');
     await page.keyboard.press('Escape');
+    await verifyRequests();
+  });
+
+  test(`Mounted chart and focused timeframe survive appearance changes in ${theme}`, async ({ page, context }, testInfo) => {
+    const { screenshot, verifyRequests } = await prepareTheme(page, theme, testInfo);
+    await page.goto('/board?symbol=AAPL');
+    const board = new TheBoardPage(page);
+    await expect(board.chart('AAPL').line).toBeVisible();
+    expect(await contrast(board.chart('AAPL').line, 'stroke')).toBeGreaterThanOrEqual(3);
+    await screenshot('board');
+    if (theme === 'light') expect.soft(await contrast(board.chart('AAPL').absoluteChange)).toBeGreaterThanOrEqual(4.5);
+    const chartLine = await board.chart('AAPL').line.elementHandle();
+    const path = await board.chart('AAPL').line.getAttribute('d');
+    const header = new HeaderComponent(page);
+    await header.switchAppearance(theme === 'dark' ? 'light' : 'dark');
+    expect(await chartLine!.evaluate(element => element.isConnected)).toBe(true);
+    await expect(board.chart('AAPL').line).toHaveAttribute('d', path!);
+    await header.switchAppearance(theme);
+    await board.chart('AAPL').timeframe('1D').focus();
+    const themeTab = await context.newPage(); await themeTab.emulateMedia({ colorScheme: theme }); await mockApp(themeTab, true); await themeTab.goto('/settings');
+    const themeSettings = new SettingsPage(themeTab);
+    await themeSettings[theme === 'dark' ? 'light' : 'dark'].check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme === 'dark' ? 'light' : 'dark');
+    expect(await chartLine!.evaluate(element => element.isConnected)).toBe(true);
+    await expect(board.chart('AAPL').line).toHaveAttribute('d', path!);
+    await expect(board.chart('AAPL').timeframe('1D')).toBeFocused();
+    await themeSettings[theme].check(); await themeTab.close();
+    await verifyRequests();
+  });
+
+  test(`Decoded playing video and focus survive appearance changes in ${theme}`, async ({ page, context }, testInfo) => {
+    const { screenshot, verifyRequests } = await prepareTheme(page, theme, testInfo);
+    await page.goto('/tests');
+    const tests = new TheTestsPage(page), header = new HeaderComponent(page);
     await tests.showcase.play.click();
     await expect.poll(async () => (await tests.showcase.mediaState()).width).toBeGreaterThan(0);
     const video = await tests.showcase.video.elementHandle();
@@ -126,8 +146,7 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(tests.showcase.video).toBeFocused();
     await expect(tests.showcase.video).toHaveCSS('filter', 'none');
     await other.close();
-    expect(await page.evaluate(() => (window as any).cspViolations)).toEqual(violations);
-    expect([...destinations].sort()).toEqual(['http://127.0.0.1:3100', 'https://assets.parqet.com', 'https://supabase.example.invalid'].sort());
+    await verifyRequests();
   });
 }
 
@@ -146,7 +165,7 @@ for (const theme of ['dark', 'light'] as const) {
     await chart.surface.hover();
     await expect(chart.highLabel).toBeVisible();
     expect(await contrast(chart.highLabel)).toBeGreaterThanOrEqual(4.5);
-    const directory = `.telemetry/settings/${testInfo.project.name}/${theme}`;
+    const directory = testInfo.outputPath('chart');
     await mkdir(directory, { recursive: true });
     await chart.card.screenshot({ path: `${directory}/negative-chart.png` });
     await page.route('**/api/candles?*', route => route.fulfill({ status: 502, json: { error: 'Deliberate unavailable chart fixture' } }));

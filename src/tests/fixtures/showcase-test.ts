@@ -5,14 +5,15 @@ import { fulfillShowcaseMarket } from './showcase-market';
 // routes so no unmocked provider/account request can escape the isolated server.
 export const test = base.extend<{ captureIsolation: void }>({
   captureIsolation: [async ({ context, page }, use, testInfo) => {
-    if (process.env.SHOWCASE_CAPTURE === '1') {
+    {
       await context.route('**/*', async route => {
         if (await fulfillShowcaseMarket(route)) return;
         const url = new URL(route.request().url());
         if (url.origin !== 'http://127.0.0.1:3100') return route.abort();
+        if (url.pathname === '/api/test-history') return route.fulfill({ json: { version: 1, configured: true, fetchedAt: new Date().toISOString(), stale: false, runs: [] } });
         if (url.pathname.startsWith('/api/')) {
           if (url.pathname === '/api/test-activity') return route.fulfill({ status: 503, json: {} });
-          return route.fulfill({ status: 503, json: { error: 'Unavailable in recording fixture' } });
+          return route.fulfill({ status: 503, json: { error: 'Unavailable in offline fixture' } });
         }
         return route.continue();
       });

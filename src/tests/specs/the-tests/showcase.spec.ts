@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { TheTestsPage } from '../../pages/the-tests.page';
 import { feed } from '../../fixtures/testEvidence';
 
@@ -18,15 +18,15 @@ test('public recordings decode on demand, support slower playback, and keep tab 
   expect((await showcase.mediaState()).paused).toBe(true);
   await showcase.tab('Watchlist re-login').focus();
   await page.keyboard.press('End');
-  await expect(showcase.tab('Safe deletion')).toBeFocused();
-  await expect(showcase.tab('Safe deletion')).toHaveAttribute('aria-selected', 'true');
+  await expect(showcase.tab('History recovery')).toBeFocused();
+  await expect(showcase.tab('History recovery')).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowRight');
   await expect(showcase.tab('Watchlist re-login')).toBeFocused();
   await page.keyboard.press('ArrowLeft');
-  await expect(showcase.tab('Safe deletion')).toBeFocused();
+  await expect(showcase.tab('History recovery')).toBeFocused();
   await page.keyboard.press('Home');
   await expect(showcase.tab('Watchlist re-login')).toBeFocused();
-  for (const label of ['Watchlist re-login', 'Cold-start recovery', 'History recovery', 'Safe deletion']) {
+  for (const label of ['Watchlist re-login', 'Chart session handoff', 'Settings clear recovery', 'History recovery']) {
     await showcase.tab(label).click();
     await expect(showcase.video).toHaveCount(1);
     expect((await showcase.mediaState()).time).toBe(0);
@@ -47,7 +47,7 @@ test('public recordings decode on demand, support slower playback, and keep tab 
   await showcase.speed.selectOption('1');
   expect((await showcase.mediaState()).speed).toBe(1);
   await showcase.details.click();
-  await expect(showcase.root).toContainText('No real account is deleted.');
+  await expect(showcase.root).toContainText('The runs and request failure are mocked');
   await expect(showcase.root).toContainText('Attempt 1: passed');
   await showcase.root.screenshot({ path: testInfo.outputPath('showcase-details.png') });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -66,7 +66,7 @@ test('switching while media loads cleans up the old player and ignores its late 
   await showcase.play.click();
   await expect.poll(() => Boolean(release)).toBe(true);
   const previous = await showcase.video.elementHandle();
-  await showcase.tab('Cold-start recovery').click();
+  await showcase.tab('Chart session handoff').click();
   expect(await previous!.evaluate((el: HTMLVideoElement) => el.paused && !el.hasAttribute('src'))).toBe(true);
   release!();
   await showcase.play.click();
@@ -112,8 +112,8 @@ test('unavailable, invalid, and empty catalogs have honest states and remain ret
   expect((await (await emptyResponse).json()).recordings).toEqual([]);
   await expect(showcase.root).toContainText('This recording is not available yet');
   await expect(retry).toHaveCount(0);
-  await showcase.tab('Safe deletion').click();
-  await expect(showcase.root).toContainText('Only confirmed success');
+  await showcase.tab('History recovery').click();
+  await expect(showcase.root).toContainText('A failed request should not be a dead end.');
   await expect(showcase.play).toHaveCount(0);
 });
 
@@ -130,7 +130,7 @@ test('a stalled media request reaches a deadline without disabling test selectio
   await expect.poll(() => Boolean(release)).toBe(true);
   await page.clock.fastForward(12_001);
   await expect(showcase.retry).toBeVisible();
-  await showcase.tab('Safe deletion').click();
+  await showcase.tab('History recovery').click();
   release!();
   await expect(showcase.play).toBeVisible();
   await expect(showcase.root.getByRole('alert')).toHaveCount(0);

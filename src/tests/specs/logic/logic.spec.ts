@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { LogicPage } from '../../pages/logic.page';
 
 test.describe('Logic Page Suite', () => {

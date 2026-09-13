@@ -1,18 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validatePipeline, pipelineWindow, jobAt, advanceReplay, selectedPipeline } from '../../src/telemetry/pipeline';
-import { fetchPipeline, pipelineRouter, loadPipelineWithArchive } from '../../server/test-pipeline';
-import express from 'express';
+import { fetchPipeline } from '../../server/test-pipeline';
 
 const now = Date.parse('2026-09-08T12:00:00Z');
 const config = { repository: 'ian-holdeman/SDET-Market-Tracker', branch: 'main', token: 'fixture-only' };
-test('corrupt archive cannot erase independently verified live job timing', async () => {
-  const live = await fixture();
-  const result = await loadPipelineWithArchive(config,{read:async()=>{throw Error('corrupt');}},async()=>live);
-  assert.deepEqual(result.jobs,live.jobs);
-  assert.equal(result.browserEvidence,null);
-  await assert.rejects(loadPipelineWithArchive(config,{read:async()=>null},async()=>{throw Error('source unavailable');}));
-});
 function raw() {
   const run = { id: selectedPipeline.runId, run_number: selectedPipeline.number, run_attempt: 1, workflow_id: 348891072,
     path: '.github/workflows/playwright.yml', head_branch: 'main', head_sha: String(selectedPipeline.commit),
@@ -76,23 +68,6 @@ test('GitHub errors and oversized responses cannot produce a demonstration', asy
   await assert.rejects(fetchPipeline(config, async()=>new Response('x'.repeat(300001)), ()=>now));
   await assert.rejects(fetchPipeline({...config,repository:'other/repo'}, async()=>{throw Error('must not fetch');}, ()=>now));
 });
-test('one bounded cache coalesces concurrent readers and clears evidence after failed revalidation', async () => {
-  let time = now, calls = 0, fail = false;
-  const data = await fixture();
-  const app = express();
-  app.use(pipelineRouter(config, async()=>{ calls++; if(fail)throw Error('private upstream detail'); return {...data, checkedAt:new Date(time).toISOString(), expiresAt:new Date(time+60000).toISOString()}; }, ()=>time));
-  const server=app.listen(0,'127.0.0.1'); await new Promise<void>(resolve=>server.once('listening',resolve));
-  const url=`http://127.0.0.1:${(server.address() as {port:number}).port}/api/test-pipeline`;
-  try {
-    const responses = await Promise.all([fetch(url),fetch(url)]);
-    assert.ok(responses.every(r=>r.ok)); assert.equal(calls,1);
-    time += 60000; fail=true;
-    const error=await fetch(url); assert.equal(error.status,502); assert.equal((await error.text()).includes('private'),false);
-    assert.equal((await fetch(url)).status,502); assert.equal(calls,2);
-    time+=15000; fail=false; assert.equal((await fetch(url)).status,200); assert.equal(calls,3);
-  } finally { await new Promise<void>(resolve=>server.close(()=>resolve())); }
-});
-
 test('browser completions use actual attempts, preserve retry outcomes and reject mismatched timing',async()=>{
   const {pipelineBrowserEvidence}=await import('../../src/tests/fixtures/pipeline');
   const {browserResultsAt}=await import('../../src/telemetry/pipeline');

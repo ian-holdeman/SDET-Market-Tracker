@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { HomePage, TheBoardPage, TheTestsPage, LogicPage } from '../../pages';
 
 test.describe('Navigation Suite', () => {

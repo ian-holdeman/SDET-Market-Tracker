@@ -21,5 +21,5 @@ try {
   const report={checkedAt:new Date().toISOString(),count:rows.length,complete:rows.length-gaps.length,gaps,rows};
   await writeFile('docs/market-coverage.json',JSON.stringify(report,null,2)+'\n');
   console.log(JSON.stringify({count:report.count,complete:report.complete,gaps},null,2));
-  if(rows.length!==88||rows.some(r=>!r.quote||r.historyHTTP!==200))process.exitCode=1;
+  if(rows.length!==symbols.length||rows.some(r=>!r.quote||r.historyHTTP!==200))process.exitCode=1;
 } finally {server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}

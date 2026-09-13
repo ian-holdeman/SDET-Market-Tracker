@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/showcase-test';
 import { TheBoardPage } from '../../pages/the-board.page';
 
 for (const [symbol, exchangeName, venue] of [['MDB', 'NGM', 'NASDAQ'], ['SPY', 'PCX', 'NYSEARCA']]) {

@@ -1,4 +1,5 @@
-import { loadPipelineWithArchive, pipelineRouter } from './server/test-pipeline';
+import { nightlyPipelineRouter } from './server/nightly-pipeline';
+import { NightlyGuard, LocalNightlyObjects } from './server/nightly-guard';
 import { CloudSnapshotStore, TestSnapshotStore, snapshotHistoryRouter } from './server/test-snapshot';
 import { GoogleObjectStore } from './server/object-store';
 import { PipelineArchive } from './server/test-archive';
@@ -52,7 +53,10 @@ async function startServer() {
   }
   app.use(historyRouter(history));
   const archive = process.env.TEST_ARCHIVE_BUCKET ? new PipelineArchive(new GoogleObjectStore(process.env.TEST_ARCHIVE_BUCKET)) : null;
-  app.use(pipelineRouter(history, config => loadPipelineWithArchive(config,archive)));
+  const nightlyGuard = history ? new NightlyGuard(process.env.TEST_SNAPSHOT_BUCKET
+    ? new GoogleObjectStore(process.env.TEST_SNAPSHOT_BUCKET)
+    : new LocalNightlyObjects(path.resolve(process.env.TEST_SNAPSHOT_DIRECTORY || '.telemetry/snapshots'))) : null;
+  app.use(nightlyPipelineRouter(history, nightlyGuard, archive));
   app.use(testActivityRouter(historyConfig(process.env)));
   app.use(configuredAccountRouter(process.env));
   app.use(configuredAssetRouter(process.env));
