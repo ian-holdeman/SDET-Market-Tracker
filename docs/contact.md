@@ -1,41 +1,19 @@
-# Contact
+# Contact and resume
 
-## Status and interface
+Contact provides engineering inquiries, SDET opportunities and custom-development options, alongside a two-page resume.
 
-Contact and the main two-page resume are complete and owner-accepted for the local initial version. The deployment guide records the initial hosted checks; September 12 resume polish is accepted locally and requires its own release verification.
+## Resume experience
 
-Keep the established three-option design, fonts and shared light/dark palette. The header subtitle is exactly “Engineering inquires and SDET opportunities”. The Custom Build and Open to Roles badges are removed. The full-time hiring subtext remains “View my experience in test automation and quality engineering.” Preserve the third-option joke: “Don't ask me! I'm just a guy who likes finance.” The existing email address and custom-development option remain.
+The resume opens in a separate browser view, preserving the original page. Visitors can read selectable text and use an explicit PDF download. Viewing does not automatically download the document.
 
-## Resume scope
+The paper stays white in both appearance modes, while the surrounding interface follows the browser's selected palette. Missing or unreadable documents show an error with recovery options.
 
-The canonical editable source is `docs/resume/ian-holdeman-resume.html`; its approved PDF is `docs/resume/ian-holdeman-resume.pdf`. `public/resume.pdf` is the identical public copy. Earlier drafts are local artifacts, not maintained sources. The resume has two pages with selectable text, professional and personal experience, education and a compact certificates section.
+The resume retains employment information, education, course names and the AI-assistance disclosure. Course-provider references establish the official course names; they do not independently verify completion records or imply a full professional certificate.
 
-The project's live-application link is [https://sdet-market-tracker-855618435389.us-west1.run.app](https://sdet-market-tracker-855618435389.us-west1.run.app). Both regenerated pages were rendered and inspected, extraction was compared with the approved text, and the canonical/public PDFs match byte for byte. For resume edits, update the canonical HTML, then run `node scripts/render-resume.mjs` with Node 22 and the installed Playwright Chromium browser. The script updates the canonical and public PDFs together; it is never run automatically by an application build. Visually inspect every rendered page and verify text extraction after any resume edit. Credential links and award dates are not included in the source.
+## Accessibility and evidence
 
-Contact opens `/resume` in a new tab, preserving the original page and modal. This standalone route mounts `ResumeViewer` without the market/Auth application providers. A lazily loaded, pinned PDF.js dependency and same-origin worker decode `/resume.pdf` into page canvases with selectable text layers. The paper remains white in both palettes, and the surrounding view follows the existing device/browser appearance preference. Rendering uses the PDF itself, not an HTML facsimile or pre-rendered page images. No third-party viewer service, new server endpoint, CSP relaxation, or visitor authentication is needed.
+The Contact dialog supports keyboard navigation, Escape/close and focus restoration. Browser checks cover decoded PDF pages, selectable text, matching download bytes, appearance modes and recovery from document or viewer failures.
 
-The September 12 resume polish is complete and owner-accepted locally. It restores the official Google course titles: [AI for App Building](https://www.coursera.org/learn/google-ai-for-app-building), [AI for App Deployment](https://www.coursera.org/learn/google-ai-for-app-deployment), and [AI for Data Analysis](https://www.coursera.org/learn/google-ai-for-data-analysis). These provider pages verify course names, not the owner's completion records; no full professional-certificate claim or award date was added. Technical Skills now uses “Node.js test runner” and omits terminal periods from its five entries. The references line remains exactly “References available upon request (with respect to their privacy)”. The two-page layout, employment claims and AI-assistance disclosure are preserved. Both PDF copies are regenerated from the canonical HTML; local verification is separate from deployment.
+These checks establish behavior in the tested desktop Chromium and mobile WebKit environments. They do not establish physical-device compatibility or current hosted availability. See [test coverage](test-audit-implementation.md).
 
-Viewing never triggers a download action. A subtle “Download PDF” link explicitly downloads `Ian-Holdeman-Resume.pdf`. The PDF must have the correct content type and `%PDF-` signature, and downloaded bytes must match the canonical file. Missing files, HTML fallbacks, corrupt PDFs and unavailable workers show an error with a retry and optional download. Fetch/parse and page rendering have bounded deadlines; cancellation, render tasks, workers and resize observers are cleaned up. Retry reloads the standalone page so failed module/worker imports cannot poison later attempts.
-
-## Modal behavior and validation
-
-Contact now uses the shared native `Dialog`, preserving focus containment, Escape/close handling, bounded mobile scrolling and focus restoration. The Footer explicitly focuses the opener for Safari. Shared Dialog additions are optional subtitle and contact-width props; existing consumers retain their defaults.
-
-`src/tests/pages/contact.page.ts` owns Contact/Resume locators, reusing the Footer opener. Focused browser coverage uses an isolated production server on port 3100 and populated synthetic incidental services. It checks the actual popup, decoded page pixels and selectable text, both palettes, keyboard behavior, direct visits/reload, byte-for-byte optional downloads, malformed/missing PDF responses, worker recovery and stalled/late requests. The worker-recovery regression initially failed on both projects, including retries; reloading the preview clears the cached failed worker import. Local browser evidence does not establish physical-device support, hosted availability or current CI success.
-
-```sh
-npm run build:e2e
-npm run test:e2e -- src/tests/specs/contact/contact.spec.ts src/tests/specs/navigation/navigation.spec.ts src/tests/specs/settings/settings.spec.ts --workers=2
-npm run lint
-npm run test:baseline
-npm run build
-```
-
-Email actions remain user-initiated; tests inspect destinations without sending mail. Do not send emails as part of verification.
-
-Maintain the canonical source and both PDF copies together. Record completed scope in the [roadmap](roadmap.md) and verify each release through the [deployment guide](deployment.md).
-
-Copy-email feedback waits for successful clipboard completion. Rejection/unavailability permits retry with an accessible failure message; pending requests cannot report success after closure and feedback timers are cleaned up. The resume URL is synchronized with the confirmed Cloud Run origin.
-
-The HTTP-only PDF MIME/signature/canonical-byte contract now runs once in scripts/tests/baseline.test.ts against the generated server. contact.spec.ts retains real popup decoding, selectable text, explicit download byte equality, independent popup palettes and worker recovery in both browser engines.
+Email actions are visitor-initiated. Contact does not submit an in-application message form; an email uses the visitor's mail provider. See [privacy](privacy-security.md).

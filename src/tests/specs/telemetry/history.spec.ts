@@ -243,8 +243,8 @@ test("cold skeleton and saved snapshot stay mounted until a verified refresh arr
   await tile.evaluate((el) => el.setAttribute("data-mounted", "yes"));
   state = 1;
   await expect(root.getByTestId("metric-value").first()).toContainText("0%");
-  await expect(root.getByTestId("result-refresh-status")).toHaveText(
-    "Updating…",
+  await expect(root.getByTestId("result-refresh-status")).toContainText(
+    "Checking for updates.",
   );
   state = 2;
   await expect(root.getByTestId("metric-value").first()).toContainText("100%");

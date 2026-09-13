@@ -287,6 +287,9 @@ export function RefreshStatus({
   snapshot?: boolean;
   fetchedAt?: string;
 }) {
+  const age = fetchedAt && Date.parse(fetchedAt) > 0
+    ? Math.max(0, Math.floor((Date.now() - Date.parse(fetchedAt)) / 60000)) : null;
+  const ageLabel = age === null ? '' : age < 1 ? 'just checked' : age < 60 ? `${age}m old` : age < 1440 ? `${Math.floor(age / 60)}h old` : `${Math.floor(age / 1440)}d old`;
   return (
     <p
       data-testid="result-refresh-status"
@@ -298,7 +301,9 @@ export function RefreshStatus({
           : undefined
       }
     >
-      {updating ? "Updating…" : snapshot ? "Saved results" : " "}
+      {updating
+        ? ageLabel ? `${ageLabel} · Checking for updates.` : 'Loading results…'
+        : snapshot ? `Saved results · ${ageLabel}` : " "}
     </p>
   );
 }

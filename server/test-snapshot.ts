@@ -159,23 +159,35 @@ export function snapshotHistoryRouter(
   const reports: Parameters<typeof fetchHistory>[3] = new Map();
   let ready: Promise<void> | null = null;
   router.get("/api/test-history", async (req, res, nextRoute) => {
+    const snapshotOnly = Object.keys(req.query).length === 1 && req.query.snapshot === '1';
     // Older pages and malformed query strings retain the existing route's validation.
-    if (Object.keys(req.query).length) return nextRoute();
+    if (Object.keys(req.query).length && !snapshotOnly) return nextRoute();
     res.set("Cache-Control", "no-store");
     await (ready ??= store.read().then(saved => {
       value = saved ? { ...saved, snapshot: true } : null;
     }).catch(() => { console.warn('Saved test history unavailable.'); }));
-    if (!pending && clock() >= next) {
+    // Enforce retention in a long-lived process too, including repeated failures.
+    if (value && clock() - Date.parse(value.fetchedAt) > 90 * 86400000) value = null;
+    // The preview never starts work that would outlive this response. The browser
+    // follows it with the ordinary active request for verification/persistence.
+    if (!snapshotOnly && !pending && clock() >= next) {
       const ticket = ++generation;
       pending = (async () => {
+        const controller = new AbortController();
+        const deadline = setTimeout(() => controller.abort(), 18000);
         try {
           // A storage failure must not prevent useful live retrieval, but cannot
           // be reported as successful persistence.
           let persist: ((feed: TelemetryFeed) => Promise<void>) | null = null;
           try { persist = await store.beginRefresh(); } catch { console.warn('Snapshot persistence unavailable.'); }
+          controller.signal.throwIfAborted();
+          const request: typeof fetch = (input, init) => fetch(input, {
+            ...init, signal: AbortSignal.any([controller.signal, ...(init?.signal ? [init.signal] : [])]),
+          });
           const fresh = validateFeed(
-            await load(config, fetch, undefined, reports),
+            await load(config, request, undefined, reports),
           );
+          controller.signal.throwIfAborted();
           if (fresh.stale || !fresh.configured)
             throw Error("Unverified refresh");
           if (ticket !== generation) return;
@@ -191,6 +203,7 @@ export function snapshotHistoryRouter(
         } catch {
           failed = true;
         } finally {
+          clearTimeout(deadline);
           pending = null;
           next = clock() + 15000;
         }
@@ -198,14 +211,15 @@ export function snapshotHistoryRouter(
     }
     // Request-based Cloud Run CPU is not guaranteed after res.end(). Keep the
     // initiating (and coalesced) request active through validation and persistence.
-    if (options.requestScoped && pending) await pending;
+    if (!snapshotOnly && options.requestScoped && pending) await pending;
+    if (value && clock() - Date.parse(value.fetchedAt) > 90 * 86400000) value = null;
     if (!value && failed)
       return res
         .status(502)
         .json({ error: "Test history could not be retrieved." });
     return res.json(
       value
-        ? { ...value, stale: failed, refreshing: !!pending }
+        ? { ...value, stale: failed, refreshing: !!pending || (snapshotOnly && clock() >= next) }
         : {
             version: 1,
             configured: true,

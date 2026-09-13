@@ -3,6 +3,7 @@ import { Page, Locator } from "@playwright/test";
 import { BasePage } from "./base.page";
 
 export class HomePage extends BasePage {
+  get reportButton() { return this.results.root.getByRole('button', { name: 'View Report', exact: true }); }
   movers(side: 'risers' | 'fallers') { return this.page.locator(`#board-card-${side}-column`).getByTestId('market-mover'); }
   async moverSymbols(side: 'risers' | 'fallers') { return this.movers(side).evaluateAll(rows => rows.map(r => r.getAttribute('data-symbol'))); }
   get moverChanges() { return this.page.getByTestId('mover-change'); }

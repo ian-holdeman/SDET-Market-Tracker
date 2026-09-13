@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowUpRight, Terminal } from "lucide-react";
 import { useTestHistory } from "../services/testRunsService";
+import type { PublishedRun } from '../telemetry/contract';
 import {
   runLabel,
   usableResults,
@@ -20,7 +21,7 @@ export const TestSnapshotCard: React.FC<{ onExploreTests: () => void }> = ({
   const { feed, loading, error } = useTestHistory();
   const run = feed?.runs[0];
   const metricsRun = recentResults(feed?.runs || [])[0] || run;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<PublishedRun | null>(null);
   return (
     <>
       <div
@@ -96,7 +97,7 @@ export const TestSnapshotCard: React.FC<{ onExploreTests: () => void }> = ({
                 id="test-card-report-box"
                 onClick={(event) => {
                   event.currentTarget.focus();
-                  setOpen(true);
+                  setOpen(run);
                 }}
                 className="text-info-ink-300 hover:underline min-h-9"
               >
@@ -106,7 +107,7 @@ export const TestSnapshotCard: React.FC<{ onExploreTests: () => void }> = ({
           </>
         )}
       </div>
-      {open && run && <RunReport run={run} close={() => setOpen(false)} />}
+      {open && <RunReport run={open} close={() => setOpen(null)} />}
     </>
   );
 };

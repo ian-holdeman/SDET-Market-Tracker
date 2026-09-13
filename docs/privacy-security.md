@@ -1,52 +1,31 @@
 # Privacy and security
 
-## Status and operator policy
+The application supports public market browsing, optional Google sign-in and private watchlists. Personal-data use is limited to operating those features; analytics, advertising, subscriptions, behavioral profiling and secondary use are excluded.
 
-The owner approved the assembled public notice on 2026-09-08. The notice is implemented in the public Privacy modal and `/privacy`, with one shared copy source in `src/content/privacy.ts` and shared presentation in `src/components/PrivacyNotice.tsx`. Sign-in links to the direct notice. Operator appears last so the notice opens with information and use; request instructions point to the contact below. The owner accepted the Settings full-notice integration and narrow appearance-storage amendment on September 8, 2026, completing the local Privacy feature. The [deployment guide](deployment.md) separately records dated hosted checks. Feature acceptance does not establish legal certification or permanent verification of hosted controls.
+Ian Holdeman operates the project personally from Utah. Privacy contact: ianrholdeman@gmail.com. The application is intended for a general audience and is not directed at children under 13.
 
-Ian Holdeman operates personally from Utah; contact: ianrholdeman@gmail.com. The general-public application primarily serves U.S. visitors and is not directed at children under 13. Google Cloud Run in Oregon hosts the application; Supabase Free in Oregon provides database/Auth. Provider retention and recovery limits remain explicit in the deployment guide. Public market browsing, optional Google sign-in and private watchlists define the permitted data use. Analytics, advertising, subscriptions, behavioral profiling and secondary use of personal data are excluded. No age collection is added.
+## Information and controls
 
-## Implemented controls and decisions
+Google authentication supplies basic account identity. Watchlists belong to authenticated accounts, with database-enforced ownership. Shared asset curation is separate from private watchlists and does not grant access to another person's saved assets.
 
-- Settings stores an explicit light/dark choice only in browser localStorage `imt_appearance`. It is not associated with an account or sent to the application server/Supabase, survives sign-out/deletion, and is removed by clearing site storage. Missing/invalid preferences follow the device’s appearance; blocked storage preserves current-tab selection. The shared notice adds only the appearance disclosure quoted in [Settings](settings.md), retaining the September 8, 2026 date for this same-day amendment. No consent banner, analytics, cookies or new provider was added.
+Appearance choices stay in the browser and are not sent to the application server or associated with an account. They remain after sign-out or account deletion; clearing site storage removes them.
 
-- Fonts are served locally under SIL OFL 1.1, preserving both families and existing weights. Sources and licenses are in `public/fonts/README.md`. Google Fonts requests are removed.
-- The owner explicitly retained existing direct Parqet logo delivery pending provider permission. No proxy or new logo copies were introduced. Browsers still disclose the requested symbol and network information to Parqet, including for searched assets. `no-referrer` suppresses the referring URL, not the IP address. Permission remains a launch requirement.
-- The native Privacy dialog supplies labeling, modal focus containment, Escape/close behavior, opener focus restoration and bounded mobile scrolling. It introduces no animation. The direct page uses the same notice and is available without sign-in.
-- Confirmed local sign-out and successful account deletion clear app-specific session, legacy, return-path and PKCE keys, including orphaned flow slots. Other storage is preserved. An uncertain deletion retains the session. The installed Auth SDK continues to manage in-progress flows; closing an OAuth window does not promise immediate removal of every abandoned verifier. Clearing all flows during a single cancellation could interrupt another tab.
-- `server/security.ts` enforces a production Content Security Policy for same-origin scripts, fonts and media, the configured Supabase connection, and existing Parqet images. Inline styles remain necessary for current UI components. Framing, embedded objects and third-party script sources are restricted. Development uses report-only CSP because Vite injects development scripts. Other headers suppress referrers and MIME sniffing and disable unused camera, microphone and geolocation permissions. Cloud Run startup enables HSTS; verify it on the actual HTTPS origin.
-- The public Supabase origin must match the client build and trusted server configuration. Browser tests use the same synthetic origin at build and runtime, and explicitly exclude privileged server credentials. Production must supply its own matching configuration.
-- JSON request bodies are limited to 16 KiB; parser errors return generic uncached responses. Express identification is disabled and flat API queries use its simple parser. The `qs` override to 6.16.0 addresses the reviewed transitive advisories without a major Express migration; reassess this override when Express updates.
+Visitors can remove saved assets, clear their own watchlist or delete their account. An uncertain deletion is not presented as success. Account deletion does not delete a Google identity, shared market assets, provider logs or backups.
 
-## Boundary review and evidence limits
+## Providers and retention
 
-Source review covered Google scopes, safe callback/return routes, SDK persistence, account deletion, grants/RLS, admin separation, asset registration, public-file exposure, provider requests, request limits, response headers and logs. Google sign-in adds no extra scopes. Hosted consent and redirect allowlists still require verification. Editable user metadata grants no authority; UUID ownership and admin separation remain database-enforced. Trusted deletion derives the caller from Auth and cascades live personal records while preserving shared assets.
+Cloud Run serves the application; Supabase handles authentication and database records. Market and logo providers receive requests needed for their services. Fonts and demonstration media are served by the application.
 
-Market requests do not forward visitor credentials, cookies or client-IP headers. Registration has an additional shared database budget across instances; market routes have input validation, deadlines, bounded caches and coalescing. There is no comprehensive distributed edge rate limit. Host-level abuse controls and multi-instance behavior remain deployment decisions. Only `dist/client` is public; server bundles, source maps and private telemetry snapshots are excluded. No analytics/access-log integration was found; provider and infrastructure logs remain separate processing. See the [inventory](data-inventory.md) for exact retention limits rather than assuming cache expiry means erasure.
+Direct Parqet logo requests disclose network metadata and the requested symbol. Provider permission remains unresolved; no entitlement or provider retention period is asserted. Referrer suppression does not conceal a network address.
 
-Regression evidence lives in `src/tests/specs/settings/`, `src/tests/specs/privacy/privacy.spec.ts`, the existing Auth suite, and `scripts/tests/baseline.test.ts`. Browser mocks establish UI behavior and request construction, not hosted OAuth or RLS. Local `db:test`, `db:lint` and `test:auth` exercise database controls and disposable account deletion/registration without resetting retained accounts. The isolated production browser configuration covers desktop Chromium and mobile WebKit. Lint, baseline, local database/Auth and focused privacy/Auth browser checks passed for this implementation; the normal build was restored. The broader run exposed and led to a fix for Safari opener focus, and separately recorded an existing pipeline retry-only pass carried in the roadmap. The dependency audit after the qs override reported no advisories at review time, not a guarantee against future disclosures. Local reports are development evidence, not published CI results; do not persist changing suite totals here.
+Provider logs, backups and recovery policies have retention separate from live application records. See the [data inventory](data-inventory.md) for the categories involved. This documentation does not claim universal compliance or complete backup erasure.
 
-## U.S. requirements reviewed
+## Privacy requests
 
-Official references reviewed 2026-09-08. Applicability depends on actual operations, audience and statutory definitions; Utah residence alone is insufficient.
+Privacy inquiries can be sent to the published contact address. Identity verification is proportionate to the requested access, correction or deletion; passwords and access tokens are not required. Email alone does not grant access to another account.
 
-| Area | Assessment and remaining boundary |
-| --- | --- |
-| [Utah Consumer Privacy Act](https://le.utah.gov/xcode/Title13/Chapter61/C13-61-S102_2024050120240501.pdf) | Threshold-dependent: the cited applicability section combines Utah business/targeting, at least $25 million annual revenue, and consumer-volume or sale-revenue thresholds. Do not assume a portfolio qualifies as purely personal/household activity. Recheck the law and actual scale before launch and if operations change. |
-| [California privacy-policy guidance](https://oag.ca.gov/sites/all/files/agweb/pdfs/cybersecurity/making_your_privacy_practices_public.pdf) | CalOPPA concerns commercial services collecting covered information from California consumers; it is distinct from threshold-based CCPA obligations. The notice identifies categories, recipients, access/change options, tracking-signal behavior, policy changes and date. Whether this employment portfolio falls within the commercial definition remains a legal applicability question. |
-| [FTC COPPA guidance](https://www.ftc.gov/business-guidance/resources/complying-coppa-frequently-asked-questions) | General-audience intent does not remove obligations arising from actual knowledge of under-13 collection. Do not add age collection by default. Review and address a reported child account using verified facts. |
-| Accurate representations | Public statements must match actual processing. No universal compliance, zero-data, or complete-backup-erasure claim is made. Reassess disclosures before introducing a provider or changing data use. |
+Correspondence is limited to handling the request and applicable obligations. A fixed mailbox retention period and a universal response deadline are not asserted. The in-application notice provides the public description of current processing.
 
-Parqet's [current developer terms](https://developer.parqet.com/terms) include competing-product restrictions. Older logo terms are not sufficient evidence that this market tracker has permission. The owner chose continued direct delivery while permission is pending; no entitlement or provider retention period is asserted.
+## Evidence limits
 
-## Privacy requests and retention procedure
-
-Receive requests at the published email address. Identify the requested access, correction or deletion and verify identity proportionately before disclosing or changing account information. Do not request passwords, tokens or unnecessary identity documents. Prefer the signed-in watchlist and deletion controls when they satisfy the request. For manual intervention, use a trusted owner procedure; email address alone does not authorize access to another account.
-
-Record only what is needed to address the request, its verification and outcome. Keep correspondence only as needed for that purpose and applicable obligations; no fixed mailbox retention duration or universal response deadline has been selected. Check applicable request deadlines when handling a request and before launch if statutory applicability is established. Never promise deletion of Google identities, browser history, provider logs or backups. Live watchlist records remain until removal/account deletion; shared asset records remain. A report involving a child requires review, not automatic collection of more age data.
-
-Publish policy changes with an updated date; identify material changes to data use before they take effect. Review the inventory and notice together when processing changes.
-
-## Operational requirements
-
-Verify the selected targets, HTTPS/redirect URLs, operational access, log redaction/retention, backup/recovery and request handling against [deployment.md](deployment.md). Obtain Parqet permission or agree on an alternative. Google branding uses the real application home and /privacy URLs, and basic identity/email/profile scopes. Initial deployment and hosted Google sign-in checks are complete as recorded in the deployment guide. Subsequent releases and configuration changes require their own verification; provider permission remains unresolved.
+Browser tests cover interface behavior and request construction. Database/authentication integration and dated hosted checks cover separate boundaries. They do not establish permanent provider behavior, universal security or legal certification. See [coverage](test-audit-implementation.md) and [hosting](deployment.md).

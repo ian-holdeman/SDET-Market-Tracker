@@ -1,30 +1,29 @@
-# Test audit implementation
+# Test coverage and evidence boundaries
 
-Completed and owner-accepted locally on September 12, 2026, including the final Settings recording review. The F1–F14 remediation, automatic nightly replay selection and four refreshed recordings are complete. Discovery probes and original failure/retry artifacts remain private; they are not published passing tests. Local validation covered lint, both builds, offline checks, Chromium/mobile WebKit, SQL/RLS and disposable Auth/PostgREST integration. These dated results do not establish current CI status or deployment.
+The project uses complementary verification layers rather than treating one passing suite as proof of every boundary.
 
-## Findings and retained protection
+## Coverage
 
-| Finding | Change and surviving assertions |
+| Area | Scenarios |
 | --- | --- |
-| F1 | Board Enter/Space activation and the shared semantic diagnostics dialog; board/diagnostics.spec.ts checks activation, focus containment, Escape and opener restoration in both engines. Safari opener focus is established explicitly. |
-| F2 | Diagnostics reads the quote envelope, verifies SPY identity, finite price and timestamps, bounds stalled requests, and cancels on close/unmount. The same spec checks success, HTTP/malformed/stalled failure and recovery. Existing automatic stale/partial quote assertions remain in board/market-data.spec.ts. |
-| F3 | The shared Auth fixture distinguishes owner-wide clear from owner/symbol removal and returns requested catalog/registration/curation identities. scripts/tests/browser-fixture.test.ts and the uncurated Board workflow retain another saved asset. Settings bulk-clear scenarios, SQL/RLS and local Auth checks remain independent. |
-| F4 | Board search/register/save/reload/remove-one, failures/recovery, category/order/filter journeys, Home mover order/navigation, stale quote/chart restoration, delayed search/timeframe results, admin add-curation and callback recovery. A controlled curation/quote overlap regression also protects immediate fetching of a changed asset set. |
-| F5 | All ordinary browser specs use shared default context interception, with explicit scenario overrides. The server launcher uses an empty temporary working directory, OS environment allowlist, fake public Supabase origin for CSP and a private isolated snapshot path. Real local PDF/video delivery remains enabled; integration/live commands remain separate. |
-| F6 | Header geometry keeps 320/1440 and both sides of 640/768/1024 breakpoints, guest/member, long names, both palettes and engines. Redundant 360/375/390/900 samples are replaced by these deliberate boundary samples; strict fit, overlap, control sizing and actionability checks remain in settings/header-appearance.spec.ts. |
-| F7 | settings/themes.spec.ts separates populated page/dialog readability, mounted-chart preservation and decoded-video preservation. All numeric contrast, CSP/origin, negative-chart, playback and focus assertions remain. Shared preparation/capture helpers write into Playwright's unique run and attempt output directories (including a private per-run JSON report). |
-| F8 | Late account scenarios require the intended request to have started before switching accounts. Delivered responses await body completion and painted frames before unchanged-state assertions; navigation cancellation observes failed/aborted transport. Identity, persisted-session, cleanup and negative-view assertions remain. |
-| F9 | Snapshot tests poll the observable refreshing/persistence completion or failed HTTP state with a deadline instead of fixed 30/10 ms sleeps. Removal, stale original timestamps, cold starts and coalescing assertions remain in scripts/tests/snapshot.test.ts. |
-| F10 | Six-metric tests retain actual values, legitimate zero, full-price titles, card fit/nonoverlap and cache reuse. Named metrics and shared geometry replace grid-child counts, CSS column counts and obsolete P/E/Target assertions. The obsolete live-trading-beacon absence assertion now checks the actual chart pulse; the session/stale scenario retains pulse progression and failure coverage. Numeric/calendar boundary variants remain offline. |
-| F11 | PDF MIME, signature and canonical-byte equality moved from the browser request-only case to scripts/tests/baseline.test.ts. Both engines retain popup decoding/selectable text, explicit-download bytes, popup palette and worker recovery in contact/contact.spec.ts. |
-| F12 | The production-startup regression now has a deadline and registered child cleanup, retaining fail-before-listening and configuration-error assertions. |
-| F13 | Empty Home/Board scaffolding now contains meaningful journeys; the empty Tests scaffold and unused historical fixture exports are removed (no assertions lost). Obsolete live pinned-router/fallback functions are replaced by nightly router cache/removal/archive-independence assertions. The strict v1 reader remains for explicit archive publication and its original provenance/artifact/timing tests remain. |
-| F14 | Live catalogue coverage derives expected inventory from its input. Optional per-field gaps remain explicit; an exit code is not universal field availability or independent financial accuracy. Live providers and private comparisons remain opt-in. |
+| Market browsing | Search, category/numeric ordering, filters, unavailable values and navigation |
+| Charts and calculations | Session changes, calendar returns, zero/negative values, stale responses and delayed timeframe results |
+| Watchlists and accounts | Save/reload/remove-one, bulk clear, cross-user isolation, role boundaries, deletion and recreated identities |
+| Failure and concurrency | Uncertain writes, recovery, duplicate requests, stale responses and account changes during in-flight operations |
+| Test evidence | Provenance, retry history, missing/expired artifacts, saved snapshots, removals and historical-archive independence |
+| Interface behavior | Keyboard dialogs, focus restoration, responsive layouts, palette changes and mounted chart/player continuity |
+| Documents and media | Decoded PDF/video content, selectable text, explicit downloads and recovery from loading failures |
 
-## Scope and evidence
+## What each layer establishes
 
-Browser ordering uses distinct prices and percentage changes, with expected identities written independently of application sorting. Stocks and ETFs cover numeric ascending/descending order, unavailable-last behavior, watchlist/all and empty-filter recovery. Home bounds the positive selection to five, orders negative changes most-negative-first, excludes unchanged/unavailable/malformed/stale observations and verifies mover navigation. The original cold-start, safe-deletion, watchlist re-login and nested history scenarios remain automated.
+Deterministic tests check parsing, financial calculations and boundary behavior using controlled inputs. Browser tests exercise application interactions with isolated synthetic dependencies in desktop Chromium and mobile WebKit.
 
-Browser fixtures establish application behavior, not Google OAuth, SQL authorization, independent market accuracy or GitHub scheduling. SQL and disposable local Auth/PostgREST checks remain separate. No suite count, coverage percentage or runtime-savings target justified assertion removal. The prior audit's narrow timing is not a comparable full-suite benchmark.
+Database and disposable authentication integration tests separately exercise grants, row-level security, ownership and deletion effects. Live-provider checks observe external availability and selected response properties at a particular time.
 
-See [nightly replay](pipeline-replay.md), [recording provenance](test-recordings.md), [telemetry semantics](test-telemetry.md), and [release boundaries](deployment.md). Hosted release and genuine scheduled-publication verification remain separate. The historical archive is retained without rotation; no remote dispatch, archive publication/revocation, IAM or billing change is included.
+Published GitHub evidence preserves workflow identity, original attempts, failures and missing outcomes. Curated recordings remain separate demonstrations.
+
+## Limits
+
+Browser fixtures do not prove real Google OAuth, database authorization, independent market accuracy or GitHub scheduler delivery. Sampled contrast and viewport checks are not an exhaustive accessibility audit. Current CI and hosted health require evidence for the specific run and deployed revision.
+
+No universal coverage percentage, financial-accuracy guarantee or permanent green baseline is claimed. See [test results](test-telemetry.md), [recordings](test-recordings.md), and [hosting evidence](deployment.md).

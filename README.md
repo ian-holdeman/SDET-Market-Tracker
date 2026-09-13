@@ -1,83 +1,43 @@
 # SDET Market Tracker
 
-A React/TypeScript stock-market board and SDET portfolio. Express validates Yahoo market data, Supabase owns Google authentication and private watchlists, and GitHub Actions supplies published test evidence. Visitors can browse every public page without signing in. Firebase has been retired; old test results are not migrated.
+A personal market tracker that brings together financial data, private watchlists and transparent software-test evidence.
 
-Live application: [The SDET’s Market Tracker](https://sdet-market-tracker-855618435389.us-west1.run.app). Deployment status, evidence and operating limits are recorded in [deployment and operation](docs/deployment.md).
+[Visit the application](https://sdet-market-tracker-855618435389.us-west1.run.app)
 
-## Local setup
+## Explore the application
 
-Use Node 22 (`.nvmrc`) and npm. Docker/WSL is required for local Supabase and database tests.
+- **Home** pairs market movers with the latest verified test-run summary. Saved results show their age while current evidence is checked.
+- **The Board** offers asset search, interactive price charts, market metrics and private watchlists. Market browsing is available without an account; Google sign-in enables saving assets.
+- **The Tests** presents published GitHub Actions results, nightly pipeline replay and four recorded demonstrations. Failed runs, retries and unavailable evidence remain visible.
+- **The Logic** explains the project's architecture, testing approach and use of AI assistance.
+- **Settings and Contact** provide browser appearance preferences, account controls, privacy information and a resume preview with an explicit PDF download.
 
-```sh
-npm ci
-npm run db:start
-npm run auth:setup:local
-npm run dev
-```
+## Engineering approach
 
-`auth:setup:local` writes ignored local configuration using the local Supabase stack. See [Supabase setup](supabase/README.md) for Google OAuth setup, fixtures and role provisioning. Do not reset a database containing accounts you want to keep. Apply new local migrations without reset with `node scripts/supabase.mjs migration up --local`.
+The application uses React and TypeScript for the interface, an Express server for external-data validation, Supabase for authentication and private watchlists, and GitHub Actions for published test evidence. Google Cloud Run hosts the application; private Cloud Storage preserves validated test snapshots and a separate historical archive.
 
-The app defaults to [localhost:3000](http://localhost:3000). Google returns through `/auth/callback`; authentication returns Board visitors to its overview. The public market pages do not require credentials. Missing optional account or history configuration produces an explicit unavailable/empty state.
+Data provenance and failure states are part of the experience. Missing values remain unavailable, stale results are labelled, and retrieved data does not acquire a new observation time simply because it was cached. Database authorization enforces watchlist ownership independently of the interface.
 
-Copy configuration names from `.env.example`; keep values in ignored `.env.local` or the hosting environment. `VITE_*` values are public and embedded at build time. `SUPABASE_SECRET_KEY` and `TEST_HISTORY_TOKEN` are server-only. Never prefix them with `VITE_`.
+The hosting design targets zero additional monthly cost. Scale-to-zero operation accepts cold starts, and provider allowances and availability remain constraints. See the [architecture overview](docs/project-overview.md) and [hosting overview](docs/deployment.md).
 
-## Build and serve
+## Understanding the test evidence
 
-```sh
-npm run lint
-npm run build
-npm start
-```
+Published results come from trusted GitHub Actions runs. A first-attempt pass, a successful retry and a failed test are distinct outcomes. Missing artifacts do not become passing results, and an ingestion success does not establish test success.
 
-`lint` checks TypeScript source and syntax of maintained `.mjs` scripts. Generated output is excluded from TypeScript checking. The build writes public Vite assets to `dist/client` and the private ESM server to `dist/server`. Only `dist/client` is served. Production paths resolve relative to the server bundle, not the working directory. Runtime deployment needs both directories, package manifests and production dependencies. `npm run preview` also starts the full server; only `npm run dev` enables Vite. Restart development after server changes.
+Recorded demonstrations use disclosed synthetic dependencies. They demonstrate application behavior and are separate from current CI results. Browser tests, database integration checks and live-provider observations establish different boundaries; none alone proves universal reliability, accessibility or financial accuracy.
 
-Outside Cloud Run, the server reads `.env.local`, then `.env`, without overriding existing process variables. Hosted startup reads only supplied environment configuration. `PORT` defaults to 3000. `/api/health` checks application availability, not provider availability. The pinned Dockerfile and `deploy/production.json` reproduce the Cloud Run configuration; see [deployment and operation](docs/deployment.md) for release evidence, costs and rollback.
+Learn more about [test evidence](docs/test-telemetry.md), [coverage and limitations](docs/test-audit-implementation.md), and [recorded demonstrations](docs/test-recordings.md).
 
-## Verification
+## Privacy and limitations
 
-```sh
-npm run build:e2e
-npm run test:baseline
-npm run test:e2e -- --workers=2
-npm run test:e2e:ingest
-npm run db:test
-npm run db:lint
-npm run test:auth
-npm run build
-```
+Public market browsing does not require an account. Personal-data use is limited to sign-in and private watchlists; the application does not add analytics, advertising or behavioral profiling. Provider and hosting logs have separate retention limits. See [privacy and security](docs/privacy-security.md).
 
-Playwright launches an isolated production server on `127.0.0.1:3100`, from an empty temporary directory with an OS environment allowlist, fake public Supabase configuration and shared external-API interception. It cannot reuse your development server. Restore the normal build afterwards. Browser tests do not prove database authorization: SQL and local Auth/PostgREST tests exercise those boundaries separately with transactional/disposable fixtures. Test cases have at most one retry; every attempt is retained in evidence. Private browser diagnostics use unique `.telemetry/browser-runs/` directories with separate attempt paths. See the [completed test audit](docs/test-audit-implementation.md) for changes, retained assertions and evidence limits.
+Market information may be delayed or unavailable and is not independently reconciled across every asset. Dated local or hosted checks do not establish current CI status or production availability.
 
-The offline suite covers server/configuration boundaries, provider validation, financial calculations, ownership endpoints and telemetry integrity. Opt-in `npm run test:market:live` and `npm run test:market:coverage` access Yahoo; they establish point-in-time availability rather than independent financial correctness. HTML reports, traces and recordings are local diagnostic artifacts and are not published by CI.
+## Future plans
 
-The Tests showcase includes four reviewed local recordings: watchlist re-login, chart session handoff, Settings clear/recovery and nested history recovery. Use `npm run record:showcase` to capture the selected browser scenarios; see [recording preparation, review, and playback limits](docs/test-recordings.md). These demonstrations use mocked services and do not establish current CI outcomes.
+Planned additions include asset-price alerts, mock portfolios, a real investment/net-worth tracker, a downloadable mobile app and tablet-view improvements. See the [roadmap](docs/roadmap.md).
 
-The separate [nightly pipeline replay](docs/pipeline-replay.md) follows genuine completed scheduled runs, including failures and unchanged commits, with independent job/browser evidence and an explicitly older archived fallback. `npm run test:pipeline:live` performs an opt-in read-only source check using the existing server-only history configuration.
+## AI assistance
 
-## Published test history
-
-GitHub Actions runs browser/offline and local database checks in parallel jobs of `.github/workflows/playwright.yml`. Only sanitized test evidence is uploaded, keyed by run ID and workflow attempt. Database-job failure prevents the overall workflow from appearing passed, even if browser tests passed. PR runs execute checks but are not accepted as portfolio telemetry.
-
-The workflow also targets 2:17 a.m. America/Denver nightly, including weekends and unchanged commits; spring-forward advances to 3:00 a.m. Nightly runs publish evidence without deploying the app. Scheduling, notification, budget and release-verification limits are recorded in the [telemetry guide](docs/test-telemetry.md#nightly-execution). The local update is complete and owner-accepted on September 12, 2026; genuine scheduled publication verification remains a release check.
-
-Configure server-only `TEST_HISTORY_REPOSITORY`, `TEST_HISTORY_BRANCH` and `TEST_HISTORY_TOKEN` to read trusted workflow history. The token needs Actions read access to that repository; there is no browser token or publishing endpoint. Leaving all three unset shows “No verified runs yet.” Read-only retrieval of published GitHub evidence has been exercised locally. Verify the specific workflow run for each new commit; this is separate from hosted application configuration.
-
-`npm run test:e2e:ingest` writes local evidence only. `--github` is reserved for the Actions workflow. Missing/invalid reports produce incomplete evidence and exit nonzero. Failed reports remain failed even when validation succeeds. The dashboard never treats ingestion success as test success.
-
-See [telemetry architecture and evidence semantics](docs/test-telemetry.md) for retention, trust boundaries, latest-run ordering, failure states and setup requirements.
-
-## Project guidance and roadmap
-
-Use [AGENTS.md](AGENTS.md) for contribution and validation standards, the [project overview](docs/project-overview.md) for architecture, and the [roadmap](docs/roadmap.md) for completed and deferred scope. Domain guides document behavior, reproduction and evidence limits.
-
-## Architecture and security references
-
-- [Market-data pipeline](docs/market-data.md): server validation, provenance, caches, unavailable values and coverage limits.
-- [Accounts and database authorization](supabase/README.md): Google sign-in, UUID ownership, curation and deletion.
-- [Searched-asset registration](docs/symbol-registration.md): trusted validation without curation privileges.
-- [Test telemetry](docs/test-telemetry.md): authoritative CI evidence and public-safe publication.
-- [Header activity](docs/header-activity.md): trusted workflow activity and scheduled equity sessions.
-
-The server caches validated evidence privately. Local mode defaults to `.telemetry/snapshots`; `TEST_SNAPSHOT_DIRECTORY` may select a private persistent directory for one process. Cloud Run uses server-only `TEST_SNAPSHOT_BUCKET` with conditional Cloud Storage writes. Snapshots preserve original timestamps and cannot publish results. See the telemetry guide for expiry, recovery and persistence limits.
-
-Future feature scope and maintenance considerations are tracked in the [roadmap](docs/roadmap.md). Visitors never trigger test runs.
+Development used AI assistance, with feature design, code review and verification directed by the project owner. The project retains that provenance and the limits of its reported evidence.

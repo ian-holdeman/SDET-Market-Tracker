@@ -1,29 +1,17 @@
 # Saving searched assets
 
-POST /api/assets/register accepts only { "symbol": "AIRJ" } and a Supabase bearer access token. The server verifies the identity with Auth getUser, validates syntax and matching Yahoo quote identity/price/time, then inserts the symbol into assets with ON CONFLICT DO NOTHING. No request-supplied identity, role, name, price or curation flag is accepted. Unsupported symbols and provider outages both fail validation honestly; an outage is not proof that a symbol is invalid.
+Signed-in visitors can add supported search results to their private watchlist, including assets outside the shared curated Board.
 
-The frontend calls registration only when its catalog lookup is empty. After confirmed registration, it inserts the watchlist item using the user's Supabase session and existing RLS. Catalog registration and watchlist saving are separate operations: a failed watchlist write can leave a shared catalog entry, but never reports the watchlist save as successful. Repeating registration is safe. Existing catalog assets do not require a Yahoo request to save.
+## Behavior
 
-## Configuration and local commands
+The application verifies the account and the provider's asset identity before registering a previously unknown asset. Registration and watchlist saving are separate outcomes: a failed save does not appear as a successful addition.
 
-Reuse server-only SUPABASE_URL and SUPABASE_SECRET_KEY plus VITE_AUTH_REDIRECT_URL from account deletion. Keep the secret in ignored .env.local. Public client and server must target the same project. Missing configuration returns a useful 503. No new provider key is needed.
+Shared asset identity is separate from curation and ownership. Saving an asset does not add it to the curated Board, grant administrative authority or affect another person's watchlist. Removing shared curation does not erase private watchlists.
 
-- Apply without resetting local data: `node scripts/supabase.mjs migration up --local`
-- Run SQL authorization tests: `npm run db:test`
-- Run offline endpoint/provider tests: `npm run test:baseline`
-- Run disposable local Auth/REST integration tests: `npm run test:auth`
-- Run browser checks: `npm run build:e2e` then `npm run test:e2e -- src/tests/specs/auth/auth.spec.ts src/tests/specs/board/the-board.spec.ts --workers=2`
-- Restore normal build: `npm run build`
-- Restart `npm run dev` after server changes.
+Provider outages and unsupported symbols remain distinct possibilities. A validation failure caused by an outage is not proof that an asset is invalid. Recovery allows another attempt without manufacturing a successful save.
 
-The migration grants service_role only SELECT/INSERT on assets. It retains no table access to personal watchlists, curation or admin assignments. Browser users still cannot register arbitrary catalog entries through REST; existing admin permissions remain unchanged. A Supabase secret is still broadly privileged for Auth APIs and must remain server-only.
+## Evidence limits
 
-## Evidence and limits
+Automated coverage includes malformed or mismatched provider data, rejected privilege fields, repeated registration, save/removal failure and recovery, persistence, and preservation of other saved assets. Database integration tests separately verify ownership and role boundaries.
 
-Offline tests prove malformed/mismatched provider data cannot reach registration, caller verification precedes writes, extra privilege fields are rejected, and failures/rate limits are explicit. SQL tests prove grants and RLS. Local integration tests exercise the real Auth and PostgREST APIs with disposable accounts and a simulated Yahoo response. Browser tests simulate external APIs. The uncurated MongoDB journey in `src/tests/specs/board/the-board.spec.ts` searches and inspects MDB, recovers from registration/save/removal failures, reloads saved membership, and removes only MDB while MSFT remains saved. The shared fixture returns requested symbols and distinguishes owner-wide clear from symbol removal. Admin add/remove curation and callback failure/recovery remain in the Auth browser suite. None establishes perpetual Yahoo availability or market-data licensing rights.
-
-Validation allows ten attempts per verified account per minute. The trusted server claims a database-backed budget through `claim_asset_registration` after verifying the UUID with Auth. This budget is shared across instances and revisions; browser roles cannot invoke it or inspect its private table. Expired rows are removed on the next claim, capacity is bounded to 1,000 active accounts, and account deletion cascades the row. This is a registration limit, not global denial-of-service protection.
-
-Each process also caps concurrent registration operations at eight and bounds its defensive limiter to 1,000 entries. Provider requests have a twelve-second deadline and streamed five-megabyte body limit. Limits do not reject zero or negative prices, and there is no freshness threshold that would incorrectly reject a valid closed-market observation. A local integration test sends concurrent requests through two independent routers and verifies the shared database budget.
-
-References: [Supabase getUser](https://supabase.com/docs/reference/javascript/auth-getuser), [RLS and service keys](https://supabase.com/docs/guides/database/postgres/row-level-security). Registration uses current Auth verification rather than trusting browser session metadata; service credentials bypass RLS, so explicit table grants and narrowly scoped operations are essential.
+Browser fixtures do not establish provider availability, market-data licensing rights or hosted database authorization. See [accounts](../supabase/README.md), [market data](market-data.md) and [test coverage](test-audit-implementation.md).

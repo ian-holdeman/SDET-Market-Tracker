@@ -15,3 +15,7 @@ firebase-applet-config.json
 # Local artifact drafts and task scratch files; canonical resume files live in docs/resume.
 /output/
 /tmp/
+
+# Local engineering notes
+/AGENTS.md
+/docs/internal/

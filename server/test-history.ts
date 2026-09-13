@@ -310,8 +310,9 @@ export function historyRouter(
     res.set("Cache-Control", "no-store");
     let cursor: string | undefined;
     try {
+      const unconfiguredPreview = !config && Object.keys(req.query).length === 1 && req.query.snapshot === '1';
       if (
-        Object.keys(req.query).some((k) => k !== "cursor") ||
+        (!unconfiguredPreview && Object.keys(req.query).some((k) => k !== "cursor")) ||
         (req.query.cursor !== undefined && typeof req.query.cursor !== "string")
       )
         throw Error();
