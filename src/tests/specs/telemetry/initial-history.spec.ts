@@ -31,6 +31,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(home.results.refreshStatus).toContainText('Checking for updates');
     await expect(home.results.refreshStatus).toContainText('1h old');
     const tile = home.results.root.getByTestId('run-metric-pass-rate');
+    // Measure settled geometry, not the final fractional frame of the entrance animation.
+    await tile.click({ trial: true });
     const before = await tile.boundingBox();
     await tile.evaluate(el => el.setAttribute('data-mounted', 'yes'));
     await page.screenshot({ path: testInfo.outputPath('saved-evidence.png'), fullPage: true });
