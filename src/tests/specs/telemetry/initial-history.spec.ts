@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures/showcase-test';
 import { feed, published } from '../../fixtures/testEvidence';
 import { HomePage } from '../../pages/home.page';
 import { TheTestsPage } from '../../pages/the-tests.page';
+import { RunReportComponent } from '../../pages/components/run-report.component';
 
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`initial saved evidence precedes delayed verification in ${colorScheme}`, async ({ page }, testInfo) => {
@@ -77,12 +78,17 @@ test('navigation shares verification and an open Home report survives a newer at
     await home.reportButton.click();
     const report = page.getByRole('dialog', { name: 'Run #3', exact: true });
     await expect(report).toBeVisible();
+    const disclosure = new RunReportComponent(report);
+    await expect(disclosure.cases).toHaveCount(0);
+    await disclosure.expandResults();
+    await disclosure.metadata.click();
     const focused = report.getByRole('button', { name: /close/i });
     await focused.focus();
     release();
     await expect(home.results.value('pass-rate')).toHaveText('—');
     await expect(report).toBeVisible();
-    await expect(report).toContainText('Attempt 1: passed');
+    await expect(report.getByText(/Attempt 1: passed/)).toBeVisible();
+    await expect(disclosure.commit).toBeVisible();
     await expect(focused).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(home.reportButton).toBeFocused();
@@ -93,6 +99,7 @@ test('navigation shares verification and an open Home report survives a newer at
     const updated = page.getByRole('dialog', { name: 'Run #3 · 2', exact: true });
     await expect(updated).toBeVisible();
     await expect(updated).toContainText('Results have expired');
+    await expect(new RunReportComponent(updated).results).toHaveCount(0);
   } finally { release(); }
 });
 

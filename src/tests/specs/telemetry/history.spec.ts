@@ -2,6 +2,7 @@ import { HomePage } from "../../pages/home.page";
 import { TheTestsPage } from "../../pages/the-tests.page";
 import { test, expect } from "../../fixtures/showcase-test";
 import { evidence, published, feed } from "../../fixtures/testEvidence";
+import { RunReportComponent } from '../../pages/components/run-report.component';
 function varied(
   number: number,
   status: "passed" | "flaky" | "failed" | "incomplete" = "passed",
@@ -63,8 +64,9 @@ test("flaky report, focus restoration and stale data preserve accurate metrics",
   const open = page.getByRole("button", { name: "View Report", exact: true });
   await open.click();
   const report = page.getByRole("dialog");
-  await expect(report).toContainText("Attempt 1: failed");
-  await expect(report).toContainText("Attempt 2: passed");
+  await new RunReportComponent(report).expandResults();
+  await expect(report.getByText(/Attempt 1: failed/)).toBeVisible();
+  await expect(report.getByText(/Attempt 2: passed/)).toBeVisible();
   await page.keyboard.press("Shift+Tab");
   expect(await report.evaluate((e) => e.contains(document.activeElement))).toBe(
     true,
@@ -133,6 +135,7 @@ test("recent results hides empty runs while history paginates and nested details
   await detail.click();
   const report = page.getByRole("dialog", { name: "Run #9", exact: true });
   await expect(report).toContainText("No test results were recorded.");
+  await expect(new RunReportComponent(report).results).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath('incomplete-details.png') });
   await page.keyboard.press("Escape");
   await expect(report).toHaveCount(0);

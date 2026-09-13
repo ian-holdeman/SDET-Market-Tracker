@@ -202,7 +202,7 @@ export function RunReport({
       </div>
       <Metrics run={run} compact />
       <Exceptions run={run} />
-      {!e?.planned ? (
+      {!e?.tests.length ? (
         <p className="text-sm text-ink-muted">
           {run.evidenceState === "expired"
             ? "Results have expired."
@@ -213,36 +213,41 @@ export function RunReport({
           <p className="text-xs text-ink-subtle">
             Pass rate excludes retries and includes all collected tests.
           </p>
-          <div className="space-y-3">
-            {e.tests.map((t) => (
-              <article
-                key={t.id}
-                className="rounded-xl border border-line bg-surface-950/30 p-4 space-y-2"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-ink-strong break-words min-w-0 flex-1">
-                    {t.name}
-                  </h3>
-                  <span
-                    className={`rounded-md px-2 py-0.5 text-xs ${statusTone(testOutcome(t))}`}
-                  >
-                    {testOutcome(t)}
-                  </span>
-                </div>
-                <p className="text-xs text-ink-subtle">{t.project}</p>
-                {t.attempts.map((a) => (
-                  <p key={a.retry} className="text-xs text-ink-muted">
-                    Attempt {a.retry + 1}: {a.status}{" "}
-                    <span className="text-ink-faint">·</span>{" "}
-                    {durationLabel(a.durationMs)}
-                  </p>
-                ))}
-                {!t.attempts.length && (
-                  <p className="text-xs text-warning-ink-300">No execution result.</p>
-                )}
-              </article>
-            ))}
-          </div>
+          <details className="text-xs text-ink-muted border-t border-line pt-4">
+            <summary className="cursor-pointer py-1">
+              Test results ({e.tests.length} recorded {e.tests.length === 1 ? "case" : "cases"})
+            </summary>
+            <div className="mt-3 space-y-3">
+              {e.tests.map((t) => (
+                <article
+                  key={t.id}
+                  className="rounded-xl border border-line bg-surface-950/30 p-4 space-y-2"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-ink-strong break-words min-w-0 flex-1">
+                      {t.name}
+                    </h3>
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-xs ${statusTone(testOutcome(t))}`}
+                    >
+                      {testOutcome(t)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink-subtle">{t.project}</p>
+                  {t.attempts.map((a) => (
+                    <p key={a.retry} className="text-xs text-ink-muted">
+                      Attempt {a.retry + 1}: {a.status}{" "}
+                      <span className="text-ink-faint">·</span>{" "}
+                      {durationLabel(a.durationMs)}
+                    </p>
+                  ))}
+                  {!t.attempts.length && (
+                    <p className="text-xs text-warning-ink-300">No execution result.</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </details>
         </>
       )}
       <details className="text-xs text-ink-muted border-t border-line pt-4">
