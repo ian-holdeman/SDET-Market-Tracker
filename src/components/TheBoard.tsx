@@ -745,7 +745,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           <button
             id="board-feed-status-btn"
             onClick={event => { event.currentTarget.focus(); setShowSettingsModal(true); }}
-            aria-label="Market provider details"
+            aria-label="Market provider diagnostics"
             title="View market provider details"
             className="flex min-w-0 items-center gap-2 px-3 py-1.5 rounded-xl bg-panel hover:bg-hover-panel border border-line hover:border-line-strong font-mono text-xs shadow-inner transition-colors group cursor-pointer"
           >

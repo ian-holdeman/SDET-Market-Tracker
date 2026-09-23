@@ -2,7 +2,7 @@ import { Page, Locator } from '@playwright/test';
 import { BasePage } from './base.page';
 
 export class TheBoardPage extends BasePage {
-  get diagnosticsOpener() { return this.page.getByRole('button', { name: 'Market provider details', exact: true }); }
+  get diagnosticsOpener() { return this.page.getByRole('button', { name: 'Market provider diagnostics', exact: true }); }
   get feedTimestamp() { return this.page.getByTestId('board-feed-timestamp'); }
   async feedGeometry() {
     const measure = (locator: Locator) => locator.evaluate(element => {
