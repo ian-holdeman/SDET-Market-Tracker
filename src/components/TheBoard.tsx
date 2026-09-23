@@ -478,7 +478,6 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
 
   const [sortField, setSortField] = useState<BoardSortField>('price');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(() => {
     return initialExpandedSymbol ? new Set([initialExpandedSymbol.toUpperCase()]) : new Set();
   });
@@ -573,13 +572,6 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
       ? new Set() : new Set(processedStocks.map(s => s.symbol)));
     initialHandledRef.current = null;
     onSelectStock?.(undefined);
-  };
-
-  // Handle manual refresh click
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await refreshQuotes();
-    setTimeout(() => setIsRefreshing(false), 600);
   };
 
   // Toggle sort field & direction
@@ -747,51 +739,37 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         </div>
 
         {searchError && <p role="alert" className="text-xs text-warning-ink-400">{searchError}</p>}
-        {/* Live Stream Telemetry Pill & Refresh Action */}
-        <div className="flex items-center space-x-2.5 self-start md:self-auto flex-wrap">
+        {/* Last retrieved data remains visible while quotes refresh. */}
+        <div className="flex max-w-full items-center gap-2 self-start md:self-auto">
           {/* Feed Status Display: Clickable diagnostic button for all users */}
           <button
             id="board-feed-status-btn"
             onClick={event => { event.currentTarget.focus(); setShowSettingsModal(true); }}
-            title="Click to view live Yahoo Finance engine sync diagnostics & telemetry"
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-panel hover:bg-hover-panel border border-line hover:border-line-strong font-mono text-xs shadow-inner transition-all group cursor-pointer"
+            aria-label="Market provider details"
+            title="View market provider details"
+            className="flex min-w-0 items-center gap-2 px-3 py-1.5 rounded-xl bg-panel hover:bg-hover-panel border border-line hover:border-line-strong font-mono text-xs shadow-inner transition-colors group cursor-pointer"
           >
-            {isOffline ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-danger-500" />
-                <span className="text-danger-ink-400 font-semibold">Feed Offline</span>
-                <span className="text-ink-faint">|</span>
-                <span className="text-ink-muted text-[11px]">Last Known Data</span>
-              </>
-            ) : isLoadingLiveMetrics ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-warning-400 animate-pulse" />
-                <span className="text-warning-ink-400">Syncing Quotes...</span>
-              </>
-            ) : (
-              <>
-                <span className="w-2 h-2 rounded-full bg-positive-400 animate-pulse" />
-                <span className="text-positive-ink-400 font-semibold">{lastSyncTime ? 'Provider data • may be delayed' : 'Awaiting data'}</span>
-                {lastSyncTime && (
-                  <>
-                    <span className="text-ink-faint">|</span>
-                    <span className="text-ink-muted text-[11px]">{lastSyncTime}</span>
-                  </>
-                )}
-              </>
-            )}
-            <SlidersHorizontal className="w-3 h-3 text-ink-subtle group-hover:text-info-ink-400 ml-1 transition-colors" />
+            <span aria-hidden="true" className={`w-2 h-2 shrink-0 rounded-full ${isOffline ? 'bg-danger-500' : lastSyncTime ? 'bg-positive-400' : 'bg-warning-400'}`} />
+            <span className="min-w-0 text-left">
+              <span className="block text-[10px] leading-4 text-ink-muted">Data synced</span>
+              <span data-testid="board-feed-timestamp" title={lastSyncTime ? `Last retrieved: ${lastSyncTime}` : 'No market data received yet'} className="block truncate font-semibold leading-4 tabular-nums text-ink-heading">
+                {lastSyncTime || 'Awaiting data'}
+              </span>
+            </span>
+            <SlidersHorizontal className="w-3 h-3 shrink-0 text-ink-subtle group-hover:text-info-ink-400 transition-colors" />
           </button>
 
           {/* Quick Refresh Button */}
           <button
             id="board-refresh-btn"
             aria-label="Refresh market quotes"
-            onClick={handleRefresh}
+            aria-busy={isLoadingLiveMetrics}
+            disabled={isLoadingLiveMetrics}
+            onClick={() => void refreshQuotes()}
             title="Refresh latest quotes from Yahoo Finance backend proxy"
-            className="p-2 rounded-xl bg-panel hover:bg-surface-800 border border-line hover:border-line-strong text-ink-muted hover:text-ink-heading transition-all shadow-sm active:scale-95 cursor-pointer"
+            className={`shrink-0 p-2 rounded-xl border transition-colors shadow-sm active:scale-95 cursor-pointer disabled:cursor-wait ${isLoadingLiveMetrics ? 'bg-info-surface-950 border-info-ink-400 text-info-ink-400' : 'bg-panel hover:bg-surface-800 border-line hover:border-line-strong text-ink-muted hover:text-ink-heading'}`}
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing || isLoadingLiveMetrics ? 'animate-spin text-info-ink-400' : ''}`} />
+            <RefreshCw aria-hidden="true" className={`w-4 h-4 ${isLoadingLiveMetrics ? 'motion-safe:animate-spin' : ''}`} />
           </button>
         </div>
       </div>

@@ -16,6 +16,8 @@ Finance links preserve asset and venue identity where a destination can be resol
 
 Provider observation time is separate from retrieval time. Cached data retains its original timestamps, and an HTTP response alone does not establish a recent trade.
 
+The Board's **Data synced** timestamp identifies the last retrieved batch, not the time of a trade. It stays visible during manual and automatic refreshes; only the refresh control highlights and spins while a request is pending. Reduced-motion preferences keep the icon still. Failed updates retain the timestamp and show the existing stale-data warning.
+
 Refresh failures retain usable prior data with a stale or failure label. Unavailable and stale observations are excluded from Home mover rankings. A missing chart remains unavailable rather than displaying another period as a substitute. Late responses cannot replace a newer asset or timeframe selection.
 
 ## Evidence and limitations

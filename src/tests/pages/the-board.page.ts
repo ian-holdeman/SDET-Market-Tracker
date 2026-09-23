@@ -2,7 +2,17 @@ import { Page, Locator } from '@playwright/test';
 import { BasePage } from './base.page';
 
 export class TheBoardPage extends BasePage {
-  get diagnosticsOpener() { return this.page.locator('#board-feed-status-btn'); }
+  get diagnosticsOpener() { return this.page.getByRole('button', { name: 'Market provider details', exact: true }); }
+  get feedTimestamp() { return this.page.getByTestId('board-feed-timestamp'); }
+  async feedGeometry() {
+    const measure = (locator: Locator) => locator.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      return { x: box.x, y: box.y + window.scrollY, width: box.width, height: box.height,
+        fits: element.scrollWidth <= element.clientWidth };
+    });
+    return { status: await measure(this.diagnosticsOpener), refresh: await measure(this.refreshButton),
+      table: await measure(this.assetRow('AAPL')) };
+  }
   get diagnostics() { return this.page.getByRole('dialog', { name: 'Market Provider Polling' }); }
   get ping() { return this.page.getByRole('button', { name: 'Ping Engine Diagnostics' }); }
   get rows() { return this.page.getByRole('button', { name: / details$/ }); }
