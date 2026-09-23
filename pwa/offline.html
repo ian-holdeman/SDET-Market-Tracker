@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connection needed | Market Tracker</title>
+  <script src="/appearance.js"></script>
+  <style>
+    /* Shared tokens are embedded at build time so this page needs no online CSS. */
+    __THEME__
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px; font: 16px/1.6 system-ui, sans-serif; background: var(--color-canvas); color: var(--color-ink-body); }
+    main { width: 100%; max-width: 440px; padding: 32px; border: 1px solid var(--color-line); border-radius: 20px; background: var(--color-panel); }
+    .brand { color: var(--color-positive-ink-400); font-size: 13px; font-weight: 700; }
+    h1 { font-size: 26px; line-height: 1.25; color: var(--color-ink-heading); }
+    p { color: var(--color-ink-muted); }
+    button { font: inherit; font-weight: 600; color: var(--color-info-ink-300); background: var(--color-info-surface-950); border: 1px solid var(--color-line-strong); border-radius: 10px; min-height: 44px; padding: 8px 18px; cursor: pointer; }
+    button:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; }
+  </style>
+  <script src="/offline.js" defer></script>
+</head>
+<body>
+  <main>
+    <span class="brand">The SDET's Market Tracker</span>
+    <h1>Connection needed</h1>
+    <p>Market data, watchlists and test evidence need an internet connection. This page has no saved account or market data.</p>
+    <p>Check your connection, then try again.</p>
+    <button type="button" id="retry">Try again</button>
+    <noscript><p>Enable JavaScript and reload to return to the app.</p></noscript>
+  </main>
+</body>
+</html>

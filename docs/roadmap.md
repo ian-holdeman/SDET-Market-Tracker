@@ -11,6 +11,7 @@ The roadmap brings together current capabilities and future product plans. Techn
 | The Tests | Published test results, retry history, nightly pipeline replay and four recorded demonstrations |
 | The Logic | Project motivation, architecture, testing approach and AI-assistance disclosure |
 | Settings | Browser appearance preferences, private watchlist clearing, account deletion and privacy information |
+| Android installation | Manifest, footer installation help and offline connection fallback; [device verification limits](pwa.md) |
 | Contact | Engineering inquiries, resume preview and explicit PDF download |
 
 Public browsing does not require an account. Google sign-in enables private watchlists; the appearance toggle remains available to all visitors.
@@ -24,7 +25,7 @@ Planned features and quality-of-life improvements:
 | Add alerts for asset prices | Feature |
 | Add mock portfolios | Feature |
 | Add a real investment / net worth tracker | Feature |
-| Create a downloadable mobile app | Quality of Life |
+| Verify Android installation and installed-app sign-in on physical devices | Quality of Life |
 | Fix the tablet view | Quality of Life |
 
 ## Continuing improvements

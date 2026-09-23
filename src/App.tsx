@@ -9,6 +9,8 @@ import { TheTests } from './components/TheTests';
 import { TheLogic } from './components/TheLogic';
 import { UserSettings } from './components/UserSettings';
 import { Footer } from './components/Footer';
+import { InstallModal } from './components/InstallModal';
+import { useInstall } from './hooks/useInstall';
 import { ContactModal } from './components/ContactModal';
 import { PrivacyModal } from './components/PrivacyModal';
 import { PrivacyPage } from './components/PrivacyNotice';
@@ -20,6 +22,8 @@ import { PageView } from './types';
 import { parseRouteFromLocation, syncRouteUrl } from './utils/navigation';
 
 function AppContent() {
+  const installation = useInstall();
+  const [isInstallOpen, setIsInstallOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<PageView>(() => {
     return parseRouteFromLocation().page;
   });
@@ -161,9 +165,11 @@ function AppContent() {
       <Footer
         onOpenContact={() => setIsContactModalOpen(true)}
         onOpenPrivacy={() => setIsPrivacyModalOpen(true)}
+        onOpenInstall={() => setIsInstallOpen(true)}
       />
 
       {/* Contact Services Modal */}
+      {isInstallOpen && <InstallModal close={() => setIsInstallOpen(false)} installation={installation} />}
       <ContactModal
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}

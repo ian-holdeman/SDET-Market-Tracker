@@ -10,6 +10,8 @@ Google authentication supplies basic account identity. Watchlists belong to auth
 
 Appearance choices stay in the browser and are not sent to the application server or associated with an account. They remain after sign-out or account deletion; clearing site storage removes them.
 
+The [offline connection fallback](pwa.md) stores only a static help page and its supporting scripts in browser Cache Storage. It contains no account data, prices or test evidence, remains after sign-out/deletion, and is removed by clearing site storage or browser eviction.
+
 Visitors can remove saved assets, clear their own watchlist or delete their account. An uncertain deletion is not presented as success. Account deletion does not delete a Google identity, shared market assets, provider logs or backups.
 
 ## Providers and retention

@@ -10,6 +10,7 @@ This overview describes the application's identified information flows. It is no
 | Shared assets and curation | Public market identities are separate from personal watchlists. Account deletion does not remove shared assets. |
 | Browser authentication state | Supports sign-in and session continuity. Confirmed sign-out/deletion clears app-specific authentication state; interrupted provider flows have their own lifecycle limits. |
 | Appearance preference | An explicit Light/Dark choice stays in browser storage, survives sign-out/deletion and is removed by clearing site storage. |
+| Offline connection help | Static HTML and two supporting scripts in bounded, versioned browser caches; no account, market or test-evidence responses. Survives sign-out/deletion; cleared with site storage or browser eviction. |
 | Test evidence | Sanitized project test results and original run identities, not visitor behavior. Live snapshots expire; historical demonstrations are labelled separately. |
 | Contact email | Sending email involves the sender's provider and the project mailbox. The application has no embedded message-submission service. |
 

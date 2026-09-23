@@ -4,6 +4,7 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import { readSupabaseConfig } from './src/lib/supabaseConfig';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { buildPwa } from './scripts/build-pwa';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
@@ -15,6 +16,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss(), {
       name: 'private-release-configuration',
       closeBundle() {
+        buildPwa();
         const release = process.env.RELEASE_COMMIT || null;
         const publicConfig = env.VITE_SUPABASE_URL ? readSupabaseConfig(env) : null;
         if (process.env.APP_DEPLOYMENT === 'cloud-run' && (!release || !/^[a-f0-9]{40}$/.test(release) ||

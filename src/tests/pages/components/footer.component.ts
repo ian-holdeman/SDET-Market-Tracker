@@ -4,6 +4,7 @@ export class FooterComponent {
   readonly page: Page;
   readonly contactLink: Locator;
   readonly privacyLink: Locator;
+  get installLink() { return this.page.getByRole('contentinfo').getByRole('button', { name: 'Install app', exact: true }); }
 
   constructor(page: Page) {
     this.page = page;

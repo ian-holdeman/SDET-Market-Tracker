@@ -3,11 +3,13 @@ import React from 'react';
 interface FooterProps {
   onOpenContact?: () => void;
   onOpenPrivacy?: () => void;
+  onOpenInstall?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenContact,
   onOpenPrivacy,
+  onOpenInstall,
 }) => {
   return (
     <footer className="mt-16 sm:mt-24 border-t border-line/80 bg-recessed py-8 text-ink-muted">
@@ -49,6 +51,10 @@ export const Footer: React.FC<FooterProps> = ({
                   Privacy
                 </button>
               )}
+              {onOpenInstall && <button type="button" onClick={event => {
+                event.currentTarget.focus({ preventScroll: true });
+                onOpenInstall();
+              }} className="rounded hover:text-info-ink-300 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-focus">Install app</button>}
             </div>
 
             <span className="hidden sm:inline text-ink-quiet">•</span>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs><linearGradient id="panel" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#172c4b"/><stop offset="1" stop-color="#0f172a"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="url(#panel)"/>
+  <!-- Existing Header TrendingUp silhouette, enlarged and within the maskable safe circle. -->
+  <g transform="translate(100 100) scale(13)" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m22 7-8.5 8.5-5-5L2 17"/>
+    <path d="M16 7h6v6"/>
+  </g>
+</svg>

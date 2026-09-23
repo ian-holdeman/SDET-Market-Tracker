@@ -16,3 +16,6 @@ src/tests/
 !public/**
 !scripts/
 !scripts/clean.mjs
+!scripts/build-pwa.ts
+!pwa/
+!pwa/**

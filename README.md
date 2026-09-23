@@ -12,6 +12,8 @@ A personal market tracker that brings together financial data, private watchlist
 - **The Logic** explains the project's architecture, testing approach and use of AI assistance.
 - **Settings and Contact** provide browser appearance preferences, account controls, privacy information and a resume preview with an explicit PDF download.
 
+The source also includes [Android installation support](docs/pwa.md), with an installation-help entry and a minimal offline connection page. Physical Android installation and installed-app Google sign-in remain unverified.
+
 ## Engineering approach
 
 The application uses React and TypeScript for the interface, an Express server for external-data validation, Supabase for authentication and private watchlists, and GitHub Actions for published test evidence. Google Cloud Run hosts the application; private Cloud Storage preserves validated test snapshots and a separate historical archive.
@@ -36,7 +38,7 @@ Market information may be delayed or unavailable and is not independently reconc
 
 ## Future plans
 
-Planned additions include asset-price alerts, mock portfolios, a real investment/net-worth tracker, a downloadable mobile app and tablet-view improvements. See the [roadmap](docs/roadmap.md).
+Planned additions include asset-price alerts, mock portfolios, a real investment/net-worth tracker, physical-device validation of Android installation and tablet-view improvements. See the [roadmap](docs/roadmap.md).
 
 ## AI assistance
 
