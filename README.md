@@ -26,6 +26,8 @@ The hosting design targets zero additional monthly cost. Scale-to-zero operation
 
 Published results come from trusted GitHub Actions runs. A first-attempt pass, a successful retry and a failed test are distinct outcomes. Missing artifacts do not become passing results, and an ingestion success does not establish test success.
 
+Commit and pull-request CI use essential browser smoke checks; nightly CI runs the full browser regression suite. Both retain lint, builds, offline tests and database/Auth checks. Published case projects identify smoke coverage explicitly.
+
 Recorded demonstrations use disclosed synthetic dependencies. They demonstrate application behavior and are separate from current CI results. Browser tests, database integration checks and live-provider observations establish different boundaries; none alone proves universal reliability, accessibility or financial accuracy.
 
 Learn more about [test evidence](docs/test-telemetry.md), [coverage and limitations](docs/test-audit-implementation.md), and [recorded demonstrations](docs/test-recordings.md).

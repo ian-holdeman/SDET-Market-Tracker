@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 import { env } from './src/tests/config/env';
 
 const runDirectory = process.env.IMT_BROWSER_ARTIFACTS ??= `.telemetry/browser-runs/${new Date().toISOString().replace(/[:.]/g, '-')}-${process.pid}`;
+const smoke = process.env.IMT_BROWSER_SUITE === 'smoke';
+const projectName = (name: string) => smoke ? `${name}-smoke` : name;
 
 /**
  * Playwright Test Configuration
@@ -15,6 +17,7 @@ export default defineConfig({
   
   /* Run tests in files in parallel */
   fullyParallel: true,
+  grep: smoke ? /@smoke/ : undefined,
   
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
@@ -56,7 +59,7 @@ export default defineConfig({
   /* Configure projects for major browsers and mobile viewports */
   projects: [
     {
-      name: 'chromium-desktop',
+      name: projectName('chromium-desktop'),
       testIgnore: '**/pwa/worker.spec.ts',
       use: { 
         ...devices['Desktop Chrome'],
@@ -65,11 +68,11 @@ export default defineConfig({
     },
     /* Mobile Viewport Testing */
     {
-      name: 'mobile-safari',
+      name: projectName('mobile-safari'),
       testIgnore: '**/pwa/worker.spec.ts',
       use: { ...devices['iPhone 13'] },
     },
-    { name: 'android-pwa', testMatch: '**/pwa/*.spec.ts', use: { ...devices['Pixel 7'], serviceWorkers: 'allow' } },
+    { name: projectName('android-pwa'), testMatch: '**/pwa/*.spec.ts', use: { ...devices['Pixel 7'], serviceWorkers: 'allow' } },
   ],
 
   /* Run your local dev server before starting the tests */

@@ -28,7 +28,7 @@ test.describe('Navigation Suite', () => {
     await homePage.open();
   });
 
-  test("navigation button validation", async ({ page }) => {
+  test("navigation button validation", { tag: '@smoke' }, async ({ page }) => {
     await homePage.header.navBoardBtn.click();
     await expect(boardPage.pageHeading).toBeVisible();
     await expect(page).toHaveURL(/\/board$/);

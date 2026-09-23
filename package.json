@@ -17,6 +17,7 @@
     "test:baseline": "tsx --test scripts/tests/*.test.ts",
     "lint": "tsc --noEmit && node scripts/check-script-syntax.mjs",
     "test:e2e": "playwright test",
+    "test:smoke": "node scripts/run-browser-smoke.mjs",
     "test:e2e:ingest": "tsx scripts/ingest-test-results.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",

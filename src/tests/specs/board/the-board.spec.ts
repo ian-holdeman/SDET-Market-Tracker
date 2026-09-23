@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures/showcase-test';
 import { mockApp, id } from '../../fixtures/auth';
 import { TheBoardPage } from '../../pages/the-board.page';
 
-test('uncurated search recovers from registration, save and removal failures and retains another saved asset', async ({ page }) => {
+test('uncurated search recovers from registration, save and removal failures and retains another saved asset', { tag: '@smoke' }, async ({ page }) => {
   const state = await mockApp(page, true); state.populated = true; state.watchlist = ['MSFT'];
   await page.route('**/api/search?**', route => route.fulfill({ json: { results: [{ symbol: 'MDB', name: 'MongoDB, Inc.', assetType: 'Stock' }] } }));
   await page.route('**/api/quotes?symbols=MDB', route => route.fulfill({ json: { quotes: [{ symbol: 'MDB', name: 'MongoDB, Inc.', assetType: 'Stock', price: 102, change: 2, changePercent: 2, currency: 'USD', asOf: new Date().toISOString(), fetchedAt: new Date().toISOString() }] } }));

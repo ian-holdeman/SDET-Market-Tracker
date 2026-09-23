@@ -7,7 +7,7 @@ import { TheBoardPage } from '../../pages/the-board.page';
 import { pwaUpdateServer } from '../../fixtures/pwa-server';
 
 
-test('production artifacts have correct MIME, scope, headers and decodable icons', async ({ page, request, browser }, testInfo) => {
+test('production artifacts have correct MIME, scope, headers and decodable icons', { tag: '@smoke' }, async ({ page, request, browser }, testInfo) => {
   await mockApp(page);
   await page.goto('/');
   await new InstallPage(page).controlled();

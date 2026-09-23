@@ -44,7 +44,7 @@ test('a one-point chart stays historical; switching to failed history clears it'
   expect(errors).toEqual([]);
 });
 
-test('quote refresh failure preserves the price with an explicit stale label', async ({ page }) => {
+test('quote refresh failure preserves the price with an explicit stale label', { tag: '@smoke' }, async ({ page }) => {
   const board = new TheBoardPage(page);
   let fail = false; let price = 101;
   const asOf = '2026-07-01T16:00:00.000Z';

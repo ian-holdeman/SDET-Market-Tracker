@@ -13,6 +13,12 @@ import { summarize, validateEvidence } from '../../src/telemetry/contract';
 
 const config = { repository: 'owner/repo', branch: 'main', token: 'fixture' };
 const workflow = readFileSync(new URL('../../.github/workflows/playwright.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const stepCondition = (name: string) => {
+  const block = workflow.split('\n      - ').find(step => step.startsWith(`name: ${name}\n`));
+  const condition = block?.match(/^        if: (.+)$/m)?.[1];
+  assert.ok(condition, `Missing condition for ${name}`);
+  return condition;
+};
 
 test('native nightly schedule covers every day without commit, prior-success or clock gates', () => {
   assert.match(workflow, /schedule:\s*\n(?:\s*#[^\n]*\n)*\s*- cron: ['"]17 2 \* \* \*['"]\s*\n\s*timezone: ['"]America\/Denver['"]/);
@@ -22,14 +28,14 @@ test('native nightly schedule covers every day without commit, prior-success or 
   // Both complete jobs start for every trigger, including an unchanged successful SHA.
   assert.deepEqual([...workflow.split('\njobs:\n')[1].matchAll(/^  ([a-z]+):$/gm)].map(m => m[1]), ['test', 'database']);
   assert.doesNotMatch(workflow, /^    (if|needs):|concurrency:|paths-ignore:|skip-duplicate|test:market:live|test:market:coverage/m);
-  for (const command of ['lint', 'build', 'build:e2e', 'test:baseline', 'test:e2e', 'db:start', 'db:reset', 'db:test', 'db:lint', 'test:auth', 'db:stop']) {
+  for (const command of ['lint', 'build', 'build:e2e', 'test:baseline', 'test:smoke', 'test:e2e', 'db:start', 'db:reset', 'db:test', 'db:lint', 'test:auth', 'db:stop']) {
     assert.ok(workflow.includes(`run: npm run ${command}`), command);
   }
 });
 
 test('publication gates retain failed-run evidence for trusted events and exclude PRs', () => {
-  const conditions = [...workflow.matchAll(/^        if: (.+)$/gm)].map(m => m[1]);
-  const [ingest, upload] = conditions;
+  const ingest = stepCondition('Validate sanitized evidence');
+  const upload = stepCondition('Retain public-safe evidence only');
   for (const event of ['push', 'workflow_dispatch', 'schedule', 'pull_request', 'pull_request_target', 'repository_dispatch']) {
     for (const dependencies of ['success', 'failure', 'skipped']) {
       const context = { always: () => true, github: { event_name: event }, steps: { dependencies: { outcome: dependencies } } };
@@ -41,6 +47,14 @@ test('publication gates retain failed-run evidence for trusted events and exclud
   assert.match(workflow, /if-no-files-found: error/);
   assert.match(workflow, /overwrite: false/);
   assert.doesNotMatch(workflow, /continue-on-error:/);
+});
+
+test('commit and manual runs select smoke while scheduled runs select full browser regression', () => {
+  for (const event of ['push', 'pull_request', 'workflow_dispatch', 'schedule']) {
+    const context = { github: { event_name: event } };
+    assert.equal(runInNewContext(stepCondition('Browser smoke'), context), event !== 'schedule');
+    assert.equal(runInNewContext(stepCondition('Nightly browser regression'), context), event === 'schedule');
+  }
 });
 
 test('Denver boundary fixtures document native DST targets; no local time gate rejects delayed runs', () => {

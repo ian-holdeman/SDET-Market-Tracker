@@ -37,7 +37,7 @@ test('Guests have the sign-in boundary and public privacy access', async ({ page
   await expect(page.getByRole('article')).toContainText('Operator');
 });
 
-test('A dark device defaults dark, switches both ways, persists and survives sign-out and deletion', async ({ page }) => {
+test('A dark device defaults dark, switches both ways, persists and survives sign-out and deletion', { tag: '@smoke' }, async ({ page }) => {
   const state = await mockApp(page, true);
   const settings = new SettingsPage(page);
   await page.goto('/settings');

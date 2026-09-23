@@ -3,7 +3,7 @@ import { HeaderComponent } from '../../pages/components/header.component';
 
 import { mockApp, id } from '../../fixtures/auth';
 
-test('Google PKCE callback returns to the starting page and exchanges the code once', async ({ page }) => {
+test('Google PKCE callback returns to the starting page and exchanges the code once', { tag: '@smoke' }, async ({ page }) => {
   const state = await mockApp(page);
   await page.goto('/logic');
   await page.locator('#header-login-btn').click();

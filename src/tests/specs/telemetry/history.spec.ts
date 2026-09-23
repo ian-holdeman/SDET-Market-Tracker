@@ -44,7 +44,7 @@ test("empty and failed retrieval states remain distinct", async ({ page }) => {
   await page.getByRole("button", { name: "Refresh test history" }).click();
   await expect(page.getByRole("alert")).toBeVisible();
 });
-test("flaky report, focus restoration and stale data preserve accurate metrics", async ({
+test("flaky report, focus restoration and stale data preserve accurate metrics", { tag: '@smoke' }, async ({
   page,
 }) => {
   let fail = false;

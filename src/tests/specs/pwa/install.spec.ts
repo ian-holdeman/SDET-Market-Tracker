@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures/showcase-test';
 import { mockApp } from '../../fixtures/auth';
 import { InstallPage } from '../../pages/install.page';
 
-test('guest can open installation help without starting installation', async ({ page }) => {
+test('guest can open installation help without starting installation', { tag: '@smoke' }, async ({ page }) => {
   await mockApp(page);
   await page.goto('/');
   const install = new InstallPage(page);

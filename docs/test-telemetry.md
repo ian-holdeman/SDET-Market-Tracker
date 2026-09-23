@@ -16,6 +16,8 @@ Pass Rate is first-attempt passes divided by all collected test-project cases, i
 
 Workflow outcome and browser-case counts are distinct. A database-job failure can make a workflow fail even when its browser cases passed. Artifact ingestion or upload success does not establish test success.
 
+Push, pull-request and manual CI runs use a small browser smoke suite covering essential visitor and account workflows. Scheduled nightly runs execute the full browser regression suite. Lint, builds, offline tests and database/Auth checks run on every trigger. Smoke case projects carry a `-smoke` suffix; GitHub run names also identify the selected suite. Counts and Pass Rate describe the collected cases, so smoke and nightly totals differ. A passing smoke run does not establish full regression coverage.
+
 ## Source and freshness
 
 Published results retain their repository, commit, run, attempt and original timestamps. The newest workflow attempt remains the latest identity even when its results are missing; earlier usable metrics are labelled as previous results.
