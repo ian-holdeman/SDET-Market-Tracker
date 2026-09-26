@@ -26,6 +26,11 @@ const validEvent = (row: any): row is AlertEvent =>
   timestamp(row.observed_at) &&
   (row.read_at === null || timestamp(row.read_at)) &&
   ["pre", "regular", "post", "continuous"].includes(row.session);
+export class AlertRequestError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message);
+  }
+}
 export async function alertRequest(
   action: string,
   body: unknown,
@@ -48,10 +53,11 @@ export async function alertRequest(
   });
   const result = await response.json();
   if (!response.ok)
-    throw Error(
+    throw new AlertRequestError(
       typeof result?.error === "string"
         ? result.error
         : "The alert request was not confirmed.",
+      typeof result?.code === "string" ? result.code : undefined,
     );
   return result.data;
 }

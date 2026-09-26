@@ -12,43 +12,58 @@ export function NotificationSettings({ owner }: { owner: string }) {
     [mode, setMode] = useState("");
   const [testing, setTesting] = useState(false),
     [notice, setNotice] = useState("");
+  const [healthError, setHealthError] = useState<string | null>(null);
   const mounted = useRef(true),
     busy = useRef(false);
+  const currentOwner = useRef(owner);
+  currentOwner.current = owner;
   useEffect(() => {
     mounted.current = true;
+    let active = true, generation = 0, permission: PermissionStatus | undefined;
     const update = () => {
+      const version = ++generation;
       const p = notificationPreference();
       setEnabled(p?.owner === owner);
       setMode(p?.mode ?? "");
+      setHealthError(null);
       if (
         p?.owner === owner &&
         "Notification" in window &&
         Notification.permission !== "granted"
       )
-        setError("Permission revoked. Check browser settings.");
+        setHealthError("Permission revoked. Check browser settings.");
       if (p?.owner === owner && p.mode === "push" && navigator.serviceWorker)
         void navigator.serviceWorker
           .getRegistration()
           .then(async (registration) => {
             const subscription =
               await registration?.pushManager.getSubscription();
-            if (mounted.current && !subscription)
-              setError("Push expired. Turn off and on to reconnect.");
+            if (active && version === generation && !subscription)
+              setHealthError("Push connection expired. Send a test to reconnect.");
           })
           .catch(() => {
-            if (mounted.current)
-              setError("Background delivery could not be verified.");
+            if (active && version === generation)
+              setHealthError("Background delivery could not be verified.");
           });
     };
     update();
     window.addEventListener("storage", update);
     window.addEventListener("alert-preference", update);
     window.addEventListener("focus", update);
+    document.addEventListener("visibilitychange", update);
+    void navigator.permissions?.query({ name: "notifications" }).then(status => {
+      if (!active) return;
+      permission = status;
+      status.addEventListener("change", update);
+    }).catch(() => {});
     return () => {
+      active = false;
       mounted.current = false;
       window.removeEventListener("storage", update);
       window.removeEventListener("alert-preference", update);
       window.removeEventListener("focus", update);
+      document.removeEventListener("visibilitychange", update);
+      permission?.removeEventListener("change", update);
     };
   }, [owner]);
   const toggle = async () => {
@@ -58,7 +73,7 @@ export function NotificationSettings({ owner }: { owner: string }) {
     setError(null);
     try {
       if (enabled) await disableAlertNotifications();
-      else await enableAlertNotifications(owner, () => mounted.current);
+      else await enableAlertNotifications(owner, () => mounted.current && currentOwner.current === owner);
     } catch (e) {
       if (mounted.current) setError((e as Error).message);
     } finally {
@@ -73,7 +88,7 @@ export function NotificationSettings({ owner }: { owner: string }) {
     setError(null);
     setNotice("");
     try {
-      await sendTestNotification(owner);
+      await sendTestNotification(owner, () => mounted.current && currentOwner.current === owner);
       if (mounted.current) setNotice("Test notification requested.");
     } catch (e) {
       if (mounted.current) setError((e as Error).message);
@@ -104,9 +119,9 @@ export function NotificationSettings({ owner }: { owner: string }) {
         <span role="status" className="sr-only">
           {notice}
         </span>
-        {error && (
+        {(error || healthError) && (
           <p role="alert" className="mt-2 text-xs text-danger-ink-400">
-            {error}
+            {error || healthError}
           </p>
         )}
       </div>
@@ -119,7 +134,7 @@ export function NotificationSettings({ owner }: { owner: string }) {
         onClick={() => void toggle()}
         className="shrink-0 inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-xs font-semibold text-ink-strong focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-50"
       >
-        <span aria-hidden="true">{enabled ? "On" : "Off"}</span>
+        <span aria-hidden="true">{pending ? "Updating…" : enabled ? "On" : "Off"}</span>
         <span
           aria-hidden="true"
           className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors motion-reduce:transition-none ${enabled ? "border-info-500 bg-info-600" : "border-line-strong bg-surface-700"}`}

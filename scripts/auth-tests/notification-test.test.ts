@@ -79,7 +79,7 @@ test("member push tests verify installation ownership, rate limit, deduplicate a
     ).error,
   );
   const sent: any[] = [];
-  let outcome: "accepted" | "retry" = "accepted";
+  let outcome: "accepted" | "retry" | "gone" = "accepted";
   const app = express()
     .use(express.json())
     .use(
@@ -195,10 +195,19 @@ test("member push tests verify installation ownership, rate limit, deduplicate a
     capability: hash,
   });
   assert.equal((await (await consume()).json()).data, null);
-  assert.equal(
-    (await post("test", { ...request, requestId: randomUUID() })).status,
-    403,
-  );
+  const unavailable = await post("test", { ...request, requestId: randomUUID() });
+  assert.equal(unavailable.status, 403);
+  assert.equal((await unavailable.json()).code, "installation_unavailable");
+  // A definite expired endpoint is distinguishable from an ambiguous transport failure.
+  await admin.rpc("set_alert_installation", {
+    verified_user: owner.id, verified_session: owner.session,
+    installation_id: device, capability: hash, push_subscription: subscription,
+  });
+  outcome = "gone";
+  const gone = await post("test", { ...request, requestId: randomUUID() });
+  assert.equal(gone.status, 410);
+  assert.equal((await gone.json()).code, "installation_unavailable");
+  assert.equal((await post("test", { ...request, requestId: randomUUID() })).status, 403);
   await owner.client.auth.signOut();
   const afterSignOut = await post("consume", {
     eventId: sent[1].eventId,

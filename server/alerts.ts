@@ -214,9 +214,10 @@ export function configuredAlertRouter(
             );
             return "accepted";
           } catch (error) {
-            return [404, 410].includes(
-              (error as { statusCode?: number }).statusCode ?? 0,
-            )
+            const status = (error as { statusCode?: number }).statusCode;
+            // Transport diagnostics deliberately exclude endpoints, payloads and keys.
+            console.warn(JSON.stringify({ event: "alert_push_failure", status: Number.isInteger(status) ? status : null }));
+            return [404, 410].includes(status ?? 0)
               ? "gone"
               : "retry";
           }
@@ -352,18 +353,20 @@ export function configuredAlertRouter(
         if (job?.status === "limited")
           return res.status(429).json({ error: "Wait 30 seconds before testing again." });
         if (job?.status === "unavailable")
-          return res.status(403).json({ error: "This notification installation is unavailable." });
+          return res.status(403).json({ code: "installation_unavailable", error: "This notification installation is unavailable." });
         if (job?.status === "duplicate") return res.json({ data: true });
         if (job?.status !== "ready") throw Error("Invalid notification test result.");
         validatePushSubscription(job.subscription);
         // Reuse the price-alert transport: the worker consumes the opaque hint and
         // verifies this installation/session again before displaying any details.
         const outcome = await deps.send(job);
-        if (outcome === "gone")
+        if (outcome === "gone") {
           await rpc("revoke_alert_installation", {
             installation_id: body.installationId,
             capability: hash(body.capability),
           });
+          return res.status(410).json({ code: "installation_unavailable", error: "Push connection expired. Turn notifications on to reconnect." });
+        }
         if (outcome !== "accepted")
           return res.status(503).json({ error: "Test notification could not be sent." });
         return res.json({ data: true });

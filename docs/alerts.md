@@ -8,7 +8,7 @@ A fresh qualifying observation creates one private history event. A rule remains
 
 The header bell opens a rolling 30-day history. Opening the list does not mark every entry read. Opening an entry or using its **Mark as read** action saves that entry's read status across devices. Notification Settings controls optional delivery for the current browser installation; history works without notification permission.
 
-With notifications enabled, any signed-in user can select **Send test notification** in Settings. It uses the current installation's browser-notification or Web Push channel, labels the message as a test, and creates no price rule or history event. Push tests are limited to one every 30 seconds. A successful test checks delivery in that moment; it does not verify price evaluation or guarantee later OS delivery.
+With notifications enabled, any signed-in user can select **Send test notification** in Settings. It uses the current installation's browser-notification or Web Push channel, labels the message as a test, and creates no price rule or history event. A confirmed expired push installation reconnects once during a test; uncertain delivery failures are not automatically retried. Push tests are limited to one every 30 seconds per installation. A successful test checks delivery in that moment; it does not verify price evaluation or guarantee later OS delivery.
 
 ## Evidence and delivery limits
 

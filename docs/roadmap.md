@@ -10,7 +10,7 @@ The roadmap brings together current capabilities and future product plans. Techn
 | The Board | Asset search, price charts, six price/activity metrics, finance links, private watchlists and configurable [price alerts](alerts.md) |
 | The Tests | Published test results, retry history, nightly pipeline replay and four recorded demonstrations |
 | The Logic | Project motivation, architecture, testing approach and AI-assistance disclosure |
-| Settings | Browser appearance preferences, notification controls and test delivery, private watchlist clearing, account deletion and privacy information |
+| Settings | Browser appearance preferences, notification controls, test delivery and expired-connection recovery, private watchlist clearing, account deletion and privacy information |
 | Android installation | Manifest, footer installation help and offline connection fallback; [device verification limits](pwa.md) |
 | Contact | Engineering inquiries, resume preview and explicit PDF download |
 
