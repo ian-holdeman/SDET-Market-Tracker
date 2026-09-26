@@ -8,6 +8,7 @@ const ownedCache = name => /^imt-pwa-offline-[a-f0-9]{16}$/.test(name);
 // Identify active/waiting caches without storing account data or extra metadata.
 self.addEventListener('message', event => {
   if (event.data === 'offline-cache-name') event.ports[0]?.postMessage(CACHE);
+  if (event.data === 'alert-delivery-version') event.ports[0]?.postMessage(2);
 });
 function workerCache(worker) {
   if (!worker) return Promise.resolve(null);
@@ -90,4 +91,61 @@ self.addEventListener('fetch', event => {
       status: 503, statusText: 'Connection needed', headers: cached.headers,
     });
   }));
+});
+
+// Separate, minimal private delivery storage. Nothing here enters Cache Storage.
+function alertInstallation() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('imt-alert-delivery', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('installation');
+    request.onerror = () => reject(new Error('Notification storage unavailable'));
+    request.onsuccess = () => {
+      const db = request.result;
+      const tx = db.transaction('installation', 'readonly');
+      const read = tx.objectStore('installation').get('current');
+      tx.oncomplete = () => { db.close(); resolve(read.result); };
+      tx.onerror = () => { db.close(); reject(new Error('Notification storage unavailable')); };
+    };
+  });
+}
+self.addEventListener('push', event => {
+  event.waitUntil((async () => {
+    try {
+      const hint = event.data?.json();
+      if (!hint || typeof hint.eventId !== 'string' || typeof hint.installationId !== 'string') return;
+      const display = async () => {
+        const state = await alertInstallation();
+        if (!state?.enabled || state.installationId !== hint.installationId) return;
+        const response = await fetch('/api/alerts/consume', { method: 'POST', credentials: 'omit', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000),
+          body: JSON.stringify({ eventId: hint.eventId, installationId: state.installationId, capability: state.capability }) });
+        if (!response.ok) return;
+        const { data } = await response.json();
+        if (!data || data.id !== hint.eventId || data.user_id !== state.owner) return;
+        const test = data.kind === 'test';
+        if (!test && (typeof data.symbol !== 'string' || !/^[A-Z0-9^][A-Z0-9.^=-]{0,31}$/.test(data.symbol) ||
+            !Number.isFinite(data.value) || typeof data.unit !== 'string')) return;
+        const current = await alertInstallation();
+        if (!current?.enabled || current.capability !== state.capability) return;
+        await self.registration.showNotification(test ? 'Test price alert' : `${data.symbol} price alert`, {
+          body: test ? 'This is a test notification.' : `${data.value} ${data.unit}`, tag: 'imt-alert-' + data.id,
+          data: { path: test ? '/settings' : '/board/' + encodeURIComponent(data.symbol) },
+          icon: '/icons/app-192.png',
+        });
+      };
+      // The same lock is used during sign-out/opt-out, including notification close.
+      if (self.navigator.locks) await self.navigator.locks.request('imt-alert-device', display);
+    } catch { /* Fail closed; genuine price history remains available. */ }
+  })());
+});
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const path = event.notification.data?.path;
+  if (typeof path !== 'string' || !(path === '/settings' || /^\/board\/[A-Za-z0-9%_.=^-]+$/.test(path))) return;
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const target = windows.find(client => new URL(client.url).origin === self.location.origin);
+    if (target) { await target.navigate(path); await target.focus(); }
+    else await self.clients.openWindow(path);
+  })());
 });

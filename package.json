@@ -23,6 +23,8 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
     "auth:setup:local": "node scripts/setup-local-auth.mjs",
+    "alerts:setup:local": "node scripts/local-alert-scheduler.mjs --setup",
+    "alerts:local": "node scripts/local-alert-scheduler.mjs",
     "test:auth": "tsx --test scripts/auth-tests/*.test.ts",
     "build:e2e": "node scripts/build-browser-tests.mjs",
     "test:market:live": "tsx scripts/check-market-provider.ts",
@@ -43,7 +45,8 @@
     "motion": "^12.23.24",
     "pdfjs-dist": "6.3.289",
     "react": "^19.0.1",
-    "react-dom": "^19.0.1"
+    "react-dom": "^19.0.1",
+    "web-push": "3.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
@@ -51,6 +54,7 @@
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.18",
+    "@types/web-push": "3.6.4",
     "@vitejs/plugin-react": "^5.0.4",
     "esbuild": "^0.25.0",
     "supabase": "2.117.0",

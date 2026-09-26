@@ -75,6 +75,11 @@ export async function mockApp(page: Page, authenticated = false, admin = false) 
         if (state.failWatchlistRead) return route.fulfill({ status: 503, json: { message: 'Read unavailable' } });
         return route.fulfill({ json: items.map((symbol) => ({ symbol })) });
       }
+      if (url.pathname === '/rest/v1/alert_rules') return route.fulfill({ json: [] });
+      if (url.pathname === '/rest/v1/alert_events') return request.method() === 'HEAD'
+        ? route.fulfill({ headers: { 'content-range': '0-0/0', 'access-control-expose-headers': 'content-range' }, body: '' })
+        : route.fulfill({ json: [] });
+      if (url.pathname === '/rest/v1/rpc/alert_coverage') return route.fulfill({ json: null });
       throw new Error('Unexpected Supabase request: ' + url.pathname);
     }
     if (url.origin !== 'http://127.0.0.1:3100') return route.abort();

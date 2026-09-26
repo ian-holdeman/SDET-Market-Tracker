@@ -5,6 +5,7 @@ import { TrendingUp, Layers, Terminal, Brain, LogIn, LogOut, Star, ChevronDown, 
 import { PageView } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useAppearance } from '../hooks/useAppearance';
+import { AlertHistoryButton } from './AlertHistory';
 
 interface HeaderProps {
   currentPage: PageView;
@@ -137,7 +138,8 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
           </nav>
 
           {/* User Account / Watchlist Auth Controls */}
-          <div className="flex shrink-0 items-center space-x-3">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+            <AlertHistoryButton settings={() => onNavigate('settings')} />
             <button
               type="button"
               aria-label={appearanceLabel}
@@ -157,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                   <div className="w-5 h-5 rounded-full bg-info-600/30 border border-info-400/40 flex items-center justify-center text-info-ink-300 font-bold text-[10px]">
                     {user.username.charAt(0).toUpperCase()}
                   </div>
-                  <span id="header-username-display" className="font-semibold max-w-[48px] min-[375px]:max-w-[100px] truncate">
+                  <span id="header-username-display" className="hidden min-[375px]:inline-block font-semibold max-w-[100px] md:max-lg:max-w-[64px] truncate">
                     {user.username}
                   </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-ink-muted transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />

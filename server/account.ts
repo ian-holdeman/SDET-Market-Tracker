@@ -57,7 +57,8 @@ export function serverSupabase(env: NodeJS.ProcessEnv) {
     throw new Error('Invalid server Supabase configuration: use a secret key and the same project as the public client.');
   }
   const client = createClient(project.origin, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }) } });
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal
+      ? AbortSignal.any([init.signal, AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000) }) } });
   return { client, origin };
 }
 

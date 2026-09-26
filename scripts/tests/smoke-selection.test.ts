@@ -24,7 +24,7 @@ test('commit smoke keeps essential browser coverage within budget and inside the
   assert(full.length > smoke.length);
   const required = ['navigation/navigation.spec.ts', 'auth/auth.spec.ts', 'board/the-board.spec.ts',
     'board/market-data.spec.ts', 'telemetry/history.spec.ts', 'settings/settings.spec.ts',
-    'pwa/install.spec.ts', 'pwa/worker.spec.ts'];
+    'pwa/install.spec.ts', 'pwa/worker.spec.ts', 'alerts/alerts.spec.ts'];
   assert.deepEqual([...new Set(smoke.map(c => c.file))].sort(), required.sort());
   assert.deepEqual([...new Set(smoke.map(c => c.project))].sort(),
     ['android-pwa-smoke', 'chromium-desktop-smoke', 'mobile-safari-smoke']);

@@ -44,11 +44,12 @@ export function Dialog({
         if (e.key !== "Tab") return;
         const items = Array.from(
           e.currentTarget.querySelectorAll<HTMLElement>(
-            'button, a[href], summary, [tabindex="0"]',
+            'button, a[href], input, select, textarea, summary, [tabindex]',
           ),
         ).filter(
           (el) =>
-            el.getClientRects().length > 0 && !el.hasAttribute("disabled"),
+            el.getClientRects().length > 0 && !el.matches(':disabled') && el.tabIndex >= 0 && el.closest('dialog') === e.currentTarget &&
+            (!(el instanceof HTMLInputElement) || el.type !== 'radio' || el.checked || !el.name || !e.currentTarget.querySelector(`input[type="radio"][name="${CSS.escape(el.name)}"]:checked`)),
         );
         const first = items[0],
           last = items.at(-1);

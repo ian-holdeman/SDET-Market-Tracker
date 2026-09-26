@@ -16,6 +16,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import dotenv from 'dotenv';
 import { configuredAccountRouter } from './server/account';
+import { configuredAlertRouter } from './server/alerts';
 import { configureSecurity, safeRequestErrors } from './server/security';
 
 if (!process.env.K_SERVICE && process.env.APP_DEPLOYMENT !== 'cloud-run') dotenv.config({ path: ['.env.local', '.env'], quiet: true });
@@ -60,6 +61,7 @@ async function startServer() {
   app.use(testActivityRouter(historyConfig(process.env)));
   app.use(configuredAccountRouter(process.env));
   app.use(configuredAssetRouter(process.env));
+  app.use(configuredAlertRouter(process.env));
 
   // Health check
   app.get("/api/health", (_req, res) => {

@@ -17,6 +17,7 @@ import { PrivacyPage } from './components/PrivacyNotice';
 import { PagePlaceholder } from './components/PagePlaceholder';
 import { AuthModal } from './components/AuthModal';
 import { AuthProvider } from './context/AuthContext';
+import { AlertProvider } from './context/AlertContext';
 import { MarketProvider } from './context/MarketContext';
 import { PageView } from './types';
 import { parseRouteFromLocation, syncRouteUrl } from './utils/navigation';
@@ -187,9 +188,11 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
+      <AlertProvider>
       <MarketProvider>
         <AppContent />
       </MarketProvider>
+      </AlertProvider>
     </AuthProvider>
   );
 }

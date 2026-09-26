@@ -13,6 +13,8 @@
   "archiveBucket": "sdet-market-tracker-855618435389-archives",
   "supabaseSecret": "sdet-supabase-secret",
   "historySecret": "sdet-github-history",
+  "alertSchedulerSecret": "sdet-alert-scheduler",
+  "alertVapidSecret": "sdet-alert-vapid",
   "cpu": "1",
   "memory": "1Gi",
   "concurrency": 16,

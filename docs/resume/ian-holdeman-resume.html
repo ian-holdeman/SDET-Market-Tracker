@@ -41,28 +41,29 @@
     <p class="contact"><a href="tel:+17022837567">(702) 283-7567</a> &nbsp;|&nbsp; <a href="mailto:ianrholdeman@gmail.com">ianrholdeman@gmail.com</a></p>
 
     <h2>Professional Summary</h2>
-    <p>I’m a Senior SDET with approximately eight years of technical experience. I’ve developed automation frameworks for UI and API testing and integrated regression suites into CI/CD pipelines to reduce repetitive manual testing. My work has covered finance and enterprise software, including web and mobile applications.</p>
+    <p>Senior SDET with approximately eight years of technical experience building automation frameworks and delivery tooling across finance and enterprise software. Own the design and AI-assisted development of a full-stack React/TypeScript market application, with a focus on API integration, data validation, asynchronous behavior, and cost-conscious architecture.</p>
 
     <h2>Technical Skills</h2>
     <div class="skills">
-      <p><strong>Languages:</strong> JavaScript/TypeScript (strongest current languages); Python (foundational language with extensive automation experience); C#/.NET (working proficiency); Java (earlier exposure). Additional experience: Groovy, Swift, HTML/CSS, SQL, scripting</p>
-      <p><strong>Test Automation:</strong> Playwright, Selenium, Katalon; UI/API, regression, manual, web and mobile testing; framework development and test planning; Node.js test runner, pgTAP (personal project)</p>
-      <p><strong>CI/CD and Infrastructure:</strong> Azure DevOps, Jenkins, Docker, AWS; GitHub Actions (personal project)</p>
-      <p><strong>Platforms:</strong> Oracle Cloud Finance; Windows, Linux, macOS, iOS, Android; Node.js and SQL databases. Personal project: React, Express, Supabase Auth, PostgreSQL</p>
-      <p><strong>Team Practices:</strong> Agile planning and facilitation, Jira, team leadership, communication, conflict resolution, working under pressure, attention to detail, creativity</p>
+      <p><strong>Languages:</strong> TypeScript/JavaScript, Python, C#, SQL, Groovy, Java, Swift, HTML/CSS.</p>
+      <p><strong>Test Automation:</strong> Playwright, Selenium, Katalon; UI/API, integration, regression, web and mobile testing; framework development; Node test runner and pgTAP (personal project).</p>
+      <p><strong>CI/CD and Infrastructure:</strong> Azure DevOps, Jenkins, Docker, AWS; GitHub Actions and Google Cloud Run (personal project).</p>
+      <p><strong>Platforms:</strong> Node.js, .NET, Oracle Cloud Finance; Windows, Linux, macOS, iOS, Android.<br/><strong>Personal project:</strong> React, Express, Supabase Auth, PostgreSQL.</p>
+      <p><strong>Team Practices:</strong> Agile planning, issue tracking and backlog management, mentoring, technical collaboration.</p>
     </div>
 
     <h2>Experience</h2>
     <h3>Personal</h3>
     <article class="job">
-      <h4>The SDET’s Market Tracker</h4>
-      <p class="meta">August 2026–Present</p>
+      <h4>The SDET's Market Tracker</h4>
+      <p class="meta">August 2026 - Present</p>
       <ul>
-        <li>Designed the features and test strategy for a React/TypeScript market tracker and directed AI-assisted development. Reviewed code changes and checked behavior through automated and manual testing.</li>
-        <li>Implemented Google sign-in and private watchlists using Supabase Auth and PostgreSQL row-level security. Tested ownership, role isolation, and account deletion against local database and Auth services.</li>
-        <li>Built Playwright UI tests alongside deterministic API and calculation tests. Covered failed requests, stale data, rejected asset registrations, and late responses during account and watchlist changes.</li>
-        <li>Integrated browser, offline, and database checks into GitHub Actions. Validated CI evidence so the application’s test dashboard showed failures, retry history, and missing results explicitly.</li>
-        <li>Live application: <a href="https://sdet-market-tracker-855618435389.us-west1.run.app">sdet-market-tracker-855618435389.us-west1.run.app</a></li>
+        <li>Own product and architecture decisions for a React/TypeScript and Express market application; direct AI-assisted development, review code, and verify behavior.</li>
+        <li>Balanced feature scope with data-access costs, replacing inaccessible fundamentals with six price/activity metrics. Loaded detailed history on demand and reused cached results to limit provider calls.</li>
+        <li>Validated provider identities, prices, and timestamps; distinguished missing values from zero and market observation time from retrieval time. Preserved cached data with explicit stale and partial-failure states.</li>
+        <li>Prevented late chart responses from overwriting newer selections; bounded caches, imposed request deadlines, and coalesced duplicate requests. Covered failure and recovery with deterministic and browser tests.</li>
+        <li>Implemented Google sign-in and private watchlists with Supabase Auth and PostgreSQL row-level security; verified ownership boundaries and integrated browser, API, and database checks into GitHub Actions.</li>
+        <li><a href="https://sdet-market-tracker-855618435389.us-west1.run.app">Live application: sdet-market-tracker-855618435389.us-west1.run.app</a></li>
       </ul>
     </article>
 
@@ -72,8 +73,8 @@
       <p class="meta">Church of Jesus Christ of Latter-Day Saints | March 2025 - July 2026</p>
       <ul>
         <li>Developed a TypeScript/Playwright automation framework and regression suites for Oracle Cloud Finance applications, reducing repetitive manual testing.</li>
-        <li>Integrated automated UI tests into an Azure DevOps pipeline to make regression testing part of the CI/CD workflow.</li>
-        <li>Tested financial workflows involving sensitive data in a high-security environment.</li>
+        <li>Integrated UI regression automation into Azure DevOps pipelines to support repeatable testing within the delivery workflow.</li>
+        <li>Tested sensitive financial workflows; mentored SDETs and helped manual testers contribute to automation.</li>
       </ul>
     </article>
   </section>
@@ -84,24 +85,24 @@
       <h4>Quality Assurance Engineer</h4>
       <p class="meta">Thetacore | September 2022 - June 2024</p>
       <ul>
-        <li>Helped establish manual and automated testing processes as an early member of the startup’s QA team.</li>
-        <li>Developed a UI automation framework using Playwright with C#/.NET and tested APIs and user interfaces in an Azure DevOps environment.</li>
-        <li>Created test plans for the mobile and web versions of ThetaCore Connect. Worked closely with developers to build, test, and deploy features in an Agile team.</li>
+        <li>Developed a Playwright automation framework in C#/.NET for UI testing and tested application APIs in an Azure DevOps environment.</li>
+        <li>Made targeted application-code changes to improve UI testability, working within the .NET codebase and collaborating with developers.</li>
+        <li>Helped establish testing practices as an early QA team member, mentored newer engineers, and created test plans for the mobile and web versions of ThetaCore Connect.</li>
       </ul>
     </article>
     <article class="job">
       <h4>Quality Assurance Engineer</h4>
       <p class="meta">Software Technology Group | April 2021 - September 2022</p>
       <ul>
-        <li>Automated manual test cases for the doTERRA contract using Groovy and Katalon for UI and API testing.</li>
-        <li>Developed and maintained a Python/Selenium framework for web application testing. Also maintained Python middleware that supported API calls.</li>
+        <li>Developed and maintained a Python/Selenium framework for web testing; maintained Python test-support middleware that simulated external APIs.</li>
+        <li>Automated UI and API test cases for the doTERRA contract using Groovy and Katalon.</li>
       </ul>
     </article>
     <article class="job">
       <h4>Quality Automation Engineer</h4>
       <p class="meta">Kollective Technology | October 2020 - April 2021</p>
       <ul>
-        <li>Took responsibility for extending a Playwright/Node.js automation framework to test front-end and back-end software.</li>
+        <li>Extended a Playwright/Node.js automation framework to exercise front-end and back-end behavior.</li>
         <li>Maintained Jenkins automation pipelines and tested CDN software APIs, user interfaces, and integrations with webcasting solutions.</li>
       </ul>
     </article>
@@ -109,8 +110,8 @@
       <h4>Associate QA Automation Engineer</h4>
       <p class="meta">PrinterLogic | May 2018 - May 2020</p>
       <ul>
-        <li>Designed, built, and maintained a Python/Selenium automation framework. Performed automated and manual UI and API testing for web and OS-based applications.</li>
-        <li>Worked with Jenkins build pipelines, Docker, and AWS cloud environments to support testing.</li>
+        <li>Designed, built, and maintained a Python/Selenium automation framework for web applications; performed automated and manual UI and API testing across web and OS-based software.</li>
+        <li>Used Jenkins build pipelines, Docker, and AWS environments to support automation and testing.</li>
         <li>Led Agile sprint planning, backlog grooming, and daily stand-ups.</li>
       </ul>
     </article>
@@ -118,8 +119,8 @@
       <h4>Software Development Intern</h4>
       <p class="meta">Busybusy | August 2015 - December 2015</p>
       <ul>
-        <li>Shadowed a development team during a high school internship, learning how to build software and develop iOS applications with Swift.</li>
-        <li>Worked with fellow interns to build a basic game with collision detection.</li>
+        <li>Learned software development and iOS application development with Swift while shadowing a development team during a high school internship.</li>
+        <li>Collaborated with fellow interns to build a basic game with collision detection.</li>
       </ul>
     </article>
 

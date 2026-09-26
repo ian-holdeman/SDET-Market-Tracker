@@ -23,7 +23,7 @@ test('resume link opens a rendered PDF preview and downloads only when requested
   await expect(popup).toHaveURL(/\/resume$/);
   await expect(resume.heading).toBeVisible();
   await expect(resume.sheets).toHaveCount(2);
-  await expect(resume.sheet(1)).toContainText('I’m a Senior SDET');
+  await expect(resume.sheet(1)).toContainText('Senior SDET with approximately eight years');
   await expect(resume.sheet(2)).toContainText('Quality Automation Engineer');
   await expect(resume.sheet(2)).toContainText('References available upon request');
   for (const number of [1, 2]) {

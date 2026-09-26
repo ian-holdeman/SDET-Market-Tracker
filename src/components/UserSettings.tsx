@@ -3,6 +3,7 @@ import { ArrowRight, LogIn, Moon, Settings, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAppearance } from '../hooks/useAppearance';
 import { Dialog } from './Dialog';
+import { NotificationSettings } from './NotificationSettings';
 import type { PageView, UserProfile } from '../types';
 
 interface UserSettingsProps { onNavigate: (page: PageView) => void; }
@@ -61,6 +62,7 @@ function AccountSettings({ user, onNavigate }: UserSettingsProps & { user: UserP
       <h1 ref={heading} tabIndex={-1} id="settings-title" className="mt-1 text-sm text-ink-muted">Settings</h1>
     </div>
     <div className="divide-y divide-line">
+      <NotificationSettings owner={user.id} />
       <div className="settings-row">
         <div><h2 className="settings-label">Appearance</h2></div>
         <fieldset className="flex gap-1 rounded-xl border border-line-strong bg-surface-900 p-1">

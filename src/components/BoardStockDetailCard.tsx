@@ -20,6 +20,7 @@ import {
 } from '../utils/timeframeData';
 import { fetchPriceActivity, PriceActivity, fetchProxyCandles, getCachedProxyCandles } from '../services/yahooMarket';
 import { TickerLogo } from './TickerLogo';
+import { PriceAlertButton } from './PriceAlerts';
 import { useAuth } from '../context/AuthContext';
 import { useMarket } from '../context/MarketContext';
 import { getGoogleFinanceQuoteUrl } from '../utils/financeLinks';
@@ -678,6 +679,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                     }`}
                   />
                 </button>
+                <PriceAlertButton stock={stock} />
               </div>
 
               <p className="text-xs sm:text-sm text-ink-muted font-medium leading-normal mt-0.5 break-words">
@@ -737,6 +739,7 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 <button
                   key={tf}
                   id={`btn-timeframe-${stock.symbol.toLowerCase()}-${tf.toLowerCase()}`}
+                  aria-pressed={isSelected}
                   onClick={() => {
                     if (tf === selectedTimeframe) return;
                     ++candleGeneration.current;

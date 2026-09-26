@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { type UserProfile, signInWithGoogle, completeOAuth, loadProfile, changeWatchlist, clearUserWatchlist, loadWatchlist, deleteUserAccount } from '../services/authService';
 import { getSupabase } from '../lib/supabase';
 import { clearLocalAuthState } from '../utils/authStorage';
+import { disableAlertNotifications } from '../services/alertNotifications';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -110,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   const logout = async () => {
     try {
+      await disableAlertNotifications();
       const { error: signOutError } = await getSupabase().auth.signOut({ scope: 'local' });
       if (signOutError) throw signOutError;
       clearLocalAuthState();
@@ -131,6 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { profile, isCurrent } = beginMutation();
     try {
       await deleteUserAccount(profile.id, isCurrent);
+      if (isCurrent()) await disableAlertNotifications();
       if (isCurrent()) { ++epoch.current; owner.current = null; publish(null); setError(null); }
     } finally { endMutation(); }
   };
