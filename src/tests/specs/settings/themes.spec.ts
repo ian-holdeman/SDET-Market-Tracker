@@ -128,11 +128,15 @@ for (const theme of ['dark', 'light'] as const) {
     await expect.poll(async () => (await tests.showcase.mediaState()).width).toBeGreaterThan(0);
     const video = await tests.showcase.video.elementHandle();
     await tests.showcase.speed.selectOption('2');
-    await tests.showcase.video.evaluate((element: HTMLVideoElement) => { element.currentTime = 5; });
+    // Settle scrolling before measuring preservation. At 2x, seeking to 5s in
+    // the 6.88s clip left <1s before a legitimate ended/paused state.
+    await header.appearanceAction(theme === 'dark' ? 'light' : 'dark').click({ trial: true });
+    const seekTarget = 1;
+    await tests.showcase.seekPlaying(seekTarget);
     await header.switchAppearance(theme === 'dark' ? 'light' : 'dark');
     expect(await video!.evaluate(element => element.isConnected)).toBe(true);
     const media = await tests.showcase.mediaState();
-    expect(media.time).toBeGreaterThanOrEqual(5);
+    expect(media.time).toBeGreaterThanOrEqual(seekTarget);
     expect(media.paused).toBe(false);
     expect(media.speed).toBe(2);
     await expect(tests.showcase.video).toHaveCSS('filter', 'none');

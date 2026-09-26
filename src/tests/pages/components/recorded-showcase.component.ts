@@ -18,6 +18,14 @@ export class RecordedShowcaseComponent {
     this.details = this.root.getByText('About this test', { exact: true });
   }
   tab(name: string) { return this.root.getByRole('tab', { name, exact: true }); }
+  async seekPlaying(seconds: number) {
+    await this.video.evaluate(async (element: HTMLVideoElement, target) => {
+      const sought = new Promise<void>(resolve => element.addEventListener('seeked', () => resolve(), { once: true }));
+      element.currentTime = target;
+      await sought;
+      await element.play();
+    }, seconds);
+  }
   async mediaState() {
     return this.video.evaluate((element: HTMLVideoElement) => ({
       paused: element.paused, time: element.currentTime, ready: element.readyState,

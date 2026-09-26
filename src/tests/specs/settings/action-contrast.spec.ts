@@ -20,7 +20,7 @@ for (const theme of ['light', 'dark'] as const) {
     const auth = new AuthModalComponent(page);
     await auth.open();
     await expect(auth.google).toBeEnabled();
-    const directory = `.telemetry/light-visibility/${process.env.VISIBILITY_PHASE || 'after'}/${testInfo.project.name}/${theme}`;
+    const directory = testInfo.outputPath('contrast');
     await mkdir(directory, { recursive: true });
     const measurements: Record<string, Awaited<ReturnType<typeof measureContrast>>> = {};
     const capture = async (state: string, target: Locator = auth.google) => {
@@ -68,7 +68,7 @@ for (const theme of ['light', 'dark'] as const) {
     const settings = new SettingsPage(page);
     await expect(settings.clear).toBeEnabled();
     const measurements: Record<string, Awaited<ReturnType<typeof measureContrast>>> = {};
-    const directory = `.telemetry/light-visibility/${process.env.VISIBILITY_PHASE || 'after'}/${testInfo.project.name}/${theme}`;
+    const directory = testInfo.outputPath('contrast');
     await mkdir(directory, { recursive: true });
     measurements.enabled = await measureContrast(settings.clear);
     await settings.clear.click();
@@ -83,7 +83,7 @@ for (const theme of ['light', 'dark'] as const) {
       measurements.deletePending = await measureContrast(settings.delete);
       await page.screenshot({ path: `${directory}/settings-pending-panel.png` });
     } finally { release(); }
-    await expect(settings.panel.getByRole('status')).toContainText('Watchlist cleared');
+    await expect(settings.accountStatus).toContainText('Watchlist cleared');
     await expect(settings.clear).toBeDisabled();
     measurements.empty = await measureContrast(settings.clear);
     await page.screenshot({ path: `${directory}/settings-empty.png` });

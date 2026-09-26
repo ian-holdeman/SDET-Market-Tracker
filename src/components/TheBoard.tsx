@@ -813,6 +813,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               <input
                 id="board-search-input-desktop"
                 type="text"
+                maxLength={80}
                 aria-label="Search market assets"
                 placeholder="Search any asset or ticker..."
                 value={searchQuery}
@@ -846,6 +847,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                   <input
                     id="board-search-input"
                     type="text"
+                    maxLength={80}
                     aria-label="Search market assets"
                     autoFocus
                     placeholder="Search..."

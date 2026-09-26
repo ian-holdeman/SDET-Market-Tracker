@@ -22,6 +22,14 @@ export function configureSecurity(app: Express, supabaseUrl?: string, developmen
       'X-Frame-Options': 'DENY', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()' });
     next();
   });
+  // Form/text requests must not reach JSON mutation handlers with an absent body.
+  // Origin checks and bearer/capability verification remain separate boundaries.
+  app.use('/api', (req, res, next) => {
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && !req.is('application/json')) {
+      return res.status(415).set('Cache-Control', 'no-store').json({ error: 'Use an application/json request body.' });
+    }
+    next();
+  });
 }
 
 export const safeRequestErrors: ErrorRequestHandler = (error, _req, res, next) => {

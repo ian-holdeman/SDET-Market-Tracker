@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { serverSupabase } from './account';
 import { providerSymbol, validateQuoteResponse } from './market';
 import { providerJson } from './provider-json';
+import { marketBudget, ResourceLimitError } from './resource-budget';
 
 /** A quote must match the requested identity and pass the same checks as displayed data. */
 export async function validateAsset(symbol: string, request: typeof fetch = fetch) {
@@ -62,7 +63,10 @@ export function assetRouter(deps: Dependencies | null, origin: string | null) {
       }
       budget.count++; attempts.set(user, budget);
       try { await deps.validate(symbol); }
-      catch { return res.status(502).json({ error: 'Yahoo could not validate this symbol. It may be unavailable or unsupported. Your watchlist has not changed.' }); }
+      catch (error) {
+        if (error instanceof ResourceLimitError) return res.status(error.status).set('Retry-After', '30').json({ error: error.message });
+        return res.status(502).json({ error: 'Yahoo could not validate this symbol. It may be unavailable or unsupported. Your watchlist has not changed.' });
+      }
       try { await deps.register(symbol); }
       catch { return res.status(502).json({ error: 'Asset registration was not confirmed. Your watchlist has not changed; please retry.' }); }
       return res.json({ symbol });
@@ -75,6 +79,7 @@ export function configuredAssetRouter(env: NodeJS.ProcessEnv) {
   const config = serverSupabase(env);
   if (!config) return assetRouter(null, null);
   const { client, origin } = config;
+  const claimProvider = marketBudget(config);
   return assetRouter({
     claim: async verifiedUser => {
       const {data,error} = await client.rpc('claim_asset_registration', { verified_user: verifiedUser });
@@ -86,7 +91,7 @@ export function configuredAssetRouter(env: NodeJS.ProcessEnv) {
       if (error && (!error.status || error.status >= 500)) throw error;
       return error ? null : data.user?.id ?? null;
     },
-    validate: validateAsset,
+    validate: async symbol => { await claimProvider(); await validateAsset(symbol); },
     register: async symbol => {
       // INSERT ... ON CONFLICT DO NOTHING supports retries/races, without UPDATE privileges.
       const { error } = await client.from('assets').upsert({ symbol }, { onConflict: 'symbol', ignoreDuplicates: true });

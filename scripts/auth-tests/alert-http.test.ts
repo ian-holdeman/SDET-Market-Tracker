@@ -86,6 +86,9 @@ test("HTTP alert mutations verify identity and provider unit; scheduler rejects 
     revision: null,
   };
   assert.equal((await post("evaluate", {})).status, 401);
+  assert.equal((await post('unknown', {}, 'invalid')).status, 404);
+  assert.equal((await post('toString', {}, 'invalid')).status, 404);
+  assert.equal((await post('rules?extra=1', rule)).status, 400);
   assert.equal((await post("rules", rule, "invalid")).status, 401);
   assert.equal(
     (await post("rules", rule, undefined, "https://other.invalid")).status,

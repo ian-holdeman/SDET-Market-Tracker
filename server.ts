@@ -15,7 +15,9 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import dotenv from 'dotenv';
-import { configuredAccountRouter } from './server/account';
+import { configuredAccountRouter, serverSupabase } from './server/account';
+import { marketBudget } from './server/resource-budget';
+import { apiAdmission } from './server/admission';
 import { configuredAlertRouter } from './server/alerts';
 import { configureSecurity, safeRequestErrors } from './server/security';
 
@@ -40,6 +42,7 @@ async function startServer() {
   });
 
   configureSecurity(app, process.env.VITE_SUPABASE_URL, process.argv.includes('--development'));
+  app.use('/api', apiAdmission());
   app.use(express.json({ limit: '16kb' }));
   const history = historyConfig(process.env);
   if(history){
@@ -68,7 +71,7 @@ async function startServer() {
     res.json({ status: "ok", timestamp: Date.now() });
   });
 
-  app.use(marketRouter());
+  app.use(marketRouter(fetch, Date.now, marketBudget(serverSupabase(process.env))));
 
   // Explicit JSON 404 for any unmatched /api/* route so it never falls through to HTML SPA
   app.all('/api/*', (_req, res) => {

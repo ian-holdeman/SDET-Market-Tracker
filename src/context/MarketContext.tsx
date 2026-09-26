@@ -212,21 +212,23 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => { active = false; };
   }, [user?.id, JSON.stringify(user?.watchlist), curatedSymbols, fetchSingleAssetQuote]);
 
-  // Initial root mount and continuous background refresh (15s interval)
+  // Keep active pages fresh without spending provider capacity on hidden tabs.
   useEffect(() => {
     // Eagerly preload all ticker logo assets across the board universe into the browser cache
     preloadTickerLogos(curatedStocks.map(s => s.symbol));
 
     latestRefresh.current = fetchLiveMarketData;
-    fetchLiveMarketData();
-
-    const refreshTimer = setInterval(() => {
-      fetchLiveMarketData();
-    }, 15000);
+    const refreshVisible = () => {
+      if (document.visibilityState === 'visible') void fetchLiveMarketData();
+    };
+    refreshVisible();
+    const refreshTimer = setInterval(refreshVisible, 15000);
+    document.addEventListener('visibilitychange', refreshVisible);
 
     return () => {
       latestRefresh.current = null;
       clearInterval(refreshTimer);
+      document.removeEventListener('visibilitychange', refreshVisible);
       Object.values(tickClearTimers.current).forEach(clearTimeout);
     };
   }, [fetchLiveMarketData]);

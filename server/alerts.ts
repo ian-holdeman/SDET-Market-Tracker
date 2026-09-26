@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createHash, timingSafeEqual } from "node:crypto";
 import webpush from "web-push";
 import { serverSupabase } from "./account";
+import { ResourceLimitError, marketBudget } from './resource-budget';
 import {
   alertObservation,
   alertUnit,
@@ -180,6 +181,7 @@ export function configuredAlertRouter(
   const rpc: Rpc = async (name, args, signal = AbortSignal.timeout(10000)) => {
     if (!config) throw Error("Alerts are not configured.");
     const { data, error } = await config.client.rpc(name, args).abortSignal(signal);
+    if (error?.code === 'P4290') throw new ResourceLimitError(429, error.message);
     if (error)
       throw Error(
         error.code === "P0001"
@@ -188,10 +190,11 @@ export function configuredAlertRouter(
       );
     return data;
   };
+  const claimProvider = marketBudget(config);
   const deps: AlertDependencies = {
     rpc,
     now: Date.now,
-    chart: (symbol, signal) => fetchAlertChart(symbol, fetch, signal),
+    chart: async (symbol, signal) => { await claimProvider(); return fetchAlertChart(symbol, fetch, signal); },
     send: pushReady
       ? async (job) => {
           try {
@@ -277,13 +280,23 @@ export function configuredAlertRouter(
     }
   });
   router.post("/api/alerts/:operation", async (req, res) => {
+    const fields: Record<string, string[]> = {
+      rules: ['id', 'symbol', 'comparison', 'target', 'revision'],
+      subscribe: ['installationId', 'capability', 'subscription'],
+      test: ['installationId', 'capability', 'requestId'],
+      consume: ['installationId', 'capability', 'eventId'],
+      revoke: ['installationId', 'capability'],
+    };
+    if (!Object.hasOwn(fields, req.params.operation)) return res.status(404).json({ error: 'Unknown alert action.' });
     if (!config)
       return res
         .status(503)
         .json({ error: "Alerts are not configured on this server." });
     if (req.get("origin") && req.get("origin") !== config.origin)
       return res.status(403).json({ error: "Request origin is not allowed." });
-    if (Object.keys(req.query).length || active >= 8)
+    if (Object.keys(req.query).length || !exact(req.body, fields[req.params.operation]))
+      return res.status(400).json({ error: 'Invalid alert request.' });
+    if (active >= 8)
       return res
         .status(429)
         .json({ error: "Alert service busy. Retry shortly." });
@@ -326,6 +339,8 @@ export function configuredAlertRouter(
       if (!bearer)
         return res.status(401).json({ error: "Sign in to manage alerts." });
       const verified = await config.client.auth.getUser(bearer);
+      if (verified.error && (!verified.error.status || verified.error.status >= 500))
+        return res.status(503).json({ error: 'Account verification is unavailable. Retry later.' });
       if (verified.error || !verified.data.user)
         return res
           .status(401)
@@ -352,6 +367,8 @@ export function configuredAlertRouter(
         });
         if (job?.status === "limited")
           return res.status(429).json({ error: "Wait 30 seconds before testing again." });
+        if (job?.status === "budget_limited")
+          return res.status(429).set('Retry-After', '3600').json({ error: 'Notification test limit reached. Try again later.' });
         if (job?.status === "unavailable")
           return res.status(403).json({ code: "installation_unavailable", error: "This notification installation is unavailable." });
         if (job?.status === "duplicate") return res.json({ data: true });
@@ -457,6 +474,7 @@ export function configuredAlertRouter(
       }
       return res.status(404).json({ error: "Unknown alert action." });
     } catch (error) {
+      if (error instanceof ResourceLimitError) return res.status(error.status).set('Retry-After', '60').json({ error: error.message });
       // Never expose provider bodies, subscription endpoints, tokens or key material.
       const message =
         error instanceof Error &&

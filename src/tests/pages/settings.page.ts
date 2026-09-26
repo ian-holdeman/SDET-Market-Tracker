@@ -4,6 +4,7 @@ export class SettingsPage {
   constructor(readonly page: Page) {}
   get panel() { return this.page.getByRole('region', { name: 'Settings' }); }
   get name() { return this.panel.getByTestId('settings-name'); }
+  get accountStatus() { return this.panel.getByRole('status', { name: 'Account update', exact: true }); }
   get light() { return this.panel.getByRole('radio', { name: 'Light', exact: true }); }
   get dark() { return this.panel.getByRole('radio', { name: 'Dark', exact: true }); }
   get clear() { return this.panel.getByRole('button', { name: 'Clear Watchlist', exact: true }); }

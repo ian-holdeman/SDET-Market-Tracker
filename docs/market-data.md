@@ -22,6 +22,8 @@ Refresh failures retain usable prior data with a stale or failure label. Unavail
 
 ## Evidence and limitations
 
+Automatic quote polling pauses while the tab is hidden and refreshes when it becomes visible, preserving the open asset and existing observations. Shared provider limits may temporarily make refreshes, searches or alert evaluation unavailable. Cached successes retain their original timestamps; denied work does not fabricate new data. A provider load is an uncached symbol/search request, not a page visit, so long sessions can consume a meaningful share of shared capacity.
+
 Deterministic checks cover calculation rules, identity validation, malformed responses, session boundaries, missing values and failure recovery. Browser fixtures cover the corresponding user experience. Live-provider observations establish point-in-time availability, not independently verified prices.
 
 A separate [limited provider comparison](market-comparison.md) covers three US stocks. Broad price reconciliation, corporate-action completeness, future provider availability and universal market accuracy are not established.

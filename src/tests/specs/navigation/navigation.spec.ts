@@ -11,15 +11,8 @@ test.describe('Navigation Suite', () => {
   test.beforeEach(async ({ page }) => {
     pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
-    // This is a routing smoke test, not a live-provider or database test.
-    await page.route('**/*', async (route) => {
-      const url = new URL(route.request().url());
-      if (url.origin !== 'http://127.0.0.1:3100') return route.abort();
-      if (url.pathname.startsWith('/api/')) {
-        return route.fulfill({ json: url.pathname === '/api/quotes' ? { quotes: [] } : { points: [], results: [] } });
-      }
-      return route.continue();
-    });
+    // Shared isolation supplies populated market/catalog fixtures and blocks
+    // external traffic. Aborting its catalog mock caused a WebKit access error.
     homePage = new HomePage(page);
     boardPage = new TheBoardPage(page);
     testsPage = new TheTestsPage(page);

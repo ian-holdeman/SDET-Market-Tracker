@@ -28,7 +28,9 @@ test('Blocked preference storage preserves rendering and current-tab controls wi
     Storage.prototype.setItem = function(key, value) { if (key === 'imt_appearance') throw new DOMException('Blocked', 'SecurityError'); return set.call(this, key, value); };
   });
   const requests: string[] = [];
-  page.on('request', request => { if (request.method() !== 'GET') requests.push(new URL(request.url()).pathname); });
+  // HEAD is the read-only unread-alert count; it may settle after Auth renders.
+  // Keep every mutation observable, including unexpected alert POSTs.
+  page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) requests.push(new URL(request.url()).pathname); });
   await page.goto('/settings');
   const settings = new SettingsPage(page);
   await expect(settings.dark).toBeChecked();
@@ -118,7 +120,7 @@ test('A cross-tab appearance change preserves a pending dialog and duplicate con
   expect(state.clearRequests).toHaveLength(1);
   release();
   await expect(settings.clear).toBeDisabled();
-  await expect(settings.panel.getByRole('status')).toContainText('Watchlist cleared');
+  await expect(settings.accountStatus).toContainText('Watchlist cleared');
   await expect(settings.panel.getByRole('heading', { name: 'Settings', exact: true })).toBeFocused();
 });
 

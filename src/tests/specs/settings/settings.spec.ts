@@ -86,7 +86,7 @@ test('Clear requires confirmation, traps focus, preserves state on failure and s
   await expect(settings.confirmClear).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(settings.dialog).toHaveCount(0);
-  await expect(settings.panel.getByRole('status')).toContainText('does not cancel');
+  await expect(settings.accountStatus).toContainText('does not cancel');
   await expect(settings.clear).toBeDisabled();
   release();
   await expect(settings.panel).toContainText('Your watchlist is empty');

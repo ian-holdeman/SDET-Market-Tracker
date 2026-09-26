@@ -2,6 +2,44 @@ import { test, expect } from '../../fixtures/showcase-test';
 import { mockApp } from '../../fixtures/auth';
 import { TheBoardPage } from '../../pages/the-board.page';
 
+test('hidden tabs pause quote polling and resume without replacing the open asset', async ({ page }) => {
+  await page.clock.install();
+  await mockApp(page);
+  let requests = 0;
+  await page.route('**/api/quotes?**', route => {
+    requests++;
+    const symbols = new URL(route.request().url()).searchParams.get('symbols')!.split(',');
+    return route.fulfill({ json: { quotes: symbols.map(symbol => ({ symbol, price: 101, prevClose: 100,
+      change: 1, changePercent: 1, currency: 'USD', asOf: '2026-09-25T20:00:00Z',
+      fetchedAt: '2026-09-26T12:00:00Z', sparkline: [] })) } });
+  });
+  const board = new TheBoardPage(page);
+  await page.goto('/board');
+  await expect(board.assetRow('AAPL')).toHaveAttribute('data-market-status', 'available');
+  await board.assetRow('AAPL').click();
+  await expect(board.refreshButton).toHaveAttribute('aria-busy', 'false');
+  await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now()) + 1000));
+  const currentUrl = page.url();
+  const currentRequests = requests;
+  // Exercise the browser visibility lifecycle deterministically, including WebKit.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.clock.runFor(45000);
+  expect(requests).toBe(currentRequests);
+  const refreshed = page.waitForResponse(response => new URL(response.url()).pathname === '/api/quotes');
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await refreshed;
+  await expect(board.refreshButton).toHaveAttribute('aria-busy', 'false');
+  expect(requests).toBe(currentRequests + 1);
+  await expect(page).toHaveURL(currentUrl);
+  await expect(board.assetRow('AAPL')).toHaveAttribute('data-market-status', 'available');
+});
+
 for (const palette of ['light', 'dark'] as const) {
   test(`provider timestamp and layout stay stable during manual and automatic refresh in ${palette}`, async ({ page, isMobile }, testInfo) => {
     await page.emulateMedia({ colorScheme: palette, reducedMotion: 'no-preference' });

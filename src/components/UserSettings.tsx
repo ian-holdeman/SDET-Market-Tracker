@@ -89,9 +89,9 @@ function AccountSettings({ user, onNavigate }: UserSettingsProps & { user: UserP
       </div>
     </div>
     {!dialog && (pending || error || notice) && <div className="border-t border-line px-5 py-4 sm:px-7">
-      {pending && <p role="status" className="text-sm text-ink-muted">{progress}</p>}
+      {pending && <p role="status" aria-label="Account update" className="text-sm text-ink-muted">{progress}</p>}
       {error && <p role="alert" className="text-sm text-danger-ink-300">{error}</p>}
-      {notice && <p role="status" className="text-sm text-positive-ink-400">{notice}</p>}
+      {notice && <p role="status" aria-label="Account update" className="text-sm text-positive-ink-400">{notice}</p>}
     </div>}
     {dialog && <Dialog compact fallbackFocus={heading} title={dialog === 'clear' ? 'Clear Watchlist' : 'Delete Account'} close={() => setDialog(null)}>
       {dialog === 'clear' ? <p className="text-sm text-ink-secondary">Remove all saved assets from your watchlist? Your account remains, and you can save assets again.</p> : <div className="space-y-3 text-sm text-ink-secondary">
