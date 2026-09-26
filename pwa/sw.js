@@ -131,6 +131,7 @@ self.addEventListener('push', event => {
           body: test ? 'This is a test notification.' : `${data.value} ${data.unit}`, tag: 'imt-alert-' + data.id,
           data: { path: test ? '/settings' : '/board/' + encodeURIComponent(data.symbol) },
           icon: '/icons/app-192.png',
+          badge: '/icons/notification-badge.png',
         });
       };
       // The same lock is used during sign-out/opt-out, including notification close.

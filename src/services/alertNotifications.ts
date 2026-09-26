@@ -369,6 +369,8 @@ function showBrowserNotification(
   const notification = new Notification(title, {
     body,
     tag: "imt-alert-" + id,
+    icon: "/icons/app-192.png",
+    badge: "/icons/notification-badge.png",
   });
   notification.onclick = () => {
     notification.close();
