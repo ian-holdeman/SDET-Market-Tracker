@@ -133,12 +133,23 @@ for (const theme of ['dark', 'light'] as const) {
     await header.appearanceAction(theme === 'dark' ? 'light' : 'dark').click({ trial: true });
     const seekTarget = 1;
     await tests.showcase.seekPlaying(seekTarget);
+    await expect.poll(async () => {
+      const media = await tests.showcase.mediaState();
+      return !media.paused && !media.ended && !media.seeking && media.time > seekTarget;
+    }).toBe(true);
+    const beforeAppearance = await tests.showcase.mediaState();
+    expect((beforeAppearance.duration - beforeAppearance.time) / beforeAppearance.speed).toBeGreaterThan(2);
     await header.switchAppearance(theme === 'dark' ? 'light' : 'dark');
     expect(await video!.evaluate(element => element.isConnected)).toBe(true);
     const media = await tests.showcase.mediaState();
     expect(media.time).toBeGreaterThanOrEqual(seekTarget);
     expect(media.paused).toBe(false);
+    expect(media.ended).toBe(false);
     expect(media.speed).toBe(2);
+    await expect.poll(async () => {
+      const next = await tests.showcase.mediaState();
+      return !next.paused && !next.ended && next.time > media.time;
+    }).toBe(true);
     await expect(tests.showcase.video).toHaveCSS('filter', 'none');
     await header.switchAppearance(theme);
     await tests.showcase.video.focus();

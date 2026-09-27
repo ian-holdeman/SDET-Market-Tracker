@@ -23,12 +23,15 @@ export class RecordedShowcaseComponent {
       const sought = new Promise<void>(resolve => element.addEventListener('seeked', () => resolve(), { once: true }));
       element.currentTime = target;
       await sought;
-      await element.play();
+      // A redundant play() after a playing seek can remain pending until the
+      // clip ends in Linux WebKit. Seeking does not itself require a restart.
+      if (element.paused) await element.play();
     }, seconds);
   }
   async mediaState() {
     return this.video.evaluate((element: HTMLVideoElement) => ({
-      paused: element.paused, time: element.currentTime, ready: element.readyState,
+      paused: element.paused, ended: element.ended, seeking: element.seeking,
+      time: element.currentTime, duration: element.duration, ready: element.readyState,
       speed: element.playbackRate, width: element.videoWidth, height: element.videoHeight,
     }));
   }

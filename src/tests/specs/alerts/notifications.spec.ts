@@ -174,32 +174,41 @@ test("ordinary tabs display one notification per installation", async ({
     });
   });
   const now = new Date("2026-09-25T19:00:00Z");
-  await page.clock.install({ time: now });
+  await context.clock.install({ time: now });
   await mockApp(page, true);
   const state = await mockAlerts(page);
+  state.events = [alertEvent("initial-history", 101, now.getTime() - 1000)];
   await page.goto("/settings");
   const first = new AlertsPage(page);
+  await expect(first.unreadIndicator).toBeVisible();
   await first.notificationSwitch.click();
   await expect(first.notificationSwitch).toHaveAttribute(
     "aria-checked",
     "true",
   );
   const other = await context.newPage();
-  await other.clock.install({ time: now });
   await mockApp(other, true);
   await mockAlerts(other, state);
   await other.goto("/settings");
-  await expect(new AlertsPage(other).notificationSwitch).toHaveAttribute(
+  const second = new AlertsPage(other);
+  await expect(second.unreadIndicator).toBeVisible();
+  await expect(second.notificationSwitch).toHaveAttribute(
     "aria-checked",
     "true",
   );
-  // Let Auth and route loading settle before freezing timers. Keep the event
-  // newer than both clients' opt-in/resumption baselines, independent of latency.
+  // The switch reflects preference, not completed history polling. Observe
+  // both initial reads and their post-jump refresh before creating a new event;
+  // otherwise pending initial reads can turn this into a resumption scenario.
+  state.events = [];
   const settled = new Date(now.getTime() + 60000);
-  await Promise.all([page.clock.pauseAt(settled), other.clock.pauseAt(settled)]);
-  await Promise.all([page.clock.runFor(1000), other.clock.runFor(1000)]);
+  // Pages in one context share a clock. Concurrent per-page calls advance the
+  // same clock twice and race the polling baselines against the event timestamp.
+  await context.clock.pauseAt(settled);
+  await expect(first.unreadIndicator).toHaveCount(0);
+  await expect(second.unreadIndicator).toHaveCount(0);
+  await context.clock.runFor(1000);
   state.events = [alertEvent("shared-notification", 103, settled.getTime() + 1000)];
-  await Promise.all([page.clock.runFor(15000), other.clock.runFor(15000)]);
+  await context.clock.runFor(15000);
   await expect
     .poll(
       async () =>

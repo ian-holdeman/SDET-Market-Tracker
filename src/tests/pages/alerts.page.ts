@@ -52,6 +52,9 @@ export class AlertsPage {
       exact: true,
     });
   }
+  get unreadIndicator() {
+    return this.historyBell.getByRole("img", { name: "Unread alerts" });
+  }
   get events() {
     return this.history.getByTestId("alert-event");
   }
