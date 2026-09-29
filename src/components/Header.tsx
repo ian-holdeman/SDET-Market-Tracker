@@ -73,15 +73,14 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Brand Logo & Name */}
-          <motion.div
+          <motion.button
             id="brand-logo-btn"
-            role="button"
-            tabIndex={0}
+            type="button"
             aria-label="The SDET's Market Tracker home"
             onClick={() => onNavigate('home')}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center space-x-3 cursor-pointer group select-none"
+            className="flex items-center space-x-3 cursor-pointer group select-none text-left"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-info-surface-900/60 via-surface-800 to-surface-900 border border-info-500/30 flex items-center justify-center shadow-lg shadow-info-shadow-950/40 group-hover:border-info-400/60 transition-colors">
               <TrendingUp className="w-5 h-5 text-positive-ink-400" />
@@ -97,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                 Market Surveillance & Test Automation Suite
               </p>
             </div>
-          </motion.div>
+          </motion.button>
 
           {/* Desktop Navigation Links with Crisp Sliding Pill */}
           <nav className="hidden md:flex items-center space-x-1 lg:space-x-1.5 bg-nav-surface/90 p-1.5 rounded-xl border border-line/90 shadow-inner">

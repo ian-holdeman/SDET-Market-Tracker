@@ -43,12 +43,15 @@ test('A dark device defaults dark, switches both ways, persists and survives sig
   await page.goto('/settings');
   await expect(settings.dark).toBeChecked();
   expect(await page.evaluate(() => localStorage.getItem('imt_appearance'))).toBeNull();
+  const darkCanvas = await page.locator('body').evaluate(element => getComputedStyle(element).backgroundColor);
   await settings.light.check();
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(245, 247, 251)');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('body')).not.toHaveCSS('background-color', darkCanvas);
   await page.reload();
   await expect(settings.light).toBeChecked();
   await settings.dark.check();
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(11, 14, 20)');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('body')).toHaveCSS('background-color', darkCanvas);
   await settings.light.check();
   const header = new HeaderComponent(page);
   await header.profileButton.click(); await header.logoutButton.click();

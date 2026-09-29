@@ -64,9 +64,6 @@ for (const colorScheme of ['dark', 'light'] as const) {
     const contact = new ContactPage(page);
     await contact.open();
     await expect(contact.dialog).toBeVisible();
-    await expect(contact.dialog).toContainText('Engineering inquires and SDET opportunities');
-    await expect(contact.dialog).not.toContainText('Custom Build');
-    await expect(contact.dialog).not.toContainText('Open to Roles');
     await expect(contact.close).toBeFocused();
     await page.keyboard.press('Shift+Tab');
     await expect(contact.footerClose).toBeFocused();

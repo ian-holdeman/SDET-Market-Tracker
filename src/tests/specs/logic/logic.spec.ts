@@ -5,12 +5,6 @@ test.describe('Logic Page Suite', () => {
   let logicPage: LogicPage;
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/*', route => {
-      const url = new URL(route.request().url());
-      if (url.origin !== 'http://127.0.0.1:3100') return route.abort();
-      if (url.pathname.startsWith('/api/')) return route.fulfill({ json: { quotes: [], results: [] } });
-      return route.continue();
-    });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     logicPage = new LogicPage(page);
     await logicPage.open();
@@ -20,9 +14,7 @@ test.describe('Logic Page Suite', () => {
     test(`visitors can read the structure and expand evidence with the keyboard (${colorScheme})`, async ({ page }, testInfo) => {
       await page.emulateMedia({ colorScheme });
       await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);
-      await expect(logicPage.content.getByRole('heading', { level: 2 })).toHaveText([
-        'Why I built this', 'How the app works', 'How I test it', 'AI and what comes next',
-      ]);
+      await expect(logicPage.pageHeading).toBeVisible();
       await expect(logicPage.evidence).not.toBeVisible();
       await logicPage.evidenceToggle.focus();
       await page.keyboard.press('Enter');

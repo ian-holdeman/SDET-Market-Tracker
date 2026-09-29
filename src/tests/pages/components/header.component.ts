@@ -10,6 +10,7 @@ export class HeaderComponent {
   readonly testsActivity: Locator;
   get profileButton() { return this.page.locator('#header-user-profile-btn'); }
   get logoutButton() { return this.page.locator('#header-logout-btn'); }
+  get settingsButton() { return this.region.getByRole('button', { name: 'Settings', exact: true }); }
   get loginButton() { return this.page.getByRole('button', { name: 'Sign In', exact: true }); }
   get username() { return this.page.locator('#header-username-display'); }
   get region() { return this.page.getByRole('banner'); }

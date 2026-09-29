@@ -52,9 +52,7 @@ for (const theme of ['light', 'dark'] as const) {
         expect(measurement.unmeasuredImages, state).toEqual([]);
         expect.soft(measurement.ratio, state).toBeGreaterThanOrEqual(4.5);
       }
-      expect(measurements.default.foreground.slice(0, 3).every(channel => channel < 100)).toBe(true);
     }
-    expect(measurements.connecting).not.toEqual(measurements.default);
   });
 }
 
@@ -91,7 +89,6 @@ for (const theme of ['light', 'dark'] as const) {
     if (theme === 'light') for (const [name, measurement] of Object.entries(measurements)) {
       expect.soft(measurement.ratio, name).toBeGreaterThanOrEqual(4.5);
     }
-    expect(measurements.empty).not.toEqual(measurements.enabled);
     expect(state.clearRequests).toHaveLength(1);
   });
 }

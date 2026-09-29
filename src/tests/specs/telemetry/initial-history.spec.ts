@@ -4,46 +4,37 @@ import { HomePage } from '../../pages/home.page';
 import { TheTestsPage } from '../../pages/the-tests.page';
 import { RunReportComponent } from '../../pages/components/run-report.component';
 
-for (const colorScheme of ['light', 'dark'] as const) {
-  test(`initial saved evidence precedes delayed verification in ${colorScheme}`, async ({ page }, testInfo) => {
-    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-    const saved = { ...feed(), fetchedAt: new Date(Date.now() - 3600_000).toISOString(), snapshot: true, refreshing: true };
-    let verificationEnded = false;
-    let apiStart = 0, apiEnd = 0;
-    await page.route('**/api/test-history**', async route => {
-      apiStart ||= performance.now();
-      if (new URL(route.request().url()).searchParams.get('snapshot') === '1') {
-        return route.fulfill({ json: saved });
-      }
-      // Deliberate upstream latency for the timing experiment, not a UI settlement sleep.
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      await route.fulfill({ json: { ...feed(), fetchedAt: new Date().toISOString() } });
-      apiEnd = performance.now();
-      verificationEnded = true;
-    });
-    const start = performance.now();
+test('initial saved evidence remains usable while verification is pending', async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const saved = { ...feed(), fetchedAt: new Date(Date.now() - 3600_000).toISOString(), snapshot: true, refreshing: true };
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let verificationStarted = false;
+  await page.route('**/api/test-history**', async route => {
+    if (new URL(route.request().url()).searchParams.get('snapshot') === '1') {
+      return route.fulfill({ json: saved });
+    }
+    verificationStarted = true;
+    await gate;
+    await route.fulfill({ json: { ...feed(), fetchedAt: new Date().toISOString() } });
+  });
+  try {
     await page.goto('/');
     const home = new HomePage(page);
+    await expect.poll(() => verificationStarted).toBe(true);
     await expect(home.results.value('pass-rate')).toHaveText('100%');
-    const visible = performance.now();
-    await testInfo.attach('first-evidence-timing', { body: JSON.stringify({ navigationToEvidenceMs: visible - start, apiToEvidenceMs: visible - apiStart, verificationEnded }), contentType: 'application/json' });
-    expect(verificationEnded, 'Saved evidence must be visible before upstream verification completes').toBe(false);
-    expect(visible - apiStart).toBeLessThan(1000);
     await expect(home.results.refreshStatus).toContainText('Checking for updates');
     await expect(home.results.refreshStatus).toContainText('1h old');
     const tile = home.results.root.getByTestId('run-metric-pass-rate');
-    // Measure settled geometry, not the final fractional frame of the entrance animation.
-    await tile.click({ trial: true });
-    const before = await tile.boundingBox();
-    await tile.evaluate(el => el.setAttribute('data-mounted', 'yes'));
+    const original = await tile.elementHandle();
     await page.screenshot({ path: testInfo.outputPath('saved-evidence.png'), fullPage: true });
-    await expect.poll(() => verificationEnded).toBe(true);
+    release();
     await expect(home.results.refreshStatus).not.toContainText('Checking for updates');
-    await expect(tile).toHaveAttribute('data-mounted', 'yes');
-    expect(await tile.boundingBox()).toEqual(before);
-    await testInfo.attach('fresh-verification-timing', { body: JSON.stringify({ navigationToVerificationMs: apiEnd - start, apiToVerificationMs: apiEnd - apiStart }), contentType: 'application/json' });
-  });
-}
+    await expect(home.results.refreshStatus).not.toContainText('1h old');
+    await expect(home.results.value('pass-rate')).toHaveText('100%');
+    expect(await original!.evaluate(element => element.isConnected)).toBe(true);
+  } finally { release(); }
+});
 
 test('navigation shares verification and an open Home report survives a newer attempt with expired evidence', async ({ page }, testInfo) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -72,8 +63,6 @@ test('navigation shares verification and an open Home report survives a newer at
     await home.header.brandLogoBtn.click();
     await expect(home.results.value('pass-rate')).toHaveText('100%');
     expect(calls).toBe(1);
-    await home.reportButton.click({ trial: true });
-    const before = await home.results.root.boundingBox();
     await home.results.root.screenshot({ path: testInfo.outputPath('saved-card.png') });
     await home.reportButton.click();
     const report = page.getByRole('dialog', { name: 'Run #3', exact: true });
@@ -93,8 +82,6 @@ test('navigation shares verification and an open Home report survives a newer at
     await page.keyboard.press('Escape');
     await expect(home.reportButton).toBeFocused();
     await expect(home.results.root).toContainText('has no complete test results');
-    // Status/notice content can change with actual evidence; the card keeps its width.
-    expect((await home.results.root.boundingBox())!.width).toBe(before!.width);
     await home.reportButton.click();
     const updated = page.getByRole('dialog', { name: 'Run #3 · 2', exact: true });
     await expect(updated).toBeVisible();

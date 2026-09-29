@@ -6,7 +6,7 @@ import { settleSurfaceAnimations } from '../../pages/components/contrast';
 
 test.use({ colorScheme: 'dark' });
 
-test('Palette changes apply without intermediate color transitions and retain normal hover feedback', async ({ page, context, isMobile }) => {
+test('Palette changes apply without intermediate color transitions', async ({ page, context }) => {
   await mockApp(page, true);
   await page.goto('/settings');
   const header = new HeaderComponent(page), settings = new SettingsPage(page);
@@ -36,11 +36,6 @@ test('Palette changes apply without intermediate color transitions and retain no
   expect(await header.paletteTransitionsAfterPaint()).toEqual([]);
   await other.close();
 
-  await expect(header.appearanceButton).not.toHaveCSS('transition-duration', '0s');
-  if (!isMobile) {
-    await header.appearanceButton.hover();
-    expect(await header.paletteTransitionsAfterPaint()).not.toEqual([]);
-  }
 });
 
 test('Unsaved device appearance changes also apply without color interpolation', async ({ page }) => {

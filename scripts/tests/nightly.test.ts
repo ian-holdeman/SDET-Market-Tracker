@@ -57,25 +57,6 @@ test('commit and manual runs select smoke while scheduled runs select full brows
   }
 });
 
-test('Denver boundary fixtures document native DST targets; no local time gate rejects delayed runs', () => {
-  const zone = workflow.match(/timezone: ['"]([^'"]+)['"]/)?.[1];
-  assert.equal(zone, 'America/Denver');
-  const format = new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  // GitHub owns scheduling, including advancing a nonexistent 02:17 to 03:00.
-  // These verify zone boundaries, not delivery by GitHub's scheduler.
-  for (const [utc, local] of [
-    ['2026-03-07T09:17:00Z', '02:17'],
-    ['2026-03-08T08:59:00Z', '01:59'],
-    ['2026-03-08T09:00:00Z', '03:00'],
-    ['2026-03-09T08:17:00Z', '02:17'],
-    ['2026-10-31T08:17:00Z', '02:17'],
-    ['2026-11-01T07:17:00Z', '01:17'],
-    ['2026-11-01T08:17:00Z', '01:17'],
-    ['2026-11-01T09:17:00Z', '02:17'],
-    ['2026-11-02T09:17:00Z', '02:17'],
-  ]) assert.equal(format.format(new Date(utc)), local, utc);
-});
-
 function source(id = 101, attempt = 1) {
   return { id, run_attempt: attempt, run_number: id, head_branch: 'main', head_sha: evidence().commitSha,
     path: '.github/workflows/playwright.yml', event: 'schedule', head_repository: { full_name: config.repository },

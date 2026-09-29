@@ -255,9 +255,6 @@ test("cold skeleton and saved snapshot stay mounted until a verified refresh arr
   const after = await tile.boundingBox();
   expect(after!.width).toBe(before!.width);
   expect(Math.abs(after!.height - before!.height)).toBeLessThan(2);
-  expect(
-    await tile
-      .locator(".metric-reveal")
-      .evaluate((el) => getComputedStyle(el).animationName),
-  ).toBe("none");
+  expect(await tile.evaluate(el => el.getAnimations({ subtree: true })
+    .filter(animation => animation.playState === 'running').length)).toBe(0);
 });

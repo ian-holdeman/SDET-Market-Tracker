@@ -73,11 +73,16 @@ for (const palette of ['light', 'dark'] as const) {
         await expect.poll(() => pending).toBe(1);
         await expect(board.diagnosticsOpener).toHaveText(settledText, { useInnerText: true });
         await expect(board.refreshButton).toHaveAttribute('aria-busy', 'true');
-        expect(await board.feedGeometry()).toEqual(settled);
+        // Refresh must not move the active control or push the asset list down.
+        // Text widths and decorative dimensions may change independently.
+        const pendingGeometry = await board.feedGeometry();
+        expect(pendingGeometry.table.y).toBe(settled.table.y);
+        expect(pendingGeometry.refresh.x).toBe(settled.refresh.x);
+        expect(pendingGeometry.refresh.y).toBe(settled.refresh.y);
         await page.screenshot({ path: testInfo.outputPath(`${trigger}-refresh.png`) });
         release(); gate = null;
         await expect(board.refreshButton).toHaveAttribute('aria-busy', 'false');
-        expect(await board.feedGeometry()).toEqual(settled);
+        expect((await board.feedGeometry()).table.y).toBe(settled.table.y);
       }
       // Failure retains the actual retrieval timestamp and the existing stale warning.
       fail = true;
@@ -90,8 +95,6 @@ for (const palette of ['light', 'dark'] as const) {
       await expect(board.assetRow('AAPL')).toHaveAttribute('data-market-status', 'available');
       await expect(board.diagnosticsOpener).not.toHaveText(settledText, { useInnerText: true });
       const recovered = await board.feedGeometry();
-      expect(recovered.status.height).toBe(settled.status.height);
-      expect(recovered.refresh.y + recovered.refresh.height / 2).toBe(recovered.status.y + recovered.status.height / 2);
       expect(recovered.status.x + recovered.status.width).toBeLessThanOrEqual(recovered.refresh.x);
       expect(recovered.refresh.x + recovered.refresh.width).toBeLessThanOrEqual(page.viewportSize()!.width);
       expect(recovered.status.fits).toBe(true);

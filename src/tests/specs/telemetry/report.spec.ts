@@ -48,7 +48,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await report.headings.last().scrollIntoViewIfNeeded();
     await expect(report.headings.last()).toBeInViewport();
     await expect(report.cases.last().getByText('mobile-safari', { exact: true })).toBeVisible();
-    expect(await report.root.evaluate(el => [...el.querySelectorAll('*')].every(child => child.scrollWidth <= child.clientWidth + 1))).toBe(true);
+    // The long case name must be readable without overflowing its own box or
+    // the report; do not constrain every decorative descendant's dimensions.
+    expect(await report.headings.last().evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(await report.root.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('expanded-long-case.png') });
     await expect(report.commit).toBeVisible();
     await report.metadata.click();

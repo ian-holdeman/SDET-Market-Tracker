@@ -43,4 +43,17 @@ test.describe('Navigation Suite', () => {
     await expect(homePage.heroHeading).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
+
+  test('the home control supports Enter and Space from another page', async ({ page }) => {
+    for (const key of ['Enter', 'Space']) {
+      await test.step(key, async () => {
+        await homePage.header.navBoardBtn.click();
+        await expect(page).toHaveURL(/\/board$/);
+        await homePage.header.brandLogoBtn.focus();
+        await page.keyboard.press(key);
+        await expect(homePage.heroHeading).toBeVisible();
+        await expect(homePage.header.brandLogoBtn).toBeFocused();
+      });
+    }
+  });
 });

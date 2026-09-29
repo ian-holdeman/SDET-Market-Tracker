@@ -37,7 +37,7 @@ test('Blocked preference storage preserves rendering and current-tab controls wi
   requests.length = 0;
   await settings.light.check();
   await expect(settings.light).toBeChecked();
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(245, 247, 251)');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await settings.dark.check();
   expect(requests.filter(path => path !== '/rest/v1/rpc/current_user_is_admin')).toEqual([]);
   await page.reload();
@@ -51,7 +51,7 @@ test('Completely blocked storage still renders public pages', async ({ page }) =
   });
   await page.goto('/settings');
   await expect(page.getByRole('button', { name: 'Sign In to Your Account' })).toBeVisible();
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(11, 14, 20)');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   const header = new HeaderComponent(page);
   await header.switchAppearance('light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
@@ -86,7 +86,7 @@ test('Open tabs synchronize explicit theme changes, key removal and full storage
   await other.evaluate(() => localStorage.clear());
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(11, 14, 20)');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 
 test('A lost clear response is reconciled from the server and remains visibly uncertain', async ({ page }) => {

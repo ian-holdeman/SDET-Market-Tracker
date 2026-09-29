@@ -2,7 +2,8 @@ import { test, expect } from '../../fixtures/showcase-test';
 import { mockApp } from '../../fixtures/auth';
 import { HeaderComponent } from '../../pages/components/header.component';
 import { SettingsPage } from '../../pages/settings.page';
-import { mkdir } from 'node:fs/promises';
+import { AlertsPage } from '../../pages/alerts.page';
+import { AuthModalComponent } from '../../pages/components/auth-modal.component';
 
 test.use({ colorScheme: 'dark' });
 
@@ -99,50 +100,65 @@ test('Guest header supports Tab, Enter and Space with visible focus retained acr
   await expect(header.loginButton).toBeFocused();
 });
 
-for (const signedIn of [false, true]) {
-  for (const width of [320, 639, 640, 767, 768, 1023, 1024, 1440]) {
-    test(`Header controls fit ${width}px in both palettes (${signedIn ? 'member' : 'guest'})`, async ({ page }, testInfo) => {
-      await page.setViewportSize({ width, height: 900 });
-      const state = await mockApp(page, signedIn);
-      state.identity = { ...state.identity, user_metadata: { ...state.identity.user_metadata, full_name: 'Long Display Name For Header Layout' } };
-      await page.goto('/');
-      const header = new HeaderComponent(page);
-      const account = signedIn ? header.profileButton : header.loginButton;
-      await expect(account).toBeVisible();
-      const directory = testInfo.outputPath('header-appearance');
-      await mkdir(directory, { recursive: true });
-      for (const theme of ['dark', 'light'] as const) {
-        if (await header.appearanceAction(theme).isVisible()) await header.switchAppearance(theme);
-        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-        await header.appearanceButton.click({ trial: true });
-        const toggle = (await header.appearanceButton.boundingBox())!;
-        const brand = (await header.brandLogoBtn.boundingBox())!;
-        const accountBox = (await account.boundingBox())!;
-        const banner = (await header.region.boundingBox())!;
-        expect(toggle.width).toBeGreaterThanOrEqual(44);
-        expect(toggle.height).toBeGreaterThanOrEqual(44);
-        expect(brand.x + brand.width).toBeLessThanOrEqual(toggle.x);
-        expect(toggle.x + toggle.width).toBeLessThanOrEqual(accountBox.x);
-        expect(accountBox.x + accountBox.width).toBeLessThanOrEqual(width - 16);
-        expect(accountBox.height).toBeLessThanOrEqual(36);
-        expect(toggle.y + toggle.height).toBeLessThanOrEqual(width < 640 ? 64 : 80);
-        expect(banner.height).toBeLessThanOrEqual(width < 640 ? 110 : width < 768 ? 126 : 81);
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        for (const nav of [header.navBoardBtn, header.navTestsBtn, header.navLogicBtn]) {
-          const visible = nav.filter({ visible: true });
-          await expect(visible).toBeVisible();
-          await visible.click({ trial: true });
-          const box = (await visible.boundingBox())!;
-          expect(box.height).toBeLessThanOrEqual(36);
-          expect(box.x).toBeGreaterThanOrEqual(16);
-          expect(box.x + box.width).toBeLessThanOrEqual(width - 16);
-          if (width >= 768) {
-            expect(box.x).toBeGreaterThanOrEqual(brand.x + brand.width);
-            expect(box.x + box.width).toBeLessThanOrEqual(toggle.x);
-          }
-        }
-        await header.region.screenshot({ path: `${directory}/${width}-${theme}.png` });
-      }
-    });
-  }
+// Keep one narrow/desktop sample per account state and the demonstrated 768px
+// wrapping boundary. Labels may wrap; navigation and account actions must work.
+for (const scenario of [
+  { name: 'guest', signedIn: false, width: null, theme: 'light' },
+  { name: 'member', signedIn: true, width: null, theme: 'dark' },
+  { name: 'member at the desktop navigation boundary', signedIn: true, width: 768, theme: 'light' },
+] as const) {
+  test(`Header actions remain usable for ${scenario.name}`, async ({ page, isMobile }, testInfo) => {
+    const { signedIn, theme } = scenario;
+    await page.setViewportSize({ width: scenario.width ?? (isMobile ? 320 : 1440), height: 900 });
+    // Exercise the crowded state independently of execution time or CI schedule.
+    await page.clock.setFixedTime(new Date('2026-09-28T16:49:00Z'));
+    const state = await mockApp(page, signedIn);
+    state.identity = { ...state.identity, user_metadata: { ...state.identity.user_metadata, full_name: 'Long Display Name For Header Layout' } };
+    await page.route('**/api/test-activity', route => route.fulfill({ json: { active: true, checkedAt: '2026-09-28T16:49:00Z' } }));
+    await page.emulateMedia({ colorScheme: theme });
+    await page.goto('/');
+    const header = new HeaderComponent(page);
+    const alerts = new AlertsPage(page);
+    const account = signedIn ? header.profileButton : header.loginButton;
+    await expect(account).toBeVisible();
+    await expect(header.boardActivity.filter({ visible: true })).toBeVisible();
+    await expect(header.testsActivity.filter({ visible: true })).toBeVisible();
+    for (const control of [header.brandLogoBtn, header.appearanceButton, account, ...(signedIn ? [alerts.historyBell] : [])]) {
+      await expect(control).toBeInViewport({ ratio: 1 });
+      await control.click({ trial: true });
+    }
+    // These icon-only actions retain their accepted minimum touch target;
+    // no maximum size, exact spacing or header-height contract is imposed.
+    for (const control of [header.appearanceButton, ...(signedIn ? [alerts.historyBell] : [])]) {
+      const target = (await control.boundingBox())!;
+      expect(target.width).toBeGreaterThanOrEqual(44);
+      expect(target.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await header.region.screenshot({ path: testInfo.outputPath('header.png') });
+    for (const [nav, route] of [[header.navBoardBtn, 'board'], [header.navTestsBtn, 'tests'], [header.navLogicBtn, 'logic']] as const) {
+      await expect(nav.filter({ visible: true })).toBeInViewport({ ratio: 1 });
+      await nav.click();
+      await expect(page).toHaveURL(new RegExp(`/${route}$`));
+    }
+    await header.switchAppearance(theme === 'light' ? 'dark' : 'light');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme === 'light' ? 'dark' : 'light');
+    if (signedIn) {
+      await alerts.historyBell.click();
+      await expect(alerts.history).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(alerts.historyBell).toBeFocused();
+      await header.profileButton.click();
+      await header.settingsButton.click();
+      await expect(page).toHaveURL(/\/settings$/);
+    } else {
+      // Safari pointer activation does not establish keyboard focus. Exercise
+      // restoration from a focused opener, as a keyboard visitor would.
+      await header.loginButton.focus();
+      await page.keyboard.press('Enter');
+      await expect(new AuthModalComponent(page).google).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(header.loginButton).toBeFocused();
+    }
+  });
 }
