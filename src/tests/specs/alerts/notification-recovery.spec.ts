@@ -1,9 +1,10 @@
 import { test, expect } from "../../fixtures/showcase-test";
 import { mockApp } from "../../fixtures/auth";
 import { mockAlerts } from "../../fixtures/alerts";
-import { mockNotificationDevice } from "../../fixtures/notifications";
+import { grantPermissionOnNavigation, mockNotificationDevice } from "../../fixtures/notifications";
 import { AlertsPage } from "../../pages/alerts.page";
 import { HeaderComponent } from "../../pages/components/header.component";
+import { SettingsPage } from "../../pages/settings.page";
 
 test("permission granted while away completes opt-in without reopening", async ({ page }) => {
   await mockNotificationDevice(page);
@@ -65,9 +66,48 @@ test("leaving settings during permission setup does not enable notifications lat
     (window as any).notificationDevice.resolvePermission("granted");
     window.dispatchEvent(new Event("focus"));
   });
-  await page.goto("/settings");
+  // Fence the same lock used by opt-in before inspecting its persisted effects.
+  await page.evaluate(() => navigator.locks.request("imt-alert-device", () => {}));
+  expect(await page.evaluate(() => localStorage.getItem("imt_alert_notifications"))).toBeNull();
+  await new SettingsPage(page).navigate();
   await expect(alerts.notificationSwitch).toHaveAttribute("aria-checked", "false");
+  await alerts.notificationSwitch.click();
+  await expect(alerts.notificationSwitch).toHaveAttribute("aria-checked", "true");
 });
+
+for (const push of [false, true]) {
+  test(`navigation cancels pending ${push ? "push" : "tab"} opt-in before the exit animation completes`, async ({ page }) => {
+    await mockNotificationDevice(page, push);
+    await mockApp(page, true, false);
+    await mockAlerts(page);
+    const subscriptions: unknown[] = [];
+    await page.route("**/api/alerts/config", route => route.fulfill({ json: { enabled: true, pushKey: "AQID" } }));
+    await page.route("**/api/alerts/subscribe", route => {
+      subscriptions.push(route.request().postDataJSON());
+      return route.fulfill({ json: { data: true } });
+    });
+    await page.goto("/settings");
+    await page.evaluate(() => { (window as any).notificationDevice.permission = "default"; });
+    const alerts = new AlertsPage(page), header = new HeaderComponent(page);
+    await alerts.notificationSwitch.click();
+    await expect.poll(() => page.evaluate(() => (window as any).notificationDevice.pendingPermission)).toBe(true);
+    // Control the permission/navigation ordering without pausing Motion's clock.
+    await grantPermissionOnNavigation(alerts.notificationSwitch);
+    await header.navBoardBtn.click();
+    await expect(page).toHaveURL(/\/board$/);
+    expect(await page.evaluate(() => (window as any).notificationDevice.connectedAtPermission)).toBe(true);
+    await expect(alerts.notificationSwitch).toHaveCount(0);
+    await page.evaluate(() => navigator.locks.request("imt-alert-device", () => {}));
+    expect(await page.evaluate(() => localStorage.getItem("imt_alert_notifications"))).toBeNull();
+    expect(subscriptions).toEqual([]);
+    expect(await page.evaluate(() => (window as any).notificationDevice.subscriptions)).toBe(0);
+    await new SettingsPage(page).navigate();
+    await expect(alerts.notificationSwitch).toHaveAttribute("aria-checked", "false");
+    await alerts.notificationSwitch.click();
+    await expect(alerts.notificationSwitch).toHaveAttribute("aria-checked", "true");
+    expect(subscriptions).toHaveLength(push ? 1 : 0);
+  });
+}
 
 for (const status of [403, 410]) {
   test(`expired push installation (${status}) reconnects once through the same transport`, async ({ page }) => {

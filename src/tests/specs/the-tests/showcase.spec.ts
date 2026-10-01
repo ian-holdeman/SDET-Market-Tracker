@@ -3,8 +3,7 @@ import { TheTestsPage } from '../../pages/the-tests.page';
 import { feed } from '../../fixtures/testEvidence';
 
 test.beforeEach(async ({ page }) => {
-  await page.route('https://supabase.example.invalid/**', route => route.fulfill({ json: [] }));
-  await page.route('**/api/**', route => route.fulfill({ json: feed([]) }));
+  await page.route('**/api/test-history**', route => route.fulfill({ json: feed([]) }));
 });
 
 test('public recordings decode on demand, support slower playback, and keep tab navigation accessible', async ({ page }, testInfo) => {

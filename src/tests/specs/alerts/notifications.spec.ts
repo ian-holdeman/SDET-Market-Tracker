@@ -209,6 +209,11 @@ test("ordinary tabs display one notification per installation", async ({
   await context.clock.runFor(1000);
   state.events = [alertEvent("shared-notification", 103, settled.getTime() + 1000)];
   await context.clock.runFor(15000);
+  await expect(first.unreadIndicator).toBeVisible();
+  await expect(second.unreadIndicator).toBeVisible();
+  // Both clients consumed the new poll before checking the final display count.
+  await Promise.all([page, other].map(tab => tab.evaluate(() =>
+    navigator.locks.request("imt-alert-notifications", () => {}))));
   await expect
     .poll(
       async () =>
@@ -270,6 +275,7 @@ test("ordinary notifications opt in explicitly and never replay on reopen or res
   state.events = [alertEvent("old", 101, Date.parse("2026-09-25T18:59:00Z"))];
   await page.goto("/settings");
   const alerts = new AlertsPage(page);
+  await expect(alerts.unreadIndicator).toBeVisible();
   await alerts.notificationSwitch.click();
   await expect(alerts.notificationSwitch).toHaveAttribute(
     "aria-checked",
@@ -284,19 +290,27 @@ test("ordinary notifications opt in explicitly and never replay on reopen or res
   await expect
     .poll(() => page.evaluate(() => (window as any).displayed.length))
     .toBe(1);
+  state.events.forEach(event => { event.read_at = new Date().toISOString(); });
   await page.clock.runFor(15000);
+  await expect(alerts.unreadIndicator).toHaveCount(0);
+  await page.evaluate(() => navigator.locks.request("imt-alert-notifications", () => {}));
   expect(await page.evaluate(() => (window as any).displayed.length)).toBe(1);
+  state.events.forEach(event => { event.read_at = null; });
   await page.reload();
   await expect(alerts.notificationSwitch).toHaveAttribute(
     "aria-checked",
     "true",
   );
-  await page.clock.runFor(15000);
+  await expect(alerts.unreadIndicator).toBeVisible();
+  await page.evaluate(() => navigator.locks.request("imt-alert-notifications", () => {}));
   expect(await page.evaluate(() => (window as any).displayed)).toEqual([]);
   state.events.unshift(
     alertEvent("suspended", 103, await page.evaluate(() => Date.now())),
   );
+  state.events.forEach(event => { event.read_at = new Date().toISOString(); });
   await page.clock.fastForward(90000);
+  await expect(alerts.unreadIndicator).toHaveCount(0);
+  await page.evaluate(() => navigator.locks.request("imt-alert-notifications", () => {}));
   expect(await page.evaluate(() => (window as any).displayed)).toEqual([]);
   await alerts.notificationSwitch.click();
   await expect(alerts.notificationSwitch).toHaveAttribute(
@@ -312,7 +326,7 @@ test("history read state synchronizes between two clients without opening the li
   page,
   context,
 }) => {
-  await page.clock.install();
+  await context.clock.install();
   await mockApp(page, true);
   const state = alertState();
   await mockAlerts(page, state);
@@ -320,21 +334,24 @@ test("history read state synchronizes between two clients without opening the li
   await page.goto("/board");
   const first = new AlertsPage(page);
   const secondPage = await context.newPage();
-  await secondPage.clock.install();
   await mockApp(secondPage, true);
   await mockAlerts(secondPage, state);
   await secondPage.goto("/board");
   const second = new AlertsPage(secondPage);
   await first.historyBell.click();
   await second.historyBell.click();
+  await expect(first.events).toHaveCount(1);
+  await expect(second.events).toHaveCount(1);
   expect(state.reads).toEqual([]);
   await first.events
     .first()
     .getByRole("button", { name: "Mark as read" })
     .click();
-  await secondPage.clock.runFor(15000);
+  await expect(first.history.getByRole("button", { name: "Mark as read" })).toHaveCount(0);
+  await context.clock.runFor(15000);
   await expect(
     second.history.getByRole("button", { name: "Mark as read" }),
   ).toHaveCount(0);
+  await expect(second.events).toHaveCount(1);
   await secondPage.close();
 });

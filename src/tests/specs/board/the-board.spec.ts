@@ -75,17 +75,33 @@ test('Stocks and ETFs retain numeric order, unavailable-last and watchlist filte
 
 
 test('curation arriving during an older quote request immediately fetches the new universe', async ({ page }) => {
-  const state = await mockApp(page); state.curated = ['AAPL', 'SPY'];
-  let release!: () => void, first = true;
+  await mockApp(page);
+  const now = Date.parse('2026-09-30T18:00:00Z');
+  await page.clock.install({ time: now - 1000 });
+  await page.clock.pauseAt(now); // No polling timer can rescue a missing immediate refresh.
+  let releaseCuration!: () => void;
+  const curation = new Promise<void>(resolve => { releaseCuration = resolve; });
+  await page.route('**/rest/v1/curated_assets*', async route => {
+    await curation;
+    return route.fulfill({ json: [{ symbol: 'AAPL' }, { symbol: 'ZZRACE' }] });
+  });
+  let release!: () => void;
+  const requests: string[][] = [];
   const gate = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/api/quotes?**', async route => {
     const symbols = new URL(route.request().url()).searchParams.get('symbols')!.split(',');
-    if (first) { first = false; await gate; }
-    const now = new Date().toISOString();
-    return route.fulfill({ json: { quotes: symbols.map(symbol => ({ symbol, price: 123, assetType: symbol === 'SPY' ? 'ETF' : 'Stock', asOf: now, fetchedAt: now, currency: 'USD' })) } });
+    requests.push(symbols);
+    if (requests.length === 1) await gate;
+    const timestamp = new Date(now).toISOString();
+    return route.fulfill({ json: { quotes: symbols.map(symbol => ({ symbol, price: 123, assetType: 'Stock', asOf: timestamp, fetchedAt: timestamp, currency: 'USD' })) } });
   });
   const board = new TheBoardPage(page); await page.goto('/board');
-  await expect(board.assetRow('SPY')).toBeVisible();
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0]).not.toContain('ZZRACE');
+  releaseCuration();
+  await expect(board.assetRow('ZZRACE')).toHaveCount(1);
   release();
-  await expect(board.assetRow('SPY')).toHaveAttribute('data-market-status', 'available');
+  await expect(board.assetRow('ZZRACE')).toHaveAttribute('data-market-status', 'available');
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toEqual(['AAPL', 'ZZRACE']);
 });

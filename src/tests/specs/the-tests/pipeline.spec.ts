@@ -4,8 +4,7 @@ import { PipelineComponent } from '../../pages/components/pipeline.component';
 import { pipelineFixture, pipelineBrowserEvidence } from '../../fixtures/pipeline';
 import { feed } from '../../fixtures/testEvidence';
 test.beforeEach(async({page})=>{
-  await page.route('https://supabase.example.invalid/**',route=>route.fulfill({json:[]}));
-  await page.route('**/api/**',route=>route.fulfill({json:feed([])}));
+  await page.route('**/api/test-history**',route=>route.fulfill({json:feed([])}));
   await page.route('**/api/test-pipeline',route=>route.fulfill({json:pipelineFixture()}));
 });
 test('historical overview and replay preserve real overlap with accessible desktop/mobile controls',async({page},testInfo)=>{
@@ -75,7 +74,10 @@ test('a stalled source reaches its deadline',async({page})=>{
   let release:(()=>void)|undefined;
   await page.route('**/api/test-pipeline',async route=>{await new Promise<void>(resolve=>{release=resolve;});await route.fulfill({json:pipelineFixture()}).catch(()=>{});});
   const view=new PipelineComponent(page);await page.goto('/tests');
-  await expect.poll(()=>!!release).toBe(true);await page.clock.runFor(13000);
+  await expect.poll(()=>!!release).toBe(true);
+  const cancelled=page.waitForEvent('requestfailed',request=>request.url().endsWith('/api/test-pipeline'));
+  await page.clock.runFor(13000);
+  await cancelled;
   await expect(view.retry).toBeVisible();
   release!();
   await expect(view.position).toHaveCount(0);
@@ -85,7 +87,9 @@ test('navigation cancels a pending source without allowing late success',async({
   await page.route('**/api/test-pipeline',async route=>{await new Promise<void>(resolve=>{release=resolve;});await route.fulfill({json:pipelineFixture()}).catch(()=>{});});
   const view=new PipelineComponent(page), header=new HeaderComponent(page);
   await page.goto('/tests');await expect.poll(()=>!!release).toBe(true);
+  const cancelled=page.waitForEvent('requestfailed',request=>request.url().endsWith('/api/test-pipeline'));
   await header.navLogicBtn.click();await expect(view.root).toHaveCount(0);
+  await cancelled;
   release!();await expect(view.root).toHaveCount(0);
 });
 
@@ -120,7 +124,8 @@ test('stalled revalidation keeps the prior view only until the request deadline'
   const view=new PipelineComponent(page);await page.goto('/tests');await expect(view.replay).toBeVisible();
   await page.clock.runFor(61000);await expect.poll(()=>calls).toBe(2);
   await expect(view.position).toBeVisible();
-  await page.clock.runFor(13000);await expect(view.retry).toBeVisible();
+  const cancelled=page.waitForEvent('requestfailed',request=>request.url().endsWith('/api/test-pipeline'));
+  await page.clock.runFor(13000);await cancelled;await expect(view.retry).toBeVisible();
   await expect(view.position).toHaveCount(0);release!();
   await expect(view.position).toHaveCount(0);
 });

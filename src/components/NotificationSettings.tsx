@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useIsPresent } from "motion/react";
 import {
   disableAlertNotifications,
   enableAlertNotifications,
@@ -15,10 +16,20 @@ export function NotificationSettings({ owner }: { owner: string }) {
   const [healthError, setHealthError] = useState<string | null>(null);
   const mounted = useRef(true),
     busy = useRef(false);
+  const present = useIsPresent();
+  const setup = useRef<AbortController | null>(null);
   const currentOwner = useRef(owner);
   currentOwner.current = owner;
+  // An exiting route is still mounted during Motion's animation. Revoke the
+  // pending opt-in at that commit, and before DOM removal on direct unmounts.
+  useLayoutEffect(() => {
+    mounted.current = present;
+    return () => {
+      mounted.current = false;
+      setup.current?.abort();
+    };
+  }, [owner, present]);
   useEffect(() => {
-    mounted.current = true;
     let active = true, generation = 0, permission: PermissionStatus | undefined;
     const update = () => {
       const version = ++generation;
@@ -58,7 +69,6 @@ export function NotificationSettings({ owner }: { owner: string }) {
     }).catch(() => {});
     return () => {
       active = false;
-      mounted.current = false;
       window.removeEventListener("storage", update);
       window.removeEventListener("alert-preference", update);
       window.removeEventListener("focus", update);
@@ -73,7 +83,10 @@ export function NotificationSettings({ owner }: { owner: string }) {
     setError(null);
     try {
       if (enabled) await disableAlertNotifications();
-      else await enableAlertNotifications(owner, () => mounted.current && currentOwner.current === owner);
+      else {
+        setup.current = new AbortController();
+        await enableAlertNotifications(owner, () => mounted.current && currentOwner.current === owner, setup.current.signal);
+      }
     } catch (e) {
       if (mounted.current) setError((e as Error).message);
     } finally {

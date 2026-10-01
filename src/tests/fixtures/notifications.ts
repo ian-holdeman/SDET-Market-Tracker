@@ -1,4 +1,22 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+
+/** Resolve the OS prompt at the next in-app navigation, while its opener exits. */
+export async function grantPermissionOnNavigation(control: Locator) {
+  await control.evaluate(element => {
+    const original = history.pushState.bind(history);
+    history.pushState = (...args) => {
+      original(...args);
+      history.pushState = original;
+      queueMicrotask(() => {
+        const device = (window as any).notificationDevice;
+        device.connectedAtPermission = element.isConnected;
+        device.permission = "granted";
+        device.resolvePermission("granted");
+        window.dispatchEvent(new Event("focus"));
+      });
+    };
+  });
+}
 
 /** Browser-owned permission/push APIs only; requests still exercise the real UI. */
 export async function mockNotificationDevice(page: Page, push = false) {

@@ -13,9 +13,13 @@ export function alertState() {
 export async function mockAlerts(page: Page, state = alertState()) {
   await page.route("**/api/alerts/**", async (route) => {
     const request = route.request();
-    if (request.url().endsWith("/config"))
+    const action = new URL(request.url()).pathname;
+    const method = request.method();
+    if (action === "/api/alerts/config" && method === "GET")
       return route.fulfill({ json: { enabled: true, pushKey: null } });
-    if (request.url().endsWith("/rules")) {
+    if (method !== "POST" || !["/api/alerts/rules", "/api/alerts/subscribe", "/api/alerts/revoke", "/api/alerts/test"].includes(action))
+      throw new Error(`Unexpected alert request: ${method} ${action}`);
+    if (action === "/api/alerts/rules") {
       if (state.failSave)
         return route.fulfill({
           status: 503,

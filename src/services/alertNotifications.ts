@@ -14,7 +14,8 @@ async function bounded<T>(operation: Promise<T>, message: string, ms = 20000): P
 }
 
 /** Android can return from OS settings before the browser's prompt promise settles. */
-function requestNotificationPermission(): Promise<NotificationPermission> {
+function requestNotificationPermission(signal?: AbortSignal): Promise<NotificationPermission> {
+  if (signal?.aborted) return Promise.reject(Error("Notification setup cancelled."));
   if (Notification.permission === "granted") return Promise.resolve("granted");
   return new Promise((resolve, reject) => {
     let settled = false, permissionStatus: PermissionStatus | undefined;
@@ -22,6 +23,7 @@ function requestNotificationPermission(): Promise<NotificationPermission> {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", cancel);
       window.removeEventListener("focus", check);
       document.removeEventListener("visibilitychange", check);
       permissionStatus?.removeEventListener("change", check);
@@ -30,11 +32,13 @@ function requestNotificationPermission(): Promise<NotificationPermission> {
     const check = () => {
       if (Notification.permission === "granted") finish("granted");
     };
+    const cancel = () => finish(undefined, Error("Notification setup cancelled."));
     const timer = setTimeout(() => {
       if (Notification.permission === "granted") finish("granted");
       else finish(undefined, Error("Permission request timed out. Try again."));
     }, 30000);
     window.addEventListener("focus", check);
+    signal?.addEventListener("abort", cancel, { once: true });
     document.addEventListener("visibilitychange", check);
     // Invoke before any await to preserve the explicit click's user activation.
     try { void Notification.requestPermission().then(value => finish(value), error => finish(undefined, error)); }
@@ -215,6 +219,7 @@ async function requireNotificationWorker(
 export async function enableAlertNotifications(
   owner: string,
   isCurrent: () => boolean,
+  signal?: AbortSignal,
 ) {
   if (
     !("Notification" in window) ||
@@ -223,7 +228,7 @@ export async function enableAlertNotifications(
   )
     throw Error("This browser does not support notifications here.");
   // This function is called only by the explicit Settings control.
-  const permission = await requestNotificationPermission();
+  const permission = await requestNotificationPermission(signal);
   if (!isCurrent()) return;
   if (permission !== "granted")
     throw Error("Notifications are blocked. Check browser settings.");
