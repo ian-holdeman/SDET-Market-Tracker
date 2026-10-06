@@ -127,6 +127,7 @@ test("real alert ownership, concurrent limits, durable transitions, revisions an
     sql(
       `update private.alert_assets set due_at=now()-interval '1 second',lease_until=null where symbol='${symbol}'`,
     );
+  const expireCooldown = () => sql(`update private.alert_asset_cooldowns set admitted_at=clock_timestamp()-interval '60 minutes' where user_id='${alice.id}' and symbol='${symbol}'`);
   const claims = await Promise.all([
     rpc("claim_alert_work"),
     rpc("claim_alert_work"),
@@ -159,7 +160,9 @@ test("real alert ownership, concurrent limits, durable transitions, revisions an
             session: "regular",
           };
     const results = jobs.map((j) => ({ ...j, observation }));
-    const first = await rpc("finish_alert_work", { results });
+    const overlapping = await Promise.all([rpc('finish_alert_work', { results }), rpc('finish_alert_work', { results })]);
+    assert.ok(overlapping.includes(0), 'overlapping evaluator settlement admits at most once');
+    const first = overlapping.reduce((sum, count) => sum + count, 0);
     assert.equal(
       await rpc("finish_alert_work", { results }),
       0,
@@ -188,12 +191,13 @@ test("real alert ownership, concurrent limits, durable transitions, revisions an
       }),
       true,
     );
+  assert.equal(await observe(99), 0);
   assert.equal(
-    await observe(101),
-    4,
-    "initial qualifying price triggers every independent rule",
+    await observe(100),
+    1,
+    "simultaneous matching rules share one owner/asset admission",
   );
-  assert.equal(await observe(102), 0);
+  assert.equal(await observe(101), 0);
   assert.equal(await observe(100), 0, "equality stays qualified");
   assert.equal(await observe(null), 0, "outage never rearms");
   assert.equal(await observe(101), 0, "recovery cannot retrigger unarmed rule");
@@ -216,13 +220,18 @@ test("real alert ownership, concurrent limits, durable transitions, revisions an
   assert.equal(await observe(99), 0);
   assert.equal(
     await observe(100),
-    4,
-    "observed exit/reentry creates next event",
+    0,
+    "a crossing inside cooldown is suppressed without deferred delivery",
   );
+  expireCooldown();
+  assert.equal(await observe(101), 0, 'expiry alone cannot replay the suppressed crossing');
+  assert.equal(await observe(99), 0);
+  assert.equal(await observe(100), 1, 'a new crossing after cooldown creates exactly one second event');
   const events = (
     await alice.client.from("alert_events").select("*").order("created_at")
   ).data!;
-  assert.equal(events.length, 8);
+  assert.equal(events.length, 2);
+  assert.equal(events[0].rule_id, [...rules].sort((a,b) => a.id.localeCompare(b.id))[0].id, 'stable rule UUID tie-breaker');
   assert.deepEqual(
     (await bob.client.from("alert_events").select("*")).data,
     [],
@@ -250,7 +259,7 @@ test("real alert ownership, concurrent limits, durable transitions, revisions an
       .error,
   );
   const deliveries = await rpc("claim_alert_deliveries");
-  assert.equal(deliveries.length, 16, "same events fan out to both devices");
+  assert.equal(deliveries.length, 4, "two admitted events fan out to both devices");
   assert.equal(
     (await rpc("claim_alert_deliveries")).length,
     0,
@@ -277,6 +286,10 @@ test("real alert ownership, concurrent limits, durable transitions, revisions an
     null,
     "duplicate push cannot display again",
   );
+  assert.equal((await rpc('consume_alert_delivery', { event_key: events[1].id, installation_id: device, capability })).id, events[1].id,
+    'same installation consumes a distinct second price event without re-registration');
+  assert.equal((await rpc('consume_alert_delivery', { event_key: events[1].id, installation_id: installationIds[1],
+    capability: createHash('sha256').update(installationIds[1]).digest('hex') })).id, events[1].id, 'second installation is independent');
   await rpc("revoke_alert_installation", {
     installation_id: device,
     capability,
@@ -321,21 +334,31 @@ test("real alert ownership, concurrent limits, durable transitions, revisions an
   );
   assert.equal(
     await observe(99),
-    1,
-    "edited rule qualifies on fresh generation",
+    0,
+    "editing does not bypass the owner/asset cooldown",
   );
-  assert.equal(await observe(100), 3, "above rules reenter at equality");
+  assert.equal(await observe(100), 0, "above rules reenter inside cooldown without extra history");
   assert.equal(
     await observe(101),
     0,
     "below rule rearms without repeating above events",
   );
-  assert.equal(await observe(100), 1, "below equality reenters");
+  expireCooldown();
+  assert.equal(await observe(100), 1, "below equality reenters after cooldown");
+  const memory = sql(`select id,armed,last_observed from public.alert_rules where user_id='${alice.id}' order by id`);
+  assert.equal((await alice.client.rpc('mutate_alert_history', { operation: 'clear' })).data, true);
+  assert.equal(sql(`select id,armed,last_observed from public.alert_rules where user_id='${alice.id}' order by id`), memory, 'clear never changes rule memory');
+  assert.equal(sql(`select count(*) from private.alert_deliveries d join private.alert_installations i on i.id=d.installation_id where i.user_id='${alice.id}'`).trim(), '0', 'clear cancels pending deliveries');
+  assert.equal(sql(`select count(*) from private.alert_installations where user_id='${alice.id}'`).trim(), '1', 'clear preserves remaining device');
+  assert.equal(await observe(101), 0);
+  assert.equal(await observe(100), 0, 'clearing history does not release cooldown');
   await alice.client.from("alert_rules").delete().eq("id", rules[0].id);
   assert.ok(
     (await save(alice.id, rules[0].id, 10, 2)).error,
     "deleted edit cannot resurrect",
   );
+  assert.equal((await save(alice.id, randomUUID(), 0)).error, null);
+  assert.equal(await observe(101), 0, 'recreated armed rule cannot bypass persisted asset cooldown');
   sql(
     `update public.alert_events set created_at=now()-interval '31 days' where user_id='${alice.id}'`,
   );

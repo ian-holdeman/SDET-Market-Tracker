@@ -154,10 +154,16 @@ test("installed push tests use the server transport and expose failure without a
   expect(await page.evaluate(() => (window as any).displayed)).toEqual([]);
 });
 
-test("ordinary tabs display one notification per installation", async ({
+for (const laggingStorage of [false, true]) test(`ordinary tabs display one notification per installation${laggingStorage ? ' with lagging storage reads' : ''}`, async ({
   page,
   context,
-}) => {
+}, testInfo) => {
+  if (laggingStorage) await context.addInitScript(() => {
+    const original = Storage.prototype.getItem;
+    Storage.prototype.getItem = function(key: string) {
+      return key === 'imt_alert_seen' ? null : original.call(this, key);
+    };
+  });
   await context.addInitScript(() => {
     (window as any).displayed = [];
     Object.defineProperty(window, "Notification", {
@@ -166,8 +172,8 @@ test("ordinary tabs display one notification per installation", async ({
         static async requestPermission() {
           return "granted";
         }
-        constructor(title: string) {
-          (window as any).displayed.push(title);
+        constructor(title: string, options: NotificationOptions) {
+          (window as any).displayed.push({ title, tag: options.tag, at: Date.now(), seen: localStorage.getItem('imt_alert_seen') });
         }
         close() {}
       },
@@ -214,6 +220,9 @@ test("ordinary tabs display one notification per installation", async ({
   // Both clients consumed the new poll before checking the final display count.
   await Promise.all([page, other].map(tab => tab.evaluate(() =>
     navigator.locks.request("imt-alert-notifications", () => {}))));
+  await testInfo.attach('ordinary-delivery-diagnostics', { body: JSON.stringify(await Promise.all([page, other].map(tab => tab.evaluate(() => ({
+    displayed: (window as any).displayed, seen: localStorage.getItem('imt_alert_seen'), now: Date.now(),
+  }))))), contentType: 'application/json' });
   await expect
     .poll(
       async () =>

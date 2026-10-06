@@ -21,7 +21,7 @@ const Context = createContext<{
   unread: number;
   error: string | null;
   loading: boolean;
-  refresh: () => Promise<void>;
+  refresh: (cleared?: boolean, expectedOwner?: string) => Promise<void>;
 }>({
   events: [],
   unread: 0,
@@ -37,8 +37,8 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     [error, setError] = useState<string | null>(null),
     [loading, setLoading] = useState(false);
   const [scope, setScope] = useState<string | null>(null);
-  const refreshRef = useRef(async () => {});
-  const refresh = useCallback(() => refreshRef.current(), []);
+  const refreshRef = useRef(async (_cleared = false, _expectedOwner?: string) => {});
+  const refresh = useCallback((cleared = false, expectedOwner?: string) => refreshRef.current(cleared, expectedOwner), []);
   useEffect(() => {
     setScope(user?.id ?? null);
     setEvents([]);
@@ -48,6 +48,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     let disposed = false,
       pending = false,
       rerun = false,
+      generation = 0,
       lastPoll = 0;
     const controller = new AbortController();
     if (authLoading) return () => controller.abort();
@@ -60,13 +61,14 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       return () => controller.abort();
     }
     const owner = user.id;
-    const update = async () => {
+    const update = async (force = false) => {
       if (disposed) return;
-      if (pending) {
+      if (pending && !force) {
         rerun = true;
         return;
       }
       pending = true;
+      const current = ++generation;
       const started = Date.now(),
         after = lastPoll;
       try {
@@ -78,15 +80,15 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
           loadAlertHistory(signal),
           unreadAlertCount(signal),
         ]);
-        if (!disposed) {
+        if (!disposed && current === generation) {
           setEvents(rows);
           setUnread(count);
           setError(null);
           if (after && started - after <= 45000)
-            await notifyNewAlerts(owner, rows, after);
+            await notifyNewAlerts(owner, rows, after, () => !disposed && current === generation);
         }
       } catch {
-        if (!disposed) {
+        if (!disposed && current === generation) {
           setError("Alert history could not be refreshed.");
           setEvents((rows) =>
             rows.filter(
@@ -95,9 +97,9 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
           );
         }
       } finally {
-        lastPoll = started;
-        pending = false;
-        if (!disposed) {
+        if (!disposed && current === generation) {
+          lastPoll = started;
+          pending = false;
           setLoading(false);
           if (rerun) {
             rerun = false;
@@ -106,7 +108,12 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         }
       }
     };
-    refreshRef.current = update;
+    // Confirmed mutations supersede any older poll response still in flight.
+    refreshRef.current = (cleared = false, expectedOwner?: string) => {
+      if (expectedOwner && expectedOwner !== owner) return Promise.resolve();
+      if (cleared) { setEvents([]); setUnread(0); }
+      return update(true);
+    };
     void update();
     const timer = setInterval(() => void update(), 15000);
     const resumed = () => {

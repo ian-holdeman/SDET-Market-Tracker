@@ -43,6 +43,7 @@ test("searched assets support alerts without watchlist or curation changes", asy
   await board.searchAsset("MongoDB, Inc.");
   await board.assetRow("MDB").click();
   await alerts.bell("MDB").click();
+  await expect(alerts.modal).toContainText('Last price · $102.00');
   await alerts.add("102.50");
   await expect(alerts.rules).toHaveCount(1);
   expect(state.rules[0]).toMatchObject({
@@ -123,21 +124,23 @@ test("asset alerts stay in descending target order after creation, editing and r
   await mockAlerts(page);
   await page.goto("/board/AAPL");
   const alerts = new AlertsPage(page);
+  await expect(new HeaderComponent(page).username).toHaveText('Test Member');
   await alerts.bell().click();
   for (const [index, target] of ["9.99", "100.10", "-1", "0"].entries()) {
     await alerts.add(target);
     await expect(alerts.rules).toHaveCount(index + 1);
   }
-  await expect(alerts.rules).toHaveText(["At or above 100.1 USD", "At or above 9.99 USD", "At or above 0 USD", "At or above -1 USD"]);
+  await expect(alerts.rules).toHaveText(["At or above $100.10", "At or above $9.99", "At or above $0.00", "At or above -$1.00"]);
   await alerts.rules.last().getByRole("button", { name: /^Edit/ }).click();
   await alerts.below.check();
   await alerts.target.fill("150.25");
   await alerts.save.click();
-  await expect(alerts.rules).toHaveText(["At or below 150.25 USD", "At or above 100.1 USD", "At or above 9.99 USD", "At or above 0 USD"]);
+  await expect(alerts.rules).toHaveText(["At or below $150.25", "At or above $100.10", "At or above $9.99", "At or above $0.00"]);
   await expect(alerts.rules.first()).toContainText("At or below");
   await page.reload();
+  await expect(new HeaderComponent(page).username).toHaveText('Test Member');
   await alerts.bell().click();
-  await expect(alerts.rules).toHaveText(["At or below 150.25 USD", "At or above 100.1 USD", "At or above 9.99 USD", "At or above 0 USD"]);
+  await expect(alerts.rules).toHaveText(["At or below $150.25", "At or above $100.10", "At or above $9.99", "At or above $0.00"]);
 });
 
 test("guest alert action uses sign-in without creating a rule", async ({

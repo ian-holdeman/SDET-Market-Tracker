@@ -29,7 +29,8 @@ export function Dialog({
       dialog.close();
       document.body.style.overflow = overflow;
       if (previous?.isConnected && !previous.hasAttribute('disabled')) previous.focus({ preventScroll: true });
-      else fallbackFocus?.current?.focus({ preventScroll: true });
+      else if (fallbackFocus?.current && !fallbackFocus.current.hasAttribute('disabled')) fallbackFocus.current.focus({ preventScroll: true });
+      else dialog.parentElement?.closest('dialog')?.querySelector<HTMLElement>('button:not(:disabled)')?.focus({ preventScroll: true });
     };
   }, []);
   return (
@@ -38,9 +39,11 @@ export function Dialog({
       aria-labelledby={heading}
       onCancel={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         close();
       }}
       onKeyDown={(e) => {
+        if ((e.target as HTMLElement).closest('dialog') !== e.currentTarget) return;
         if (e.key !== "Tab") return;
         const items = Array.from(
           e.currentTarget.querySelectorAll<HTMLElement>(
@@ -75,8 +78,8 @@ export function Dialog({
       }}
       className={`m-auto w-[calc(100%-1.5rem)] ${maxWidth === 'lg' ? 'max-w-lg' : compact ? 'max-w-md' : 'max-w-3xl'} max-h-[88dvh] p-0 rounded-2xl border border-line-strong/70 bg-panel text-ink-strong shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm`}
     >
-      <div className="flex max-h-[88dvh] flex-col overflow-hidden">
-        <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-4 sm:px-6">
+      <div className="flex max-h-[calc(88dvh-2px)] flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-4 sm:px-6">
           <div><h2 id={heading} className="text-lg font-bold text-ink-heading">
             {title}
           </h2>{subtitle && <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p>}</div>
@@ -84,12 +87,12 @@ export function Dialog({
             autoFocus
             onClick={close}
             aria-label={`Close ${title}`}
-            className="rounded-lg p-2 text-ink-muted hover:bg-surface-800 hover:text-ink-heading focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
+            className="flex min-h-11 min-w-11 cursor-pointer shrink-0 items-center justify-center rounded-lg p-2 text-ink-muted transition-colors hover:bg-surface-800 hover:text-ink-heading active:bg-surface-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
           >
             <X className="h-5 w-5" />
           </button>
         </header>
-        <div className="overflow-y-auto overscroll-contain p-5 sm:p-6 space-y-5">
+        <div className="min-h-0 overflow-y-auto overscroll-contain p-5 sm:p-6 space-y-5">
           {children}
         </div>
       </div>

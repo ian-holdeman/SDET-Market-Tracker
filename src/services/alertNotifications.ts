@@ -156,6 +156,32 @@ export async function retryNotificationRevocation() {
   if (navigator.locks)
     await navigator.locks.request("imt-alert-device", retryRevocation);
 }
+
+/** Checking health neither sends a notification nor extends the bound Auth session. */
+export async function refreshPushHealth(owner: string, isCurrent: () => boolean): Promise<'available' | 'expired' | null> {
+  if (!navigator.locks) return null;
+  return navigator.locks.request('imt-alert-device', { signal: AbortSignal.timeout(10000) }, async () => {
+    const selected = notificationPreference();
+    if (!isCurrent() || selected?.owner !== owner || selected.mode !== 'push') return null;
+    const stored = await installation();
+    const registration = await bounded(navigator.serviceWorker.getRegistration(), 'Notification service unavailable.', 10000);
+    const subscription = registration
+      ? await bounded(registration.pushManager.getSubscription(), 'Push connection timed out.', 10000) : null;
+    const available = !!(stored?.enabled && stored.owner === owner && subscription) &&
+      await alertRequest('status', { installationId: stored!.installationId, capability: stored!.capability });
+    if (available !== true && available !== false) throw Error('Background delivery could not be verified.');
+    if (!isCurrent()) return null;
+    if (available) return 'available';
+    // A definite missing installation must not retain a misleading On preference.
+    // Keep a disabled capability for ordinary revocation/reconnect cleanup.
+    if (stored) {
+      await installation({ ...stored, enabled: false });
+      localStorage.setItem('imt_alert_revocation', 'pending');
+    }
+    preference(null);
+    return 'expired';
+  });
+}
 export async function disableAlertNotifications() {
   if (!navigator.locks) return;
   await navigator.locks.request("imt-alert-device", async () => {
@@ -311,12 +337,54 @@ async function connectPush(owner: string, isCurrent: () => boolean) {
   }
 }
 
-/** A cross-tab lock and short-lived ID set suppress duplicate ordinary notifications.
+// A Web Lock alone does not make WebKit's per-page localStorage caches coherent.
+// Read-modify-write in one IndexedDB transaction establishes a shared claim.
+function claimBrowserNotification(id: string): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('imt-alert-seen', 1);
+    let settled = false, db: IDBDatabase | undefined, tx: IDBTransaction | undefined;
+    const finish = (error?: Error, claimed = false) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      db?.close();
+      if (error) reject(error); else resolve(claimed);
+    };
+    const timer = setTimeout(() => {
+      try { tx?.abort(); } catch { /* Transaction already completed. */ }
+      finish(Error('Notification duplicate check timed out.'));
+    }, 3000);
+    request.onupgradeneeded = () => request.result.createObjectStore('events');
+    request.onerror = () => finish(Error('Notification duplicate check unavailable.'));
+    request.onsuccess = () => {
+      db = request.result;
+      if (settled) { db.close(); return; }
+      try {
+        tx = db.transaction('events', 'readwrite');
+        const store = tx.objectStore('events'), read = store.get('recent');
+        let claimed = false;
+        read.onsuccess = () => {
+          const now = Date.now();
+          const rows: { id: string; at: number }[] = Array.isArray(read.result)
+            ? read.result.filter(row => typeof row?.id === 'string' && Number.isFinite(row.at) && row.at > now - 120000) : [];
+          claimed = !rows.some(row => row.id === id);
+          if (claimed) rows.push({ id, at: now });
+          store.put(rows.slice(-120), 'recent');
+        };
+        tx.oncomplete = () => finish(undefined, claimed);
+        tx.onerror = tx.onabort = () => finish(Error('Notification duplicate check unavailable.'));
+      } catch { finish(Error('Notification duplicate check unavailable.')); }
+    };
+  });
+}
+
+/** A cross-tab lock and atomic short-lived ID claim suppress ordinary duplicates.
  * Reopen/resumption baselines are enforced by the caller, with no presence tracking. */
 export async function notifyNewAlerts(
   owner: string,
   events: AlertEvent[],
   after: number,
+  isCurrent: () => boolean = () => true,
 ) {
   if (
     !navigator.locks ||
@@ -326,35 +394,25 @@ export async function notifyNewAlerts(
     return;
   await navigator.locks.request("imt-alert-notifications", async () => {
     const p = notificationPreference();
-    if (p?.owner !== owner || p.mode !== "tab") return;
+    if (!isCurrent() || p?.owner !== owner || p.mode !== "tab") return;
     const now = Date.now();
-    let seen: { id: string; at: number }[];
-    try {
-      seen = JSON.parse(localStorage.getItem("imt_alert_seen") || "[]").filter(
-        (v: { at: number }) => v.at > now - 120000,
-      );
-    } catch {
-      return;
-    }
     for (const event of [...events].reverse()) {
       const created = Date.parse(event.created_at);
       if (
         created <= Math.max(after, p.since) ||
         created > now ||
-        now - created > 45000 ||
-        seen.some((v) => v.id === event.id)
+        now - created > 45000
       )
         continue;
-      seen.push({ id: event.id, at: now });
       // Persist before display: crashes may lose a notification, never history.
       try {
-        localStorage.setItem(
-          "imt_alert_seen",
-          JSON.stringify(seen.slice(-120)),
-        );
+        if (!await claimBrowserNotification(event.id)) continue;
       } catch {
         return;
       }
+      const current = notificationPreference();
+      if (!isCurrent() || current?.owner !== owner || current.mode !== 'tab' || Notification.permission !== 'granted') return;
+      if (Date.now() - created > 45000) continue;
       showBrowserNotification(
         event.id,
         `${event.symbol} price alert`,

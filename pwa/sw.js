@@ -3,6 +3,10 @@ const CACHE = 'imt-pwa-offline-__VERSION__';
 const RESOURCES = ['/offline.html', '/offline.js', '/appearance.js'];
 const MIME = ['text/html', 'javascript', 'javascript'];
 const NETWORK_TIMEOUT = 12000;
+// Kept equivalent to src/types/alerts.ts; shared presentation cases test both runtimes.
+const alertValue = (value, unit) => unit === 'USD'
+  ? value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  : `${value.toLocaleString('en-US', { maximumSignificantDigits: 16 })}${unit === '%' ? '%' : ` ${unit}`}`;
 const ownedCache = name => /^imt-pwa-offline-[a-f0-9]{16}$/.test(name);
 
 // Identify active/waiting caches without storing account data or extra metadata.
@@ -128,7 +132,7 @@ self.addEventListener('push', event => {
         const current = await alertInstallation();
         if (!current?.enabled || current.capability !== state.capability) return;
         await self.registration.showNotification(test ? 'Test price alert' : `${data.symbol} price alert`, {
-          body: test ? 'This is a test notification.' : `${data.value} ${data.unit}`, tag: 'imt-alert-' + data.id,
+          body: test ? 'This is a test notification.' : alertValue(data.value, data.unit), tag: 'imt-alert-' + data.id,
           data: { path: test ? '/settings' : '/board/' + encodeURIComponent(data.symbol) },
           icon: '/icons/app-192.png',
           badge: '/icons/notification-badge.png',

@@ -146,3 +146,9 @@ export async function markAlertRead(id: string) {
   if (error || data !== true)
     throw Error("Read status was not saved. The entry may have expired.");
 }
+export async function mutateAlertHistory(operation: 'read' | 'clear', signal: AbortSignal) {
+  const { data, error } = await getSupabase().rpc('mutate_alert_history', { operation }).abortSignal(signal);
+  if (error || data !== true) throw Error(operation === 'clear'
+    ? 'Clearing history was not confirmed. Refresh to check before retrying.'
+    : 'Read status was not saved. Please retry.');
+}

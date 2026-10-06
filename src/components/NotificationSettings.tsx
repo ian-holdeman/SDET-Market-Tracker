@@ -5,6 +5,7 @@ import {
   enableAlertNotifications,
   notificationPreference,
   sendTestNotification,
+  refreshPushHealth,
 } from "../services/alertNotifications";
 export function NotificationSettings({ owner }: { owner: string }) {
   const [enabled, setEnabled] = useState(false),
@@ -30,9 +31,8 @@ export function NotificationSettings({ owner }: { owner: string }) {
     };
   }, [owner, present]);
   useEffect(() => {
-    let active = true, generation = 0, permission: PermissionStatus | undefined;
+    let active = true, checking = false, permission: PermissionStatus | undefined;
     const update = () => {
-      const version = ++generation;
       const p = notificationPreference();
       setEnabled(p?.owner === owner);
       setMode(p?.mode ?? "");
@@ -43,19 +43,18 @@ export function NotificationSettings({ owner }: { owner: string }) {
         Notification.permission !== "granted"
       )
         setHealthError("Permission revoked. Check browser settings.");
-      if (p?.owner === owner && p.mode === "push" && navigator.serviceWorker)
-        void navigator.serviceWorker
-          .getRegistration()
-          .then(async (registration) => {
-            const subscription =
-              await registration?.pushManager.getSubscription();
-            if (active && version === generation && !subscription)
-              setHealthError("Push connection expired. Send a test to reconnect.");
+      if (p?.owner === owner && p.mode === "push" && navigator.serviceWorker && !checking) {
+        checking = true;
+        void refreshPushHealth(owner, () => active && mounted.current && currentOwner.current === owner)
+          .then(result => {
+            if (active && mounted.current && result === 'expired')
+              setHealthError("Push connection expired. Turn notifications on to reconnect.");
           })
           .catch(() => {
-            if (active && version === generation)
+            if (active && mounted.current && notificationPreference()?.owner === owner)
               setHealthError("Background delivery could not be verified.");
-          });
+          }).finally(() => { checking = false; });
+      }
     };
     update();
     window.addEventListener("storage", update);

@@ -8,6 +8,7 @@ export function alertState() {
     failSave: false,
     failDelete: false,
     failRead: false,
+    failBulk: false,
   };
 }
 export async function mockAlerts(page: Page, state = alertState()) {
@@ -17,7 +18,7 @@ export async function mockAlerts(page: Page, state = alertState()) {
     const method = request.method();
     if (action === "/api/alerts/config" && method === "GET")
       return route.fulfill({ json: { enabled: true, pushKey: null } });
-    if (method !== "POST" || !["/api/alerts/rules", "/api/alerts/subscribe", "/api/alerts/revoke", "/api/alerts/test"].includes(action))
+    if (method !== "POST" || !["/api/alerts/rules", "/api/alerts/subscribe", "/api/alerts/revoke", "/api/alerts/test", "/api/alerts/status"].includes(action))
       throw new Error(`Unexpected alert request: ${method} ${action}`);
     if (action === "/api/alerts/rules") {
       if (state.failSave)
@@ -47,12 +48,21 @@ export async function mockAlerts(page: Page, state = alertState()) {
     return route.fulfill({ json: { data: true } });
   });
   await page.route(
-    /\/rest\/v1\/(?:alert_rules|alert_events|rpc\/(?:read_alert_event|alert_coverage))\b/,
+    /\/rest\/v1\/(?:alert_rules|alert_events|rpc\/(?:read_alert_event|mutate_alert_history|alert_coverage))\b/,
     async (route) => {
       const request = route.request(),
         url = new URL(request.url());
       if (url.pathname.endsWith("/alert_coverage"))
         return route.fulfill({ json: null });
+      if (url.pathname.endsWith('/mutate_alert_history')) {
+        if (request.method() !== 'POST') throw Error('Unexpected history mutation method');
+        if (state.failBulk) return route.fulfill({ status: 403, json: { message: 'unavailable' } });
+        const operation = request.postDataJSON().operation;
+        if (operation === 'read') state.events = state.events.map(e => ({ ...e, read_at: e.read_at ?? new Date().toISOString() }));
+        else if (operation === 'clear') state.events = [];
+        else throw Error('Unexpected history operation');
+        return route.fulfill({ json: true });
+      }
       if (url.pathname.endsWith("/read_alert_event")) {
         if (state.failRead)
           return route.fulfill({

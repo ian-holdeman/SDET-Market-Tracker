@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
+import { execFileSync } from 'node:child_process';
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import { localSupabase } from "../local-supabase.mjs";
@@ -45,6 +46,15 @@ test("member push tests verify installation ownership, rate limit, deduplicate a
   const [owner, other] = users,
     device = randomUUID(),
     secondDevice = randomUUID();
+  const sql = (statement: string) => execFileSync(
+    process.platform === 'win32' ? 'C:/Program Files/Docker/Docker/resources/bin/docker.exe' : 'docker',
+    ['exec', 'supabase_db_sdet-market-tracker-local', 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-Atc', statement],
+    { encoding: 'utf8', windowsHide: true },
+  ).trim();
+  sql(`select private.admit_alert_asset('${owner.id}','AAPL',clock_timestamp())`);
+  const cooldown = () => sql(`select symbol||':'||admitted_at::text from private.alert_asset_cooldowns where user_id='${owner.id}' order by symbol`);
+  const initialCooldown = cooldown();
+  assert.match(initialCooldown, /^AAPL:/, 'establish existing price cooldown before testing notification channel');
   const capability = randomBytes(32).toString("base64url"),
     hash = createHash("sha256").update(capability).digest("hex");
   const subscription = {
@@ -122,6 +132,14 @@ test("member push tests verify installation ownership, rate limit, deduplicate a
     capability,
     requestId: randomUUID(),
   };
+  const health = { installationId: device, capability };
+  assert.deepEqual(await (await post('status', health)).json(), { data: true });
+  assert.deepEqual(await (await post('status', { ...health, capability: 'B'.repeat(43) })).json(), { data: false });
+  for (const user of [owner, other]) {
+    assert.ok((await user.client.rpc('alert_installation_available', {
+      installation_id: device, capability: hash,
+    })).error, 'browser roles cannot enumerate installation health through the database');
+  }
   assert.equal((await post("test", request, "invalid")).status, 401);
   assert.equal((await post("test", request, other.token)).status, 403);
   assert.equal(
@@ -207,8 +225,12 @@ test("member push tests verify installation ownership, rate limit, deduplicate a
   const gone = await post("test", { ...request, requestId: randomUUID() });
   assert.equal(gone.status, 410);
   assert.equal((await gone.json()).code, "installation_unavailable");
+  assert.deepEqual(await (await post('status', health)).json(), { data: false }, '410 removes server health despite a cached browser subscription');
   assert.equal((await post("test", { ...request, requestId: randomUUID() })).status, 403);
+  assert.equal(cooldown(), initialCooldown, 'successful, duplicate, limited, transient and expired test sends never change price cooldown');
   await owner.client.auth.signOut();
+  assert.deepEqual(await (await post('status', { installationId: secondDevice, capability: secondCapability })).json(),
+    { data: false }, 'health does not bypass a revoked Auth session');
   const afterSignOut = await post("consume", {
     eventId: sent[1].eventId,
     installationId: secondDevice,

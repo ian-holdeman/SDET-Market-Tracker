@@ -286,6 +286,7 @@ export function configuredAlertRouter(
       test: ['installationId', 'capability', 'requestId'],
       consume: ['installationId', 'capability', 'eventId'],
       revoke: ['installationId', 'capability'],
+      status: ['installationId', 'capability'],
     };
     if (!Object.hasOwn(fields, req.params.operation)) return res.status(404).json({ error: 'Unknown alert action.' });
     if (!config)
@@ -307,7 +308,7 @@ export function configuredAlertRouter(
       // out, and lets the worker recheck authorization without storing an Auth JWT.
       if (
         req.params.operation === "revoke" ||
-        req.params.operation === "consume"
+        req.params.operation === "consume" || req.params.operation === "status"
       ) {
         const keys =
           req.params.operation === "consume"
@@ -323,10 +324,10 @@ export function configuredAlertRouter(
           return res
             .status(400)
             .json({ error: "Invalid installation request." });
-        const data = await rpc(
+        const data = await deps.rpc(
           req.params.operation === "consume"
             ? "consume_alert_notification"
-            : "revoke_alert_installation",
+            : req.params.operation === "status" ? "alert_installation_available" : "revoke_alert_installation",
           {
             installation_id: body.installationId,
             capability: hash(body.capability),

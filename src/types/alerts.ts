@@ -22,4 +22,6 @@ export interface AlertEvent {
 export const comparisonLabel = (value: AlertComparison) =>
   value === "above" ? "At or above" : "At or below";
 export const alertValue = (value: number, unit: string) =>
-  `${value.toLocaleString("en-US", { maximumSignificantDigits: 16 })}${unit === "%" ? "%" : ` ${unit}`}`;
+  unit === "USD"
+    ? value.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : `${value.toLocaleString("en-US", { maximumSignificantDigits: 16 })}${unit === "%" ? "%" : ` ${unit}`}`;

@@ -16,11 +16,12 @@ import {
 } from "../types/alerts";
 import type { BoardStock } from "../types";
 import { hasExcessAlertDecimals, parseAlertTarget } from "../utils/alertTarget";
+import { alertQuote } from "../utils/alertQuote";
 
 const secondary =
-  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-3 text-sm text-ink-muted hover:bg-surface-800 focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-50";
+  "inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg px-3 text-sm text-ink-muted transition-colors enabled:hover:bg-surface-800 enabled:active:bg-surface-700 focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-default disabled:opacity-50";
 const primary =
-  "min-h-11 rounded-xl bg-info-600 px-4 py-2 text-sm font-semibold text-on-action hover:bg-info-500 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-focus";
+  "min-h-11 cursor-pointer rounded-xl bg-info-600 px-4 py-2 text-sm font-semibold text-on-action transition-[background-color,filter] enabled:hover:bg-info-500 enabled:active:brightness-90 disabled:cursor-default disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-focus";
 export function PriceAlertButton({ stock }: { stock: BoardStock }) {
   const { user, openAuthModal } = useAuth();
   const [open, setOpen] = useState(false),
@@ -194,12 +195,7 @@ function PriceAlertModal({
   const orderedRules = [...rules].sort(
     (a, b) => b.target - a.target || a.id.localeCompare(b.id),
   );
-  const quoteUsable =
-    stock.dataStatus === "available" &&
-    Number.isFinite(stock.price) &&
-    unit &&
-    stock.asOf &&
-    Date.now() - Date.parse(stock.asOf) <= 900000;
+  const quote = alertQuote(stock);
   return (
     <Dialog
       title="Price alert"
@@ -208,13 +204,15 @@ function PriceAlertModal({
       close={close}
     >
       <p className="text-xs text-ink-muted">
-        {quoteUsable
-          ? `Regular quote · ${alertValue(stock.price!, unit)}`
+        {quote
+          ? `Last price · ${alertValue(quote.value, quote.unit)}`
           : "Quote unavailable"}
+        {quote && <span className="block mt-1">Yahoo Finance · Regular quote · <time dateTime={quote.observedAt}>{new Date(quote.observedAt).toLocaleString()}</time>{quote.stale ? " · Refresh unavailable" : ""}</span>}
         {coverage && (
           <span className="ml-2 text-warning-ink-400">{coverage}</span>
         )}
       </p>
+      <p className="text-xs text-ink-muted">At most one alert per asset each hour. A new crossing is required after the cooldown.</p>
       {loading ? (
         <p role="status" className="text-sm text-ink-muted">
           Loading alerts…

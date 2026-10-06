@@ -64,6 +64,9 @@ export class AlertsPage {
       exact: true,
     });
   }
+  get markAll() { return this.history.getByRole('button', { name: 'Mark all as read', exact: true }); }
+  get clearHistory() { return this.history.getByRole('button', { name: 'Clear history', exact: true }); }
+  get clearConfirmation() { return this.page.getByRole('dialog', { name: 'Clear alert history?', exact: true }); }
   get notificationSwitch() {
     return this.page.getByRole("switch", { name: "Browser notifications" });
   }
