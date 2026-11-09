@@ -1,4 +1,4 @@
-import { emptyStock, applyQuote } from '../utils/marketValues';
+import { emptyStock, applyQuote, isOlderQuote } from '../utils/marketValues';
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { BoardStock } from '../types';
 import { INITIAL_BOARD_STOCKS } from '../data/marketData';
@@ -205,7 +205,12 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (!active) return;
       setStocks((prev) => {
         const next = new Map(prev.map((stock) => [stock.symbol, stock]));
-        quotes.forEach((stock) => { if (stock && wanted.has(stock.symbol)) next.set(stock.symbol, stock); });
+        quotes.forEach((stock) => {
+          if (stock && wanted.has(stock.symbol)) {
+            const current = next.get(stock.symbol);
+            if (!current || !isOlderQuote(current, stock)) next.set(stock.symbol, stock);
+          }
+        });
         return [...next.values()];
       });
     });

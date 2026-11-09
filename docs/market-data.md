@@ -6,6 +6,8 @@ The Board displays external market observations for supported stocks, ETFs, indi
 
 Quotes use regular-session price and previous close. Extended-session values are not mixed into a regular-session change calculation. Period changes describe sampled price returns, not total returns or guaranteed execution prices.
 
+The Board, expanded asset headline and alert form share the same **Current price**: the latest known validated provider quote. Changing chart periods or selecting a historical point does not change that headline. The expanded card shows the quote observation time and labels chart sample prices separately. Current price is not a streaming or real-time guarantee, and closed markets can retain an older observation.
+
 Charts preserve received sample precision and timestamps. A current quote does not overwrite historical samples. Intraday axes follow validated dated session boundaries when available; missing session information falls back to the actual sample range.
 
 The Board's six price/activity metrics are previous close, day range, 52-week range, volume, one-month change and one-year change. Missing values stay unavailable. Legitimate zero and negative values retain their meaning; unavailable percentages are not reported as zero.
@@ -18,7 +20,7 @@ Provider observation time is separate from retrieval time. Cached data retains i
 
 The Board's **Data synced** timestamp identifies the last retrieved batch, not the time of a trade. It stays visible during manual and automatic refreshes; only the refresh control highlights and spins while a request is pending. Reduced-motion preferences keep the icon still. Failed updates retain the timestamp and show the existing stale-data warning.
 
-Refresh failures retain usable prior data with a stale or failure label. Unavailable and stale observations are excluded from Home mover rankings. A missing chart remains unavailable rather than displaying another period as a substitute. Late responses cannot replace a newer asset or timeframe selection.
+Refresh failures retain usable prior data with a stale or failure label. Unavailable and stale observations are excluded from Home mover rankings. A missing chart remains unavailable rather than displaying another period as a substitute. Late responses cannot replace a newer asset or timeframe selection, or overwrite a newer quote observation with an older one. Visible searched assets participate in automatic and manual refreshes without being saved to a watchlist or shared catalog.
 
 ## Evidence and limitations
 

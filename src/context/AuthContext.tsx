@@ -6,6 +6,8 @@ import { disableAlertNotifications } from '../services/alertNotifications';
 
 interface AuthContextType {
   user: UserProfile | null;
+  // Known SDK account selection for revocation only; undefined remains unresolved.
+  sessionOwner: string | null | undefined;
   isAdmin: boolean;
   loading: boolean;
   error: string | null;
@@ -28,6 +30,7 @@ const message = (error: unknown) => error instanceof Error ? error.message : 'Th
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionOwner, setSessionOwner] = useState<string | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const generation = useRef(0);
@@ -52,10 +55,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const version = watchVersion.current;
 
       try {
-        const { data: session } = await client.auth.getSession();
-        if (!session.session) { if (!disposed && current === generation.current) publish(null); return; }
+        const { data: session, error: sessionError } = await client.auth.getSession();
+        if (sessionError) throw sessionError;
+        // Local selection may revoke an incompatible installation, never grant
+        // account access. Profile/UI still require online identity verification.
+        if (!disposed && current === generation.current) setSessionOwner(session.session?.user.id ?? null);
+        if (!session.session) {
+          if (!disposed && current === generation.current) { publish(null); setSessionOwner(null); }
+          return;
+        }
         const { data, error: authError } = await client.auth.getUser();
         if (authError || !data.user) throw new Error('Your session could not be verified. Please sign in again.');
+        // Keep identity independent of profile reads: a temporary watchlist/role
+        // outage must not revoke an already authorized background installation.
+        if (!disposed && current === generation.current) setSessionOwner(data.user.id);
         const profile = await loadProfile(data.user);
         if (!disposed && current === generation.current) {
           owner.current = profile.id;
@@ -75,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === 'SIGNED_OUT' || owner.current !== nextOwner) {
         ++epoch.current;
         owner.current = nextOwner;
+        setSessionOwner(event === 'SIGNED_OUT' ? null : nextOwner ?? undefined);
         refreshWatchlist.current = false;
         publish(null);
         setLoading(!!nextOwner);
@@ -167,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearWatchlist = async () => { await mutateWatchlist(); };
 
   return <AuthContext.Provider value={{
-    user, isAdmin: user?.role === 'admin', loading, error, isAuthModalOpen,
+    user, sessionOwner, isAdmin: user?.role === 'admin', loading, error, isAuthModalOpen,
     openAuthModal, closeAuthModal, login, logout, deleteAccount, clearWatchlist, accountBusy, toggleWatchlistSymbol,
     isSymbolInWatchlist: (symbol) => !!user?.watchlist.includes(symbol), clearError: () => setError(null),
   }}>{children}</AuthContext.Provider>;

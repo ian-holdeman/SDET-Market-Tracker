@@ -6,6 +6,7 @@ import {
   notificationPreference,
   sendTestNotification,
   refreshPushHealth,
+  supportsBackgroundPush,
 } from "../services/alertNotifications";
 export function NotificationSettings({ owner }: { owner: string }) {
   const [enabled, setEnabled] = useState(false),
@@ -75,13 +76,13 @@ export function NotificationSettings({ owner }: { owner: string }) {
       permission?.removeEventListener("change", update);
     };
   }, [owner]);
-  const toggle = async () => {
+  const toggle = async (upgrade = false) => {
     if (busy.current) return;
     busy.current = true;
     setPending(true);
     setError(null);
     try {
-      if (enabled) await disableAlertNotifications();
+      if (enabled && !upgrade) await disableAlertNotifications();
       else {
         setup.current = new AbortController();
         await enableAlertNotifications(owner, () => mounted.current && currentOwner.current === owner, setup.current.signal);
@@ -120,6 +121,16 @@ export function NotificationSettings({ owner }: { owner: string }) {
               : "Open tabs"
             : "History only"}
         </p>
+        {enabled && mode === "tab" && supportsBackgroundPush() && (
+          <button
+            type="button"
+            disabled={pending || testing}
+            onClick={() => void toggle(true)}
+            className="mt-2 mr-2 min-h-11 rounded-lg border border-line-strong px-3 text-xs font-medium text-ink-muted transition-colors hover:border-info-500 hover:bg-info-600/10 hover:text-ink-strong focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-default disabled:text-ink-subtle motion-reduce:transition-none"
+          >
+            Enable background push
+          </button>
+        )}
         <button
           type="button"
           disabled={!enabled || pending || testing}

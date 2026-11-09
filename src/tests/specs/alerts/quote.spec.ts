@@ -23,11 +23,11 @@ test('creation quote updates from the Board and retains dated price after refres
   await alerts.bell().click();
   await expect(alerts.modal).toContainText('Quote unavailable');
   release();
-  await expect(alerts.modal).toContainText('Last price · $15.98');
+  await expect(alerts.modal).toContainText('Current price · $15.98');
   await expect(alerts.modal.locator('time')).toHaveAttribute('datetime', observed);
   fail = true;
   await page.clock.runFor(30001);
   await expect(alerts.modal).toContainText('Refresh unavailable');
-  await expect(alerts.modal).toContainText('Last price · $15.98');
+  await expect(alerts.modal).toContainText('Current price · $15.98');
   await expect(alerts.modal).not.toContainText('Quote unavailable');
 });

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
+import { gzipSync } from 'node:zlib';
 import { marketRouter } from '../../server/market';
 import { configureSecurity, safeRequestErrors } from '../../server/security';
 import { apiAdmission } from '../../server/admission';
@@ -106,4 +107,30 @@ test('provider budget denial prevents fetches and recovers; cached/coalesced res
   assert.ok(responses.every(response => response.status === 200));
   assert.equal(calls, 1);
   assert.equal(claims, 2, 'one denied claim, then one successful load shared by every reader');
+});
+
+test('malformed compressed JSON fails safely and the next request still succeeds', async t => {
+  let writes = 0;
+  const app = express();
+  configureSecurity(app);
+  app.use(express.json({ limit: '16kb' }));
+  app.post('/api/probe', (_req, res) => { writes++; res.json({ ok: true }); });
+  app.use(safeRequestErrors);
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise<void>(resolve => server.once('listening', resolve));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/probe`;
+  const compressed = gzipSync(Buffer.from('{"message":"private-sentinel"}'));
+  const send = (body: Buffer) => fetch(url, { method: 'POST', headers: {
+    'Content-Type': 'application/json', 'Content-Encoding': 'gzip',
+  }, body: new Uint8Array(body) });
+  assert.equal((await send(compressed)).status, 200, 'supported compressed JSON remains usable');
+  const malformed = await send(Buffer.concat([compressed, Buffer.from('invalid-trailing-frame')]));
+  assert.equal(malformed.status, 400);
+  assert.equal(malformed.headers.get('cache-control'), 'no-store');
+  assert.doesNotMatch(await malformed.text(), /private-sentinel|invalid-trailing-frame|stack|zlib/i);
+  assert.equal(writes, 1, 'malformed input never reaches a mutation');
+  const recovered = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  assert.equal(recovered.status, 200, 'parser remains available after the decompression failure');
+  assert.equal(writes, 2);
 });

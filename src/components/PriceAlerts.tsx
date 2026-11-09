@@ -11,6 +11,7 @@ import {
 import {
   alertValue,
   comparisonLabel,
+  comparisonSymbol,
   type AlertComparison,
   type AlertRule,
 } from "../types/alerts";
@@ -205,9 +206,9 @@ function PriceAlertModal({
     >
       <p className="text-xs text-ink-muted">
         {quote
-          ? `Last price · ${alertValue(quote.value, quote.unit)}`
+          ? `Current price · ${alertValue(quote.value, quote.unit)}`
           : "Quote unavailable"}
-        {quote && <span className="block mt-1">Yahoo Finance · Regular quote · <time dateTime={quote.observedAt}>{new Date(quote.observedAt).toLocaleString()}</time>{quote.stale ? " · Refresh unavailable" : ""}</span>}
+        {quote && <span className="block mt-1">Yahoo Finance · <time dateTime={quote.observedAt}>{new Date(quote.observedAt).toLocaleString()}</time>{quote.stale ? " · Refresh unavailable" : ""}</span>}
         {coverage && (
           <span className="ml-2 text-warning-ink-400">{coverage}</span>
         )}
@@ -228,12 +229,13 @@ function PriceAlertModal({
                     <input
                       type="radio"
                       name="alert-comparison"
+                      aria-label={comparisonLabel(value)}
                       className="peer absolute inset-0 h-full w-full opacity-0 cursor-pointer"
                       checked={comparison === value}
                       onChange={() => setComparison(value)}
                     />
                     <span className="pointer-events-none block rounded-xl border border-line-strong px-3 py-3 text-center text-sm font-semibold text-ink-muted transition-[background-color,color,border-color,box-shadow,transform] duration-150 peer-hover:bg-surface-800 peer-checked:border-info-500/70 peer-checked:bg-info-600/35 peer-checked:text-ink-strong peer-checked:shadow-sm peer-checked:shadow-info-600/10 peer-checked:peer-hover:bg-info-600/45 peer-active:scale-[0.97] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus motion-reduce:transition-none motion-reduce:peer-active:scale-100">
-                      {comparisonLabel(value)}
+                      {comparisonSymbol(value)}
                     </span>
                   </label>
                 ))}
@@ -298,7 +300,7 @@ function PriceAlertModal({
                   className="flex items-center justify-between gap-2 py-2"
                 >
                   <span className="min-w-0 break-words text-sm text-ink-body">
-                    {comparisonLabel(rule.comparison)}{" "}
+                    <span title={comparisonLabel(rule.comparison)}>{comparisonSymbol(rule.comparison)}</span>{" "}
                     <strong className="font-mono">
                       {alertValue(rule.target, rule.unit)}
                     </strong>

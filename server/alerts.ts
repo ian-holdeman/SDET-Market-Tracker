@@ -72,6 +72,7 @@ export interface DeliveryJob {
   installationId: string;
   lease: string;
   subscription: webpush.PushSubscription;
+  expiresAt?: string;
 }
 type Rpc = (name: string, args?: Record<string, unknown>, signal?: AbortSignal) => Promise<any>;
 export interface AlertDependencies {
@@ -197,6 +198,14 @@ export function configuredAlertRouter(
     chart: async (symbol, signal) => { await claimProvider(); return fetchAlertChart(symbol, fetch, signal); },
     send: pushReady
       ? async (job) => {
+          // Price outbox rows carry their original expiry. Older schema revisions
+          // and short-lived Settings tests retain the conservative two-minute TTL.
+          let ttl = 120;
+          if (job.expiresAt !== undefined) {
+            const expires = typeof job.expiresAt === "string" ? Date.parse(job.expiresAt) : NaN;
+            ttl = Math.min(900, Math.floor((expires - deps.now()) / 1000));
+            if (!Number.isFinite(ttl) || ttl < 1) return "retry";
+          }
           try {
             await webpush.sendNotification(
               job.subscription,
@@ -205,8 +214,8 @@ export function configuredAlertRouter(
                 installationId: job.installationId,
               }),
               {
-                TTL: 120,
-                urgency: "normal",
+                TTL: ttl,
+                urgency: "high",
                 timeout: 3000,
                 vapidDetails: {
                   subject: env.ALERT_VAPID_SUBJECT!,

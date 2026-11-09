@@ -112,6 +112,25 @@ function alertInstallation() {
     };
   });
 }
+// A transient wake-up/network failure must not discard the only accepted push hint.
+// Consumption remains one-use: an ambiguous response never authorizes a duplicate.
+async function alertPayload(hint, state) {
+  const deadline = AbortSignal.timeout(15000);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const current = await alertInstallation();
+    if (deadline.aborted || !current?.enabled || current.owner !== state.owner ||
+        current.installationId !== state.installationId || current.capability !== state.capability) return null;
+    try {
+      const response = await fetch('/api/alerts/consume', { method: 'POST', credentials: 'omit', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.any([deadline, AbortSignal.timeout(10000)]),
+        body: JSON.stringify({ eventId: hint.eventId, installationId: state.installationId, capability: state.capability }) });
+      if (response.ok || response.status < 500 || response.status > 599) return response;
+      await response.body?.cancel();
+    } catch { /* One bounded retry; server authorization is checked on every request. */ }
+  }
+  return null;
+}
 self.addEventListener('push', event => {
   event.waitUntil((async () => {
     try {
@@ -120,17 +139,16 @@ self.addEventListener('push', event => {
       const display = async () => {
         const state = await alertInstallation();
         if (!state?.enabled || state.installationId !== hint.installationId) return;
-        const response = await fetch('/api/alerts/consume', { method: 'POST', credentials: 'omit', cache: 'no-store',
-          headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000),
-          body: JSON.stringify({ eventId: hint.eventId, installationId: state.installationId, capability: state.capability }) });
-        if (!response.ok) return;
+        const response = await alertPayload(hint, state);
+        if (!response?.ok) return;
+
         const { data } = await response.json();
         if (!data || data.id !== hint.eventId || data.user_id !== state.owner) return;
         const test = data.kind === 'test';
         if (!test && (typeof data.symbol !== 'string' || !/^[A-Z0-9^][A-Z0-9.^=-]{0,31}$/.test(data.symbol) ||
             !Number.isFinite(data.value) || typeof data.unit !== 'string')) return;
         const current = await alertInstallation();
-        if (!current?.enabled || current.capability !== state.capability) return;
+        if (!current?.enabled || current.owner !== state.owner || current.installationId !== state.installationId || current.capability !== state.capability) return;
         await self.registration.showNotification(test ? 'Test price alert' : `${data.symbol} price alert`, {
           body: test ? 'This is a test notification.' : alertValue(data.value, data.unit), tag: 'imt-alert-' + data.id,
           data: { path: test ? '/settings' : '/board/' + encodeURIComponent(data.symbol) },

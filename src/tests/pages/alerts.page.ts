@@ -58,6 +58,9 @@ export class AlertsPage {
   get events() {
     return this.history.getByTestId("alert-event");
   }
+  get eventTimes() {
+    return this.events.getByRole("time");
+  }
   get older() {
     return this.history.getByRole("button", {
       name: "Older alerts",
@@ -67,6 +70,7 @@ export class AlertsPage {
   get markAll() { return this.history.getByRole('button', { name: 'Mark all as read', exact: true }); }
   get clearHistory() { return this.history.getByRole('button', { name: 'Clear history', exact: true }); }
   get clearConfirmation() { return this.page.getByRole('dialog', { name: 'Clear alert history?', exact: true }); }
+  get backgroundPush() { return this.page.getByRole("button", { name: "Enable background push", exact: true }); }
   get notificationSwitch() {
     return this.page.getByRole("switch", { name: "Browser notifications" });
   }

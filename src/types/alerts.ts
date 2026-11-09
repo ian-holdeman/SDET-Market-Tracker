@@ -21,6 +21,8 @@ export interface AlertEvent {
 }
 export const comparisonLabel = (value: AlertComparison) =>
   value === "above" ? "At or above" : "At or below";
+export const comparisonSymbol = (value: AlertComparison) =>
+  value === "above" ? "≥" : "≤";
 export const alertValue = (value: number, unit: string) =>
   unit === "USD"
     ? value.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })

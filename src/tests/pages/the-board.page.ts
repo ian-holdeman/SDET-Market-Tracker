@@ -24,7 +24,7 @@ export class TheBoardPage extends BasePage {
   async sort(field: 'price' | 'change') {
     const mobile = this.page.getByRole('button', { name: field === 'price' ? 'Price' : '%', exact: true });
     if (await mobile.isVisible()) await mobile.click();
-    else await this.page.getByRole('columnheader', { name: field === 'price' ? 'Last Price' : "Today's Change", exact: true }).click();
+    else await this.page.getByRole('columnheader', { name: field === 'price' ? 'Current price' : "Today's Change", exact: true }).click();
   }
   metric(symbol: string, name: string) { return this.chart(symbol).card.locator(`#card-${name}-${symbol.toLowerCase()}`); }
   async metricGeometry(symbol: string) {
@@ -71,10 +71,22 @@ export class TheBoardPage extends BasePage {
     return this.page.locator(`#board-row-${symbol.toLowerCase()}`);
   }
 
+  async captureCurrentQuote(symbol: string, path: string) {
+    const chart = this.chart(symbol);
+    await chart.currentPrice.scrollIntoViewIfNeeded();
+    const [banner, card] = await Promise.all([this.header.region.boundingBox(), chart.card.boundingBox()]);
+    if (!banner || !card) throw new Error('Quote capture requires the visible header and asset card');
+    await this.page.evaluate(offset => window.scrollBy({ top: offset, behavior: 'instant' }), card.y - (banner.y + banner.height + 12));
+    await this.page.screenshot({ path });
+  }
+
   chart(symbol: string) {
     const card = this.page.locator(`#drilldown-card-${symbol.toLowerCase()}`);
     return {
       card,
+      currentQuote: card.getByTestId("current-quote"),
+      currentPrice: card.getByTestId("current-price"),
+      samplePrice: card.getByTestId("chart-sample-price"),
       absoluteChange: card.getByTestId('period-absolute-change'),
       financeLink: card.getByRole('link', { name: /^Google Finance/ }),
       highLabel: card.locator('#price-badge-high-' + symbol.toLowerCase()),
@@ -83,6 +95,8 @@ export class TheBoardPage extends BasePage {
       endpoint: card.getByTestId('market-chart-endpoint').locator('circle').first(),
       pulse: card.getByTestId('market-chart-pulse'),
       session: card.getByTestId('market-chart-session'),
+      hoverSample: () => card.getByTestId('market-chart').hover({ position: { x: 24, y: 40 } }),
+      clearSample: () => card.getByText('Current price', { exact: true }).hover(),
       timeframe: (name: string) => card.getByRole('button', { name, exact: true }),
     };
   }

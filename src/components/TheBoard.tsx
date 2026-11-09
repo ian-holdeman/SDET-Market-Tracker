@@ -1,4 +1,4 @@
-import { finite, fixed, priceLabel, fullPriceLabel, rangePriceLabel } from '../utils/marketValues';
+import { finite, fixed, priceLabel, fullPriceLabel, rangePriceLabel, isOlderQuote, retainSearchQuote } from '../utils/marketValues';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -202,7 +202,7 @@ const BoardTableRow = React.memo<BoardTableRowProps>(({
           </div>
         </td>
 
-        {/* 3. Last Price (Desktop Only) */}
+        {/* 3. Current price (Desktop Only) */}
         <td className={`hidden md:table-cell py-3.5 sm:py-4 px-4 text-right ${!isExpanded && !isLastRow ? 'border-b border-line/60' : ''}`}>
           <div className="inline-flex flex-col items-end">
             <span className="font-mono text-base sm:text-lg font-bold sm:font-extrabold text-ink-heading">
@@ -344,6 +344,8 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
   const [isSearchingUniverse, setIsSearchingUniverse] = useState(false);
   const [ephemeralSearchResults, setEphemeralSearchResults] = useState<BoardStock[]>([]);
 
+  const knownSymbols = stocks.map(stock => stock.symbol).join(',');
+
   // Debounced Universal Asset Search for any symbol or company outside the default curated 50
   useEffect(() => {
     const query = searchQuery.trim();
@@ -372,10 +374,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
         if (cleanUpper.length <= 10 && /^[A-Z0-9.\-^=]+$/.test(cleanUpper)) {
           const directQuote = await fetchSingleAssetQuote(cleanUpper);
           if (!isCancelled && directQuote) {
-            setEphemeralSearchResults((prev) => {
-              const filtered = prev.filter((p) => p.symbol !== directQuote.symbol);
-              return [directQuote, ...filtered];
-            });
+            setEphemeralSearchResults(prev => retainSearchQuote(prev, directQuote));
             if (!isCancelled) {
               setIsSearchingUniverse(false);
             }
@@ -392,10 +391,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
               const quote = await fetchSingleAssetQuote(topMatch.symbol);
               if (!quote) throw new Error('Quote unavailable');
               if (!isCancelled && quote) {
-                setEphemeralSearchResults((prev) => {
-                  const filtered = prev.filter((p) => p.symbol !== quote.symbol);
-                  return [quote, ...filtered];
-                });
+                setEphemeralSearchResults(prev => retainSearchQuote(prev, quote));
               }
             }
           }
@@ -414,7 +410,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
       clearTimeout(timer);
       setIsSearchingUniverse(false);
     };
-  }, [searchQuery, stocks, ephemeralSearchResults.length, fetchSingleAssetQuote]);
+  }, [searchQuery, knownSymbols, fetchSingleAssetQuote]);
 
   // Default tab logic:
   // 1. If direct asset navigation provided (initialExpandedSymbol) -> 'ALL'
@@ -711,6 +707,43 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
       });
   }, [stocks, ephemeralSearchResults, searchQuery, selectedCategory, assetFilter, sortField, sortDirection, isSymbolInWatchlist]);
 
+  // Searched assets stay private to this view but need the same visible-page freshness.
+  const activeSearchSymbols = processedStocks.filter(stock => !stocks.some(saved => saved.symbol === stock.symbol)).map(stock => stock.symbol).sort().join(',');
+  const searchRefreshEpoch = useRef(0);
+  const searchRefresh = useRef<{ epoch: number; promise: Promise<void> } | null>(null);
+  const [isRefreshingSearch, setIsRefreshingSearch] = useState(false);
+  const refreshSearchQuotes = useCallback((): Promise<void> => {
+    if (!activeSearchSymbols) return Promise.resolve();
+    const epoch = searchRefreshEpoch.current;
+    if (searchRefresh.current?.epoch === epoch) return searchRefresh.current.promise;
+    setIsRefreshingSearch(true);
+    const work = Promise.all(activeSearchSymbols.split(',').map(async symbol => ({ symbol, quote: await fetchSingleAssetQuote(symbol) })))
+      .then(results => {
+        if (epoch !== searchRefreshEpoch.current) return;
+        setEphemeralSearchResults(previous => previous.map(stock => {
+          const result = results.find(item => item.symbol === stock.symbol);
+          if (!result) return stock;
+          if (!result.quote) return { ...stock, dataStatus: stock.asOf ? 'stale' : 'unavailable' };
+          return isOlderQuote(stock, result.quote) ? stock : result.quote;
+        }));
+        setSearchError(results.some(result => !result.quote) ? 'Searched asset update unavailable. Showing the last known quote.' : null);
+      }).finally(() => {
+        if (epoch === searchRefreshEpoch.current) { searchRefresh.current = null; setIsRefreshingSearch(false); }
+      });
+    searchRefresh.current = { epoch, promise: work };
+    return work;
+  }, [activeSearchSymbols, fetchSingleAssetQuote]);
+  useEffect(() => {
+    ++searchRefreshEpoch.current;
+    setIsRefreshingSearch(false);
+    const refreshVisibleSearch = () => { if (document.visibilityState === 'visible') void refreshSearchQuotes(); };
+    const timer = setInterval(refreshVisibleSearch, 15000);
+    document.addEventListener('visibilitychange', refreshVisibleSearch);
+    return () => { ++searchRefreshEpoch.current; clearInterval(timer); document.removeEventListener('visibilitychange', refreshVisibleSearch); };
+  }, [refreshSearchQuotes]);
+  const refreshBoardQuotes = () => Promise.all([refreshQuotes(), refreshSearchQuotes()]);
+  const isRefreshingQuotes = isLoadingLiveMetrics || isRefreshingSearch;
+
   // Render sort icon for table headers
   const renderSortIcon = (field: BoardSortField) => {
     if (sortField !== field) {
@@ -763,13 +796,13 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           <button
             id="board-refresh-btn"
             aria-label="Refresh market quotes"
-            aria-busy={isLoadingLiveMetrics}
-            disabled={isLoadingLiveMetrics}
-            onClick={() => void refreshQuotes()}
+            aria-busy={isRefreshingQuotes}
+            disabled={isRefreshingQuotes}
+            onClick={() => void refreshBoardQuotes()}
             title="Refresh latest quotes from Yahoo Finance backend proxy"
-            className={`shrink-0 p-2 rounded-xl border transition-colors shadow-sm active:scale-95 cursor-pointer disabled:cursor-wait ${isLoadingLiveMetrics ? 'bg-info-surface-950 border-info-ink-400 text-info-ink-400' : 'bg-panel hover:bg-surface-800 border-line hover:border-line-strong text-ink-muted hover:text-ink-heading'}`}
+            className={`shrink-0 p-2 rounded-xl border transition-colors shadow-sm active:scale-95 cursor-pointer disabled:cursor-wait ${isRefreshingQuotes ? 'bg-info-surface-950 border-info-ink-400 text-info-ink-400' : 'bg-panel hover:bg-surface-800 border-line hover:border-line-strong text-ink-muted hover:text-ink-heading'}`}
           >
-            <RefreshCw aria-hidden="true" className={`w-4 h-4 ${isLoadingLiveMetrics ? 'motion-safe:animate-spin' : ''}`} />
+            <RefreshCw aria-hidden="true" className={`w-4 h-4 ${isRefreshingQuotes ? 'motion-safe:animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -791,8 +824,7 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
           </div>
           <button
             onClick={() => {
-              reconnect();
-              refreshQuotes();
+              void refreshBoardQuotes();
             }}
             className="px-3 py-1.5 rounded-lg bg-danger-surface-900/80 hover:bg-danger-surface-800 border border-danger-700 text-ink-heading font-mono text-xs font-bold transition-all shrink-0 flex items-center gap-1.5"
           >
@@ -1111,13 +1143,13 @@ export const TheBoard: React.FC<TheBoardProps> = ({ initialExpandedSymbol, onSel
                   <span>Today's Trend</span>
                 </th>
 
-                {/* 3. Last Price (Sortable - Desktop Only) */}
+                {/* 3. Current price (Sortable - Desktop Only) */}
                 <th
                   onClick={() => handleSort('price')}
                   className="hidden md:table-cell py-3.5 px-4 text-right cursor-pointer hover:text-ink-heading transition-colors group border-b border-line"
                 >
                   <span className="flex items-center justify-end">
-                    Last Price
+                    Current price
                     {renderSortIcon('price')}
                   </span>
                 </th>

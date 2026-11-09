@@ -1,3 +1,4 @@
+import { createECDH } from 'node:crypto';
 import { readSupabaseConfig } from '../src/lib/supabaseConfig';
 import { historyConfig } from './test-history';
 import { selectedPipeline } from '../src/telemetry/pipeline';
@@ -14,6 +15,14 @@ export function productionConfig(env: NodeJS.ProcessEnv, build: unknown) {
         publicConfig.redirectUrl !== `${origin.origin}/auth/callback` || env.SUPABASE_URL !== publicConfig.url ||
         !/^sb_secret_[A-Za-z0-9_-]+$/.test(env.SUPABASE_SECRET_KEY || '') ||
         history?.repository !== selectedPipeline.repository || history?.branch !== selectedPipeline.branch) fail();
+    // The deployment renderer pins these secrets, but runtime must also reject
+    // incomplete revisions rather than serving a healthy app with delivery off.
+    if (!env.ALERT_SCHEDULER_SECRET || env.ALERT_SCHEDULER_SECRET.length < 32 || /\s/.test(env.ALERT_SCHEDULER_SECRET) ||
+        !/^[A-Za-z0-9_-]{87}$/.test(env.ALERT_VAPID_PUBLIC_KEY || '') ||
+        !/^[A-Za-z0-9_-]{43}$/.test(env.ALERT_VAPID_PRIVATE_KEY || '') || env.ALERT_VAPID_SUBJECT !== origin.origin) fail();
+    const deliveryKey = createECDH('prime256v1');
+    deliveryKey.setPrivateKey(Buffer.from(env.ALERT_VAPID_PRIVATE_KEY!, 'base64url'));
+    if (!deliveryKey.getPublicKey().equals(Buffer.from(env.ALERT_VAPID_PUBLIC_KEY!, 'base64url'))) fail();
     const manifest = build as { version?: number; publicConfig?: typeof publicConfig; releaseCommit?: string };
     if (manifest?.version !== 1 || !/^[a-f0-9]{40}$/.test(manifest.releaseCommit || '') ||
         !manifest.publicConfig || ['url','key','redirectUrl'].some(k => manifest.publicConfig![k] !== publicConfig[k])) fail();

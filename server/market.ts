@@ -129,12 +129,18 @@ export function marketRouter(fetcher: typeof fetch = fetch, clock = Date.now, cl
       throw new Error('Invalid query parameters');
     }
   }
-  async function cached(key: string, load: () => Promise<any>, ttl = 15000) {
+  async function cached(key: string, load: () => Promise<any>, ttl = 15000, signal?: AbortSignal) {
     const hit = cache.get(key);
     if (hit && clock() - hit.time < ttl) return hit.value;
+    signal?.throwIfAborted();
     if (pending.has(key)) return pending.get(key);
     if (pending.size >= 16) throw Object.assign(new Error('Provider capacity reached'), { status: 429 });
-    const promise = Promise.resolve().then(async () => { await claim(); return load(); }).then(value => {
+    const promise = Promise.resolve().then(async () => {
+      signal?.throwIfAborted();
+      await claim();
+      signal?.throwIfAborted();
+      return load();
+    }).then(value => {
       if (cache.size >= 256) cache.delete(cache.keys().next().value!);
       cache.set(key, { time: clock(), value }); return value;
     }).finally(() => pending.delete(key));
@@ -177,7 +183,7 @@ export function marketRouter(fetcher: typeof fetch = fetch, clock = Date.now, cl
         try { results[i] = await cached(`q:${symbol}`, async () => {
           const body = await yahoo(`/v8/finance/chart/${encodeURIComponent(providerSymbol(symbol))}?range=1d&interval=5m&includePrePost=true`, signal);
           return validateQuoteResponse(body, symbol, clock());
-        }); } catch (error) { if (error?.status === 429 || error?.status === 503) admissionStatus = error.status; results[i] = null; }
+        }, 15000, signal); } catch (error) { if (error?.status === 429 || error?.status === 503) admissionStatus = error.status; results[i] = null; }
       }
     }));
     const quotes = results.filter(Boolean), unavailable = symbols.filter((_, i) => !results[i]);

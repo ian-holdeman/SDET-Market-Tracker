@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import express from 'express';
 import { marketRouter, validateQuoteResponse, validateChart, normalizeQuote, normalizeCandles, providerSymbol, changeFrom } from '../../server/market';
-import { applyQuote, emptyStock, fixed, priceLabel, fullPriceLabel, rangePriceLabel } from '../../src/utils/marketValues';
+import { applyQuote, emptyStock, fixed, priceLabel, fullPriceLabel, rangePriceLabel, retainSearchQuote } from '../../src/utils/marketValues';
 const now = Date.parse('2026-07-01T16:00:00Z');
 function fixture(symbol = 'SPY') {
   return { chart: { error: null, result: [{ meta: { symbol, instrumentType: 'ETF', currency: 'USD', regularMarketPrice: 110, regularMarketTime: now / 1000 - 60, previousClose: 100, regularMarketVolume: 0 }, timestamp: [now / 1000 - 600, now / 1000 - 300], indicators: { quote: [{ close: [101, 105], volume: [0, 10] }] } }] } };
@@ -156,4 +156,31 @@ test('daily trendlines include the opening sample instead of only the last 28 ba
   const trend = normalizeQuote(c, 'SPY', {}, now).sparkline;
   assert.equal(trend[0], 100);
   assert.equal(trend.at(-1), 179);
+});
+
+test('a late older quote cannot overwrite a newer known observation or its provenance', () => {
+  const stock = applyQuote(emptyStock('SPY'), { symbol: 'SPY', price: 102, asOf: '2026-11-08T12:01:00Z', fetchedAt: '2026-11-08T12:02:00Z' });
+  const older = applyQuote(stock, { symbol: 'SPY', price: 100, asOf: '2026-11-08T12:00:00Z', fetchedAt: '2026-11-08T12:03:00Z' });
+  assert.equal(older.price, 102);
+  assert.equal(applyQuote({ ...stock, dataStatus: 'stale' }, { symbol: 'SPY', price: 100, asOf: '2026-11-08T12:00:00Z', fetchedAt: '2026-11-08T12:03:00Z' }).dataStatus, 'stale');
+  assert.equal(older.asOf, stock.asOf);
+  assert.equal(older.fetchedAt, stock.fetchedAt);
+  const staleCopy = applyQuote(stock, { symbol: 'SPY', price: 101, asOf: stock.asOf, fetchedAt: '2026-11-08T12:01:30Z' });
+  assert.equal(staleCopy.price, 102);
+  assert.equal(applyQuote(stock, { symbol: 'SPY', price: 0, asOf: '2026-11-08T12:03:00Z', fetchedAt: '2026-11-08T12:03:00Z' }).price, 0);
+});
+
+test('view-local searched quotes stay bounded, unique and retain the newest observation', () => {
+  const observed = (symbol: string, price: number, minute: number) => applyQuote(emptyStock(symbol), { symbol, price,
+    asOf: new Date(Date.UTC(2026, 10, 8, 12, minute)).toISOString(), fetchedAt: new Date(Date.UTC(2026, 10, 8, 12, minute)).toISOString() });
+  let recent: ReturnType<typeof emptyStock>[] = [];
+  for (let index = 0; index < 25; index++) recent = retainSearchQuote(recent, observed('ASSET' + index, index, 1));
+  assert.equal(recent.length, 20);
+  assert.deepEqual(recent.map(stock => stock.symbol), Array.from({ length: 20 }, (_, index) => 'ASSET' + (24 - index)));
+  recent = retainSearchQuote(recent, observed('ASSET10', 102, 2));
+  recent = retainSearchQuote(recent, observed('ASSET10', 100, 1));
+  assert.equal(recent.length, 20);
+  assert.equal(recent.filter(stock => stock.symbol === 'ASSET10').length, 1);
+  assert.equal(recent[0].price, 102);
+  assert.equal(recent[0].asOf, '2026-11-08T12:02:00.000Z');
 });

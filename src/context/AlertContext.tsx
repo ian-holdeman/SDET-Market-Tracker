@@ -31,7 +31,7 @@ const Context = createContext<{
 });
 export const useAlerts = () => useContext(Context);
 export function AlertProvider({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, sessionOwner, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<AlertEvent[]>([]),
     [unread, setUnread] = useState(0),
     [error, setError] = useState<string | null>(null),
@@ -51,10 +51,11 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       generation = 0,
       lastPoll = 0;
     const controller = new AbortController();
-    if (authLoading) return () => controller.abort();
     const p = notificationPreference();
-    if (p && p.owner !== user?.id)
+    // A known account change revokes promptly even while its profile is loading.
+    if (p && sessionOwner !== undefined && p.owner !== sessionOwner)
       void disableAlertNotifications().catch(() => {});
+    if (authLoading) return () => controller.abort();
     void retryNotificationRevocation().catch(() => {});
     if (!user) {
       refreshRef.current = async () => {};
@@ -86,6 +87,9 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
           setError(null);
           if (after && started - after <= 45000)
             await notifyNewAlerts(owner, rows, after, () => !disposed && current === generation);
+          // Failed reads must not advance past events that have not been checked.
+          // The existing 45-second gate still suppresses replay after long gaps.
+          if (!disposed && current === generation) lastPoll = started;
         }
       } catch {
         if (!disposed && current === generation) {
@@ -98,7 +102,6 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         }
       } finally {
         if (!disposed && current === generation) {
-          lastPoll = started;
           pending = false;
           setLoading(false);
           if (rerun) {
@@ -129,7 +132,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("pageshow", resumed);
       window.removeEventListener("online", resumed);
     };
-  }, [user?.id, authLoading]);
+  }, [user?.id, sessionOwner, authLoading]);
   return (
     <Context.Provider
       value={{

@@ -242,6 +242,12 @@ async function requireNotificationWorker(
     registration.active!.postMessage("alert-delivery-version", [channel.port2]);
   });
 }
+export function supportsBackgroundPush(): boolean {
+  return /Android/i.test(navigator.userAgent) &&
+    matchMedia("(display-mode: standalone)").matches &&
+    "PushManager" in window && "serviceWorker" in navigator;
+}
+
 export async function enableAlertNotifications(
   owner: string,
   isCurrent: () => boolean,
@@ -260,11 +266,11 @@ export async function enableAlertNotifications(
     throw Error("Notifications are blocked. Check browser settings.");
   await navigator.locks.request("imt-alert-device", async () => {
     if (!isCurrent()) return;
-    if (notificationPreference()?.owner === owner) return;
-    const push =
-      /Android/i.test(navigator.userAgent) &&
-      matchMedia("(display-mode: standalone)").matches &&
-      "PushManager" in window;
+    const push = supportsBackgroundPush();
+    const previous = notificationPreference();
+    // A deliberate installed-app action may upgrade an existing tab-only choice.
+    // Keep that choice intact until background setup completes successfully.
+    if (previous?.owner === owner && (previous.mode === "push" || !push)) return;
     if (!push) {
       preference({ owner, mode: "tab", since: Date.now() });
       return;

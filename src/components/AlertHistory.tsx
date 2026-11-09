@@ -4,7 +4,8 @@ import { Dialog } from "./Dialog";
 import { useAuth } from "../context/AuthContext";
 import { useAlerts } from "../context/AlertContext";
 import { loadAlertHistory, markAlertRead, mutateAlertHistory } from "../services/alerts";
-import { alertValue, comparisonLabel, type AlertEvent } from "../types/alerts";
+import { alertValue, comparisonLabel, comparisonSymbol, type AlertEvent } from "../types/alerts";
+import { formatAbsoluteRunTime } from "../utils/timeFormat";
 
 const actionFeedback = "cursor-pointer rounded-lg transition-colors enabled:hover:bg-surface-800 enabled:active:bg-surface-700 focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-default disabled:opacity-50";
 const textAction = `${actionFeedback} underline-offset-4 enabled:hover:underline`;
@@ -213,9 +214,20 @@ function AlertHistory({
                   {alertValue(row.value, row.unit)}
                 </span>
               </span>
-              <span className="block text-xs text-ink-muted mt-1">
-                {comparisonLabel(row.comparison)}{" "}
-                {alertValue(row.target, row.unit)} · {row.session}
+              <span className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs text-ink-muted">
+                <span>
+                  <span title={comparisonLabel(row.comparison)}>{comparisonSymbol(row.comparison)}</span>{" "}
+                  {alertValue(row.target, row.unit)} · {row.session}
+                </span>
+                <span className="relative shrink-0 tabular-nums">
+                  <span className="sr-only">Triggered </span>
+                  <time
+                    dateTime={row.created_at}
+                    title={`Alert triggered ${new Date(row.created_at).toLocaleString([], { dateStyle: "full", timeStyle: "long" })}`}
+                  >
+                    {formatAbsoluteRunTime(row.created_at)}
+                  </time>
+                </span>
               </span>
             </button>
             {!row.read_at && (

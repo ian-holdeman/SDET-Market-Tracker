@@ -2,9 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { productionConfig } from '../../server/production';
 import { selectedPipeline } from '../../src/telemetry/pipeline';
+import webpush from 'web-push';
+
+const vapid = webpush.generateVAPIDKeys();
 
 const env = {
   APP_DEPLOYMENT: 'cloud-run', APP_ORIGIN: 'https://app.example.test',
+  ALERT_SCHEDULER_SECRET: 'S'.repeat(32), ALERT_VAPID_PUBLIC_KEY: vapid.publicKey,
+  ALERT_VAPID_PRIVATE_KEY: vapid.privateKey, ALERT_VAPID_SUBJECT: 'https://app.example.test',
   VITE_SUPABASE_URL: 'https://fixtureproject.supabase.co', SUPABASE_URL: 'https://fixtureproject.supabase.co',
   VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_fixture', SUPABASE_SECRET_KEY: 'sb_secret_fixture',
   VITE_AUTH_REDIRECT_URL: 'https://app.example.test/auth/callback',
@@ -26,4 +31,17 @@ test('production startup binds the deployed client to runtime origin and isolate
   ]) assert.throws(() => productionConfig({...env, ...change}, build), /Production configuration/);
   assert.throws(() => productionConfig(env, {...build, publicConfig: {...build.publicConfig, key: 'sb_publishable_other'}}));
   assert.throws(() => productionConfig(env, {...build, releaseCommit: 'unknown'}));
+});
+
+test('production refuses missing or unusable delivery credentials instead of silently disabling alerts', () => {
+  for (const field of ['ALERT_SCHEDULER_SECRET', 'ALERT_VAPID_PUBLIC_KEY', 'ALERT_VAPID_PRIVATE_KEY', 'ALERT_VAPID_SUBJECT']) {
+    assert.throws(() => productionConfig({ ...env, [field]: undefined }, build), /Production configuration/, field);
+  }
+  for (const change of [
+    { ALERT_SCHEDULER_SECRET: 'short' }, { ALERT_SCHEDULER_SECRET: ' '.repeat(32) },
+    { ALERT_VAPID_PUBLIC_KEY: 'invalid' }, { ALERT_VAPID_PRIVATE_KEY: 'invalid' },
+    { ALERT_VAPID_SUBJECT: 'https://another.example.test' },
+    { ALERT_VAPID_PRIVATE_KEY: webpush.generateVAPIDKeys().privateKey },
+  ]) assert.throws(() => productionConfig({ ...env, ...change }, build), /Production configuration/);
+  assert.equal(productionConfig({}, null), null, 'unconfigured local previews remain available');
 });

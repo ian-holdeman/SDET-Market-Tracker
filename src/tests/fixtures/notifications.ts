@@ -19,8 +19,8 @@ export async function grantPermissionOnNavigation(control: Locator) {
 }
 
 /** Browser-owned permission/push APIs only; requests still exercise the real UI. */
-export async function mockNotificationDevice(page: Page, push = false) {
-  await page.addInitScript(({ push }) => {
+export async function mockNotificationDevice(page: Page, push = false, subscribed = false) {
+  await page.addInitScript(({ push, subscribed }) => {
     const state: any = (window as any).notificationDevice = {
       permission: "default", pendingPermission: false, subscriptions: 0,
       unsubscribe: 0, displayed: 0,
@@ -44,18 +44,19 @@ export async function mockNotificationDevice(page: Page, push = false) {
       if (query === "(display-mode: standalone)") Object.defineProperty(result, "matches", { value: true });
       return result;
     };
-    let subscription: any = null;
+    const makeSubscription = () => ({
+      unsubscribe: async () => { state.unsubscribe++; subscription = null; return true; },
+      toJSON: () => ({ endpoint: "https://fcm.googleapis.com/wp/mock-" + state.subscriptions,
+        keys: { auth: "a", p256dh: "b" } }),
+    });
+    let subscription: any = subscribed ? makeSubscription() : null;
     const registration = {
       active: { postMessage: (_: unknown, ports: MessagePort[]) => ports[0].postMessage(2) },
       pushManager: {
         getSubscription: async () => subscription,
         subscribe: async () => {
           state.subscriptions++;
-          subscription = {
-            unsubscribe: async () => { state.unsubscribe++; subscription = null; return true; },
-            toJSON: () => ({ endpoint: "https://fcm.googleapis.com/wp/mock-" + state.subscriptions,
-              keys: { auth: "a", p256dh: "b" } }),
-          };
+          subscription = makeSubscription();
           return subscription;
         },
       },
@@ -64,5 +65,25 @@ export async function mockNotificationDevice(page: Page, push = false) {
     Object.defineProperty(navigator, "serviceWorker", { value: {
       getRegistration: async () => registration,
     } });
-  }, { push });
+  }, { push, subscribed });
+}
+
+/** A previously opted-in browser installation; initialization settles before app verification. */
+export async function mockSavedPushInstallation(page: Page, owner: string) {
+  await mockNotificationDevice(page, true, true);
+  await page.addInitScript(owner => {
+    localStorage.setItem("imt_alert_notifications", JSON.stringify({ owner, mode: "push", since: Date.now() }));
+    (window as any).notificationSetup = new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open("imt-alert-delivery", 1);
+      request.onupgradeneeded = () => request.result.createObjectStore("installation");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result, tx = db.transaction("installation", "readwrite");
+        tx.objectStore("installation").put({ owner, installationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          capability: "A".repeat(43), enabled: true }, "current");
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(tx.error); };
+      };
+    });
+  }, owner);
 }

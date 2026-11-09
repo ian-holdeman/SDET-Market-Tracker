@@ -1,5 +1,6 @@
 import { finite, fixed, priceLabel, fullPriceLabel, rangePriceLabel } from '../utils/marketValues';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { formatAbsoluteRunTime } from '../utils/timeFormat';
 import { hasRecentSessionSample } from '../utils/chartSession';
 import {
   TrendingUp,
@@ -327,7 +328,8 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const activePrice = displayedPoint ? displayedPoint.price : currentPrice;
   const activeChange = finite(activePrice) && finite(startPrice) ? activePrice - startPrice : null;
   const activeChangePercent = finite(activeChange) && startPrice > 0 ? (activeChange / startPrice) * 100 : null;
-  const isPeriodPositive = activeChange >= 0;
+  const isPeriodPositive = finite(activeChange) && activeChange >= 0;
+  const quoteIsPositive = finite(stock.change) && stock.change >= 0;
 
   // Compute Even Y-Axis Ticks with startPrice included for balanced baseline framing
   const yAxisConfig = useMemo(() => {
@@ -688,26 +690,22 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
             </div>
           </div>
 
-          {/* Selected Period Value & Return (Stacked directly under asset details on the left) */}
-          <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap pt-0.5">
-            <span className="text-xl sm:text-2xl font-black font-mono text-ink-heading tracking-tight">
-              <span title={fullPriceLabel(activePrice, stock.currency, stock.assetType)}>{priceLabel(activePrice, stock.currency, stock.assetType)}</span>
-            </span>
-            <span className={`inline-flex items-center font-mono text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-lg ${
-              isPeriodPositive
-                ? 'bg-positive-surface-950/70 text-positive-ink-300'
-                : 'bg-danger-surface-950/70 text-danger-ink-300'
-            }`}>
-              {isPeriodPositive ? (
-                <TrendingUp className="w-3.5 h-3.5 mr-1 shrink-0" />
-              ) : (
-                <TrendingDown className="w-3.5 h-3.5 mr-1 shrink-0" />
-              )}
-              {isPeriodPositive ? '+' : ''}{fixed(activeChangePercent, 2)}%
-              <span data-testid="period-absolute-change" className="ml-1 text-[10px] sm:text-[11px] font-normal opacity-90 light:opacity-100">
-                (<span title={fullPriceLabel(activeChange, stock.currency, stock.assetType)}>{priceLabel(activeChange, stock.currency, stock.assetType)}</span>)
+          <div data-testid="current-quote" className="pt-0.5">
+            <p className="text-[10px] sm:text-xs text-ink-muted">Current price</p>
+            <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
+              <span data-testid="current-price" title={fullPriceLabel(stock.price, stock.currency, stock.assetType)} className="text-xl sm:text-2xl font-black font-mono text-ink-heading tracking-tight">
+                {priceLabel(stock.price, stock.currency, stock.assetType)}
               </span>
-            </span>
+              {finite(stock.changePercent) && <span title="Change from previous close" className={`inline-flex items-center font-mono text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-lg ${quoteIsPositive ? 'bg-positive-surface-950/70 text-positive-ink-300' : 'bg-danger-surface-950/70 text-danger-ink-300'}`}>
+                {quoteIsPositive ? '+' : ''}{fixed(stock.changePercent)}%
+              </span>}
+            </div>
+            <p className="mt-0.5 text-[10px] sm:text-xs text-ink-muted">
+              {stock.asOf && Number.isFinite(Date.parse(stock.asOf)) ? <>
+                As of <time dateTime={stock.asOf} title={'Latest available provider quote · ' + new Date(stock.asOf).toLocaleString([], { dateStyle: 'full', timeStyle: 'long' })}>{formatAbsoluteRunTime(stock.asOf)}</time>
+                {stock.dataStatus === 'stale' && <span className="text-warning-ink-400"> · Refresh unavailable</span>}
+              </> : 'Quote unavailable'}
+            </p>
           </div>
         </div>
 
@@ -764,6 +762,14 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       {/* Main Focus: Big Multi-Timeframe Interactive Trendline */}
       <div className="space-y-1 relative">
 
+        {points.length > 0 && <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-ink-muted">
+          <span>{isHovering ? 'Selected sample' : selectedTimeframe + ' last sample'}</span>
+          <span data-testid="chart-sample-price" title={fullPriceLabel(activePrice, stock.currency, stock.assetType)} className="font-mono font-semibold text-ink-heading">{priceLabel(activePrice, stock.currency, stock.assetType)}</span>
+          <span title={selectedTimeframe === '1D' ? 'Change from previous close' : 'Change from first sample'} className={`font-mono ${finite(activeChange) ? isPeriodPositive ? 'text-positive-ink-300' : 'text-danger-ink-300' : ''}`}>
+            {finite(activeChangePercent) ? (isPeriodPositive ? '+' : '') + fixed(activeChangePercent) + '%' : '—'}
+            <span data-testid="period-absolute-change" className="ml-1">(<span title={fullPriceLabel(activeChange, stock.currency, stock.assetType)}>{priceLabel(activeChange, stock.currency, stock.assetType)}</span>)</span>
+          </span>
+        </div>}
         {candleError && <p className="text-xs text-ink-muted" role="status">{candleError}</p>}
         {/* Dedicated Timestamp Track above graph (Ensures 0 overlap with High Y-axis price badge) */}
         <div className="h-5 sm:h-6 relative w-full flex items-center select-none">

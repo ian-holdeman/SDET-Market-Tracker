@@ -43,7 +43,7 @@ test("searched assets support alerts without watchlist or curation changes", asy
   await board.searchAsset("MongoDB, Inc.");
   await board.assetRow("MDB").click();
   await alerts.bell("MDB").click();
-  await expect(alerts.modal).toContainText('Last price · $102.00');
+  await expect(alerts.modal).toContainText('Current price · $102.00');
   await alerts.add("102.50");
   await expect(alerts.rules).toHaveCount(1);
   expect(state.rules[0]).toMatchObject({
@@ -130,17 +130,17 @@ test("asset alerts stay in descending target order after creation, editing and r
     await alerts.add(target);
     await expect(alerts.rules).toHaveCount(index + 1);
   }
-  await expect(alerts.rules).toHaveText(["At or above $100.10", "At or above $9.99", "At or above $0.00", "At or above -$1.00"]);
+  await expect(alerts.rules).toHaveText(["≥ $100.10", "≥ $9.99", "≥ $0.00", "≥ -$1.00"]);
   await alerts.rules.last().getByRole("button", { name: /^Edit/ }).click();
   await alerts.below.check();
   await alerts.target.fill("150.25");
   await alerts.save.click();
-  await expect(alerts.rules).toHaveText(["At or below $150.25", "At or above $100.10", "At or above $9.99", "At or above $0.00"]);
-  await expect(alerts.rules.first()).toContainText("At or below");
+  await expect(alerts.rules).toHaveText(["≤ $150.25", "≥ $100.10", "≥ $9.99", "≥ $0.00"]);
+  await expect(alerts.rules.first()).toContainText("≤");
   await page.reload();
   await expect(new HeaderComponent(page).username).toHaveText('Test Member');
   await alerts.bell().click();
-  await expect(alerts.rules).toHaveText(["At or below $150.25", "At or above $100.10", "At or above $9.99", "At or above $0.00"]);
+  await expect(alerts.rules).toHaveText(["≤ $150.25", "≥ $100.10", "≥ $9.99", "≥ $0.00"]);
 });
 
 test("guest alert action uses sign-in without creating a rule", async ({
@@ -295,6 +295,37 @@ test("history opening is not read-all; per-entry persistence, failure and settin
     "false",
   );
 });
+for (const theme of ["dark", "light"] as const)
+  test(`history shows local trigger times without marking entries read in ${theme}`, async ({ page }, testInfo) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await mockApp(page, true);
+    const state = await mockAlerts(page);
+    const createdAt = Date.now() - 90_000;
+    state.events = [alertEvent("timestamp", 102, createdAt), {
+      ...alertEvent("older-timestamp", 98, createdAt - 86_400_000),
+      comparison: "below",
+      read_at: new Date(createdAt).toISOString(),
+    }];
+    // The provider observation is deliberately older than the admitted alert.
+    state.events[0].observed_at = new Date(createdAt - 300_000).toISOString();
+    await page.goto("/settings");
+    const alerts = new AlertsPage(page);
+    await expect(new HeaderComponent(page).username).toHaveText("Test Member");
+    await alerts.historyBell.click();
+    await expect(alerts.eventTimes).toHaveCount(2);
+    await expect(alerts.eventTimes.first()).toHaveAttribute("datetime", state.events[0].created_at);
+    const expected = await page.evaluate((at) => {
+      const date = new Date(at);
+      return `${date.getMonth() + 1}/${date.getDate()} at ${date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}`;
+    }, createdAt);
+    await expect(alerts.eventTimes.first()).toHaveText(expected);
+    await expect(alerts.eventTimes.first()).toHaveAttribute("title", /^Alert triggered /);
+    await expect(alerts.events.first()).toContainText("Unread");
+    expect(state.reads).toEqual([]);
+    expect(await alerts.history.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await alerts.history.screenshot({ path: testInfo.outputPath(`history-timestamps-${theme}.png`) });
+  });
+
 test("permission denial preserves history and a failed opt-in stays off", async ({
   page,
 }) => {
