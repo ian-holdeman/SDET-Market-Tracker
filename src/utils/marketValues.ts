@@ -24,7 +24,9 @@ export function applyQuote(stock: BoardStock, quote: any): BoardStock {
   const after = quote.afterHours, observed = Date.parse(after?.asOf ?? '');
   let afterHours = ['Stock', 'ETF'].includes(quote.assetType ?? stock.assetType) && finite(after?.price) &&
     typeof after?.asOf === 'string' && Number.isFinite(observed) && observed > Date.parse(quote.asOf) && observed <= Date.parse(quote.fetchedAt)
-    ? { price: after.price, asOf: after.asOf } : null;
+    ? { price: after.price, asOf: after.asOf,
+      ...(after.session === 'pre' ? { session: 'pre' as const } : {}),
+      ...(typeof after.validUntil === 'string' && Date.parse(after.validUntil) > observed ? { validUntil: after.validUntil } : {}) } : null;
   const previousAfter = Date.parse(stock.afterHours?.asOf ?? '');
   // A lagging provider result cannot roll back a known sample for the same regular observation.
   if (afterHours && Date.parse(quote.asOf) === Date.parse(stock.asOf ?? '') && finite(stock.afterHours?.price) &&

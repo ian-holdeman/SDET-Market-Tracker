@@ -125,11 +125,12 @@ for (const theme of ['dark', 'light'] as const)
 test(`selected timeline returns and hover/after-hours changes stay independent in ${theme}`, async ({ page }, testInfo) => {
   await page.emulateMedia({ colorScheme: theme });
   let postPrice = 121;
+  let extendedSession: 'pre' | undefined;
   const account = await mockApp(page); account.populated = true; account.curated = ['AAPL'];
   const at = '2026-11-06T21:00:00.000Z', postAt = '2026-11-07T00:55:00.000Z';
   await page.route('**/api/quotes?**', route => route.fulfill({ json: { quotes: [{
     symbol: 'AAPL', price: 120, prevClose: 100, change: 20, changePercent: 20, currency: 'USD', assetType: 'Stock',
-    asOf: at, fetchedAt: new Date().toISOString(), afterHours: { price: postPrice, asOf: postAt }, sparkline: [],
+    asOf: at, fetchedAt: new Date().toISOString(), afterHours: { price: postPrice, asOf: postAt, session: extendedSession }, sparkline: [],
   }] } }));
   await page.route('**/api/candles?**', route => {
     const timeframe = new URL(route.request().url()).searchParams.get('timeframe');
@@ -187,4 +188,8 @@ test(`selected timeline returns and hover/after-hours changes stay independent i
   await expect(chart.periodReturn).toHaveCount(0);
   await expect(chart.currentPrice).toHaveText('$120.00');
   await expect(chart.afterHours).toContainText('$119.00');
+  extendedSession = 'pre';
+  await new TheBoardPage(page).refreshButton.click();
+  await expect(chart.afterHours).toContainText('Pre-market');
+  await expect(chart.afterHoursChange).toHaveText('-0.83% (-$1.00)');
 });

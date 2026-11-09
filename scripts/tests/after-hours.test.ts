@@ -18,6 +18,22 @@ function fixture() {
 }
 const afterHours = { price: 112, asOf: new Date(observed * 1000).toISOString() };
 
+test('session metadata rollover retains Friday post-market until Monday pre-market, then selects pre-market only', () => {
+  const body: any = fixture(), c = body.chart.result[0];
+  c.meta.tradingPeriods = { regular: [[{ ...c.meta.currentTradingPeriod.regular }]], post: [[{ ...c.meta.currentTradingPeriod.post }]] };
+  const pre = Date.parse('2026-11-09T09:00:00Z') / 1000;
+  c.meta.currentTradingPeriod = { pre: { start: pre, end: pre + 19800 }, regular: { start: pre + 19800, end: pre + 43200 }, post: { start: pre + 43200, end: pre + 57600 } };
+  const retained = validateQuoteResponse(body, 'AAPL', pre * 1000 - 1).afterHours;
+  assert.equal(retained?.price, 112);
+  assert.equal(validateQuoteResponse(body, 'AAPL', pre * 1000).afterHours, null, 'Never relabel Friday as Monday pre-market');
+  c.timestamp.push(pre + 300); c.indicators.quote[0].close.push(113);
+  const quote = validateQuoteResponse(body, 'AAPL', (pre + 301) * 1000);
+  assert.equal(quote.afterHours?.price, 113);
+  assert.equal((quote.afterHours as any)?.session, 'pre');
+  assert.equal((applyQuote(emptyStock('AAPL'), quote).afterHours as any)?.session, 'pre');
+  assert.equal(validateQuoteResponse(body, 'AAPL', (pre + 19800) * 1000).afterHours, null);
+});
+
 test('regular quotes carry a separate latest daily after-hours sample, including retained closed sessions', () => {
   const body = fixture(), original = structuredClone(body);
   const quote = validateQuoteResponse(body, 'AAPL', now);

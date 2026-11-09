@@ -48,22 +48,41 @@ export function validateChart(body: any, symbol: string, now = Date.now()) {
 }
 // The daily endpoint supplies sampled closes, not a separate real-time post-market quote.
 // Keep the dated final post-session observation independent of the selected chart period.
-function dailyAfterHours(c: any, symbol: string, now: number): { price: number; asOf: string } | null {
+function dailyAfterHours(c: any, symbol: string, now: number): { price: number; asOf: string; session?: 'pre'; validUntil?: string } | null {
   if (!['Stock', 'ETF'].includes(assetType(c.meta))) return null;
   try {
     validateChart({ chart: { result: [c] } }, symbol, now);
-    const regular = c.meta.currentTradingPeriod?.regular, post = c.meta.currentTradingPeriod?.post;
+    const current = c.meta.currentTradingPeriod, pre = current?.pre;
+    const validPre = [pre?.start, pre?.end, current?.regular?.start].every(finite) && pre.start > 0 && pre.end > pre.start && pre.end === current.regular.start && pre.end - pre.start < 86400;
+    const closes = c.indicators.quote[0].close;
+    if (validPre && now >= pre.start * 1000 && now < pre.end * 1000) {
+      for (let i = closes.length - 1; i >= 0; i--) {
+        const t = c.timestamp[i];
+        if (finite(closes[i]) && t >= pre.start && t < pre.end && t > c.meta.regularMarketTime && t * 1000 <= now)
+          return { price: closes[i], asOf: new Date(t * 1000).toISOString(), session: 'pre', validUntil: new Date(pre.end * 1000).toISOString() };
+      }
+      return null;
+    }
+    // currentTradingPeriod may already describe the next trading day. Match the
+    // regular observation to the dated periods accompanying the actual samples.
+    const periods = c.meta.tradingPeriods;
+    const regulars = Array.isArray(periods?.regular) ? periods.regular.flat() : [];
+    const posts = Array.isArray(periods?.post) ? periods.post.flat() : [];
+    const historical = regulars.find((p: any) => finite(p?.start) && finite(p?.end) && c.meta.regularMarketTime >= p.start && c.meta.regularMarketTime <= p.end + 60);
+    const regular = historical ?? current?.regular;
+    const post = historical ? posts.find((p: any) => p?.start === historical.end) : current?.post;
     if (![regular?.start, regular?.end, post?.start, post?.end].every(finite) ||
       regular.start <= 0 || regular.end <= regular.start || post.start !== regular.end || post.end <= post.start ||
       post.end - regular.start > 36 * 3600) return null;
     // Closing-print timestamps can land just after the scheduled regular-session end.
     if (c.meta.regularMarketTime < regular.start || c.meta.regularMarketTime > regular.end + 60) return null;
-    const closes = c.indicators.quote[0].close;
+    if (validPre && pre.start > regular.end && now >= pre.start * 1000) return null;
     let index = closes.length - 1;
     while (index >= 0 && !finite(closes[index])) index--;
     const observed = c.timestamp[index];
     if (index < 0 || observed * 1000 > now || observed <= c.meta.regularMarketTime || observed < post.start || observed >= post.end) return null;
-    return { price: closes[index], asOf: new Date(observed * 1000).toISOString() };
+    return { price: closes[index], asOf: new Date(observed * 1000).toISOString(),
+      ...(validPre && pre.start > post.end ? { validUntil: new Date(pre.start * 1000).toISOString() } : {}) };
   } catch { return null; }
 }
 export function normalizeQuote(c: any, symbol: string, rich: any = {}, now = Date.now()) {

@@ -334,7 +334,8 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const periodChange = finite(stock.price) && finite(returnBaseline) && returnBaseline > 0 ? stock.price - returnBaseline : null;
   const periodChangePercent = finite(periodChange) ? periodChange / returnBaseline! * 100 : null;
   const returnIsPositive = finite(periodChange) && periodChange >= 0;
-  const afterHours = stock.afterHours && finite(stock.afterHours.price) && Number.isFinite(Date.parse(stock.afterHours.asOf)) ? stock.afterHours : null;
+  const afterHours = stock.afterHours && finite(stock.afterHours.price) && Number.isFinite(Date.parse(stock.afterHours.asOf)) && (!stock.afterHours.validUntil || chartNow < Date.parse(stock.afterHours.validUntil)) ? stock.afterHours : null;
+  const extendedLabel = afterHours?.session === 'pre' ? 'Pre-market' : 'After hours';
   const sampleChangePercent = finite(activePrice) && finite(returnBaseline) && returnBaseline > 0 ? (activePrice - returnBaseline) / returnBaseline * 100 : null;
   const afterHoursChange = afterHours && finite(stock.price) ? afterHours.price - stock.price : null;
   const afterHoursPercent = finite(afterHoursChange) && finite(stock.price) && stock.price > 0 ? afterHoursChange / stock.price * 100 : null;
@@ -717,8 +718,8 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 {stock.dataStatus === 'stale' && <span className="text-warning-ink-400"> · Refresh unavailable</span>}
               </> : 'Quote unavailable'}
             </p>
-            {afterHours && <p data-testid="after-hours-quote" title={'After hours · ' + fullPriceLabel(afterHours.price, stock.currency, stock.assetType) + ' · ' + new Date(afterHours.asOf).toLocaleString([], { dateStyle: 'full', timeStyle: 'long' }) + (stock.dataStatus === 'stale' ? ' · Refresh unavailable' : '')} className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs sm:text-sm">
-              <span className="text-ink-muted">After hours</span>
+            {afterHours && <p data-testid="after-hours-quote" title={extendedLabel + ' · ' + fullPriceLabel(afterHours.price, stock.currency, stock.assetType) + ' · ' + new Date(afterHours.asOf).toLocaleString([], { dateStyle: 'full', timeStyle: 'long' }) + (stock.dataStatus === 'stale' ? ' · Refresh unavailable' : '')} className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs sm:text-sm">
+              <span className="text-ink-muted">{extendedLabel}</span>
               <span data-testid="after-hours-price" className={`font-mono font-bold ${changeColor(afterHoursChange)}`}>{priceLabel(afterHours.price, stock.currency, stock.assetType)}</span>
               {finite(afterHoursPercent) && <span data-testid="after-hours-change" title="Change from regular-session close" className={`font-mono font-semibold ${changeColor(afterHoursChange)}`}>
                 {percentage(afterHoursPercent)} ({afterHoursChange! > 0 ? '+' : ''}{priceLabel(afterHoursChange, stock.currency, stock.assetType)})
