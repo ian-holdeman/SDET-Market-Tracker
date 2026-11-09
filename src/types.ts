@@ -91,6 +91,7 @@ export interface WallStreetPriceTarget {
 export type AssetType = 'ETF' | 'Stock' | 'Crypto' | 'Index' | 'Commodity' | 'Bond Yield' | 'Mutual Fund';
 
 export interface BoardStock {
+  afterHours?: { price: number; asOf: string } | null;
   dataStatus?: 'available' | 'stale' | 'unavailable';
   asOf?: string;
   fetchedAt?: string;

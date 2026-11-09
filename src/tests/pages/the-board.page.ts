@@ -87,6 +87,9 @@ export class TheBoardPage extends BasePage {
       currentQuote: card.getByTestId("current-quote"),
       currentPrice: card.getByTestId("current-price"),
       samplePrice: card.getByTestId("chart-sample-price"),
+      periodReturn: card.getByTestId('period-return'),
+      afterHours: card.getByTestId('after-hours-quote'),
+      sampleTime: card.getByTestId('chart-sample-time'),
       absoluteChange: card.getByTestId('period-absolute-change'),
       financeLink: card.getByRole('link', { name: /^Google Finance/ }),
       highLabel: card.locator('#price-badge-high-' + symbol.toLowerCase()),
@@ -96,7 +99,18 @@ export class TheBoardPage extends BasePage {
       pulse: card.getByTestId('market-chart-pulse'),
       session: card.getByTestId('market-chart-session'),
       hoverSample: () => card.getByTestId('market-chart').hover({ position: { x: 24, y: 40 } }),
-      clearSample: () => card.getByText('Current price', { exact: true }).hover(),
+      hoverLastSample: async () => {
+        const surface = card.getByTestId('market-chart');
+        const endpoint = card.getByTestId('market-chart-endpoint').locator('circle').first();
+        await endpoint.waitFor({ state: 'visible' });
+        const position = await endpoint.evaluate(element => {
+          const circle = element as SVGCircleElement, svg = circle.ownerSVGElement!;
+          const box = svg.getBoundingClientRect(), view = svg.viewBox.baseVal;
+          return { x: circle.cx.baseVal.value / view.width * box.width, y: circle.cy.baseVal.value / view.height * box.height };
+        });
+        await surface.hover({ position });
+      },
+      clearSample: () => card.getByTestId('current-price').hover(),
       timeframe: (name: string) => card.getByRole('button', { name, exact: true }),
     };
   }

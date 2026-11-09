@@ -327,9 +327,14 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const displayedPoint = isHovering ? points[hoverIndex] : (points[points.length - 1] || null);
   const activePrice = displayedPoint ? displayedPoint.price : currentPrice;
   const activeChange = finite(activePrice) && finite(startPrice) ? activePrice - startPrice : null;
-  const activeChangePercent = finite(activeChange) && startPrice > 0 ? (activeChange / startPrice) * 100 : null;
   const isPeriodPositive = finite(activeChange) && activeChange >= 0;
-  const quoteIsPositive = finite(stock.change) && stock.change >= 0;
+  // Headline returns use the displayed quote and the selected period's baseline.
+  // Hovering inspects history without changing the current price or its return.
+  const returnBaseline = selectedTimeframe === '1D' ? stock.prevClose : startPrice;
+  const periodChange = finite(stock.price) && finite(returnBaseline) && returnBaseline > 0 ? stock.price - returnBaseline : null;
+  const periodChangePercent = finite(periodChange) ? periodChange / returnBaseline! * 100 : null;
+  const returnIsPositive = finite(periodChange) && periodChange >= 0;
+  const afterHours = stock.afterHours && finite(stock.afterHours.price) && Number.isFinite(Date.parse(stock.afterHours.asOf)) ? stock.afterHours : null;
 
   // Compute Even Y-Axis Ticks with startPrice included for balanced baseline framing
   const yAxisConfig = useMemo(() => {
@@ -550,8 +555,10 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
     if (point.timeUnix) {
       const dateObj = new Date(point.timeUnix);
       if (tf === '1D') {
-        return dateObj.toLocaleTimeString('en-US', {
+        return dateObj.toLocaleString('en-US', {
           timeZone: 'America/New_York',
+          month: 'short',
+          day: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
           hour12: true,
@@ -691,13 +698,13 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
           </div>
 
           <div data-testid="current-quote" className="pt-0.5">
-            <p className="text-[10px] sm:text-xs text-ink-muted">Current price</p>
             <div className="flex items-center gap-x-2 gap-y-1 flex-wrap">
               <span data-testid="current-price" title={fullPriceLabel(stock.price, stock.currency, stock.assetType)} className="text-xl sm:text-2xl font-black font-mono text-ink-heading tracking-tight">
                 {priceLabel(stock.price, stock.currency, stock.assetType)}
               </span>
-              {finite(stock.changePercent) && <span title="Change from previous close" className={`inline-flex items-center font-mono text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-lg ${quoteIsPositive ? 'bg-positive-surface-950/70 text-positive-ink-300' : 'bg-danger-surface-950/70 text-danger-ink-300'}`}>
-                {quoteIsPositive ? '+' : ''}{fixed(stock.changePercent)}%
+              {finite(periodChangePercent) && <span data-testid="period-return" title={selectedTimeframe === '1D' ? '1D change from previous close' : selectedTimeframe + ' change from first chart sample'} className={`inline-flex items-center font-mono text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-lg ${returnIsPositive ? 'bg-positive-surface-950/70 text-positive-ink-300' : 'bg-danger-surface-950/70 text-danger-ink-300'}`}>
+                {returnIsPositive ? '+' : ''}{fixed(periodChangePercent)}%
+                <span data-testid="period-absolute-change" className="ml-1">(<span title={fullPriceLabel(periodChange, stock.currency, stock.assetType)}>{priceLabel(periodChange, stock.currency, stock.assetType)}</span>)</span>
               </span>}
             </div>
             <p className="mt-0.5 text-[10px] sm:text-xs text-ink-muted">
@@ -706,6 +713,9 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 {stock.dataStatus === 'stale' && <span className="text-warning-ink-400"> · Refresh unavailable</span>}
               </> : 'Quote unavailable'}
             </p>
+            {afterHours && <p data-testid="after-hours-quote" title={'After hours · ' + fullPriceLabel(afterHours.price, stock.currency, stock.assetType) + ' · ' + new Date(afterHours.asOf).toLocaleString([], { dateStyle: 'full', timeStyle: 'long' }) + (stock.dataStatus === 'stale' ? ' · Refresh unavailable' : '')} className="mt-0.5 text-[10px] sm:text-xs text-ink-muted">
+              After hours <span className="font-mono">{priceLabel(afterHours.price, stock.currency, stock.assetType)}</span>
+            </p>}
           </div>
         </div>
 
@@ -762,29 +772,17 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
       {/* Main Focus: Big Multi-Timeframe Interactive Trendline */}
       <div className="space-y-1 relative">
 
-        {points.length > 0 && <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-ink-muted">
-          <span>{isHovering ? 'Selected sample' : selectedTimeframe + ' last sample'}</span>
-          <span data-testid="chart-sample-price" title={fullPriceLabel(activePrice, stock.currency, stock.assetType)} className="font-mono font-semibold text-ink-heading">{priceLabel(activePrice, stock.currency, stock.assetType)}</span>
-          <span title={selectedTimeframe === '1D' ? 'Change from previous close' : 'Change from first sample'} className={`font-mono ${finite(activeChange) ? isPeriodPositive ? 'text-positive-ink-300' : 'text-danger-ink-300' : ''}`}>
-            {finite(activeChangePercent) ? (isPeriodPositive ? '+' : '') + fixed(activeChangePercent) + '%' : '—'}
-            <span data-testid="period-absolute-change" className="ml-1">(<span title={fullPriceLabel(activeChange, stock.currency, stock.assetType)}>{priceLabel(activeChange, stock.currency, stock.assetType)}</span>)</span>
-          </span>
-        </div>}
         {candleError && <p className="text-xs text-ink-muted" role="status">{candleError}</p>}
         {/* Dedicated Timestamp Track above graph (Ensures 0 overlap with High Y-axis price badge) */}
         <div className="h-5 sm:h-6 relative w-full flex items-center select-none">
-          {!activeCoord && is1D && points.length > 0 && <span data-testid="market-chart-session" className="text-[10px] sm:text-xs text-ink-muted">
-            {new Date(points[0].timeUnix!).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' })}
-            {' · '}{new Date(points.at(-1)!.timeUnix!).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === new Date(chartNow).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) ? 'Intraday samples' : 'Previous session'}
-          </span>}
           {activeCoord && (
             <div
-              className="absolute top-1/2 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-30 px-3 py-0.5 rounded-full bg-surface-800 text-xs sm:text-sm font-mono font-bold text-ink-body shadow-md whitespace-nowrap border border-line-strong/60"
-              style={{
-                left: `${Math.max(14, Math.min(86, (activeCoord.x / chartWidth) * 100))}%`
-              }}
+              className="absolute top-1/2 left-1/2 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-30 max-w-full px-3 py-0.5 rounded-full bg-surface-800 text-xs sm:text-sm font-mono font-bold text-ink-body shadow-md whitespace-nowrap border border-line-strong/60 flex items-center gap-2"
             >
-              {formatFloatingTimestamp(activeCoord.point || displayedPoint!, selectedTimeframe)}
+              <span data-testid="chart-sample-price" title={fullPriceLabel(activePrice, stock.currency, stock.assetType)}>{priceLabel(activePrice, stock.currency, stock.assetType)}</span>
+              <time data-testid="chart-sample-time" dateTime={displayedPoint?.timeUnix ? new Date(displayedPoint.timeUnix).toISOString() : undefined} title={displayedPoint?.timeUnix ? new Date(displayedPoint.timeUnix).toLocaleString([], { dateStyle: 'full', timeStyle: 'long' }) : undefined}>
+                {formatFloatingTimestamp(activeCoord.point || displayedPoint!, selectedTimeframe)}
+              </time>
             </div>
           )}
         </div>

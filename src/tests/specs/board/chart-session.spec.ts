@@ -30,7 +30,10 @@ test('holiday handoff and premarket transition keep a partial day chart; failure
   });
   const board = new TheBoardPage(page), chart = board.chart('SOFI');
   await page.goto('/board?symbol=SOFI');
-  await expect(chart.session).toContainText('Sep 4, 2026 · Previous session');
+  await chart.hoverLastSample();
+  await expect(chart.sampleTime).toHaveAttribute('datetime', '2026-09-04T23:55:00.000Z');
+  await chart.clearSample();
+  await expect(chart.session).toHaveCount(0);
   await expect(chart.pulse).toHaveCount(0);
   await expect(chart.line).not.toHaveAttribute('d', '');
   // Clicking the selected timeframe must not erase its already loaded graph.
@@ -42,7 +45,9 @@ test('holiday handoff and premarket transition keep a partial day chart; failure
   await page.clock.runFor(31000);
   // Keep the pointer outside the chart after the card's opening layout settles.
   await page.mouse.move(0, 0);
-  await expect(chart.session).toContainText('Sep 8, 2026 · Intraday samples');
+  await chart.hoverLastSample();
+  await expect(chart.sampleTime).toHaveAttribute('datetime', '2026-09-08T13:29:00.000Z');
+  await chart.clearSample();
   await expect(chart.pulse).toHaveCount(1);
   const preX = Number(await chart.endpoint.getAttribute('cx'));
   expect(preX).toBeGreaterThan(200); expect(preX).toBeLessThan(300);

@@ -32,6 +32,7 @@ export interface ProxyCandlesResponse {
 }
 
 export interface ProxyQuoteItem {
+  afterHours?: { price: number; asOf: string } | null;
   asOf: string;
   fetchedAt: string;
   symbol: string;

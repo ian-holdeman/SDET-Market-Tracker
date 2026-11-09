@@ -46,6 +46,26 @@ export function validateChart(body: any, symbol: string, now = Date.now()) {
   }
   return c;
 }
+// The daily endpoint supplies sampled closes, not a separate real-time post-market quote.
+// Keep the dated final post-session observation independent of the selected chart period.
+function dailyAfterHours(c: any, symbol: string, now: number): { price: number; asOf: string } | null {
+  if (!['Stock', 'ETF'].includes(assetType(c.meta))) return null;
+  try {
+    validateChart({ chart: { result: [c] } }, symbol, now);
+    const regular = c.meta.currentTradingPeriod?.regular, post = c.meta.currentTradingPeriod?.post;
+    if (![regular?.start, regular?.end, post?.start, post?.end].every(finite) ||
+      regular.start <= 0 || regular.end <= regular.start || post.start !== regular.end || post.end <= post.start ||
+      post.end - regular.start > 36 * 3600) return null;
+    // Closing-print timestamps can land just after the scheduled regular-session end.
+    if (c.meta.regularMarketTime < regular.start || c.meta.regularMarketTime > regular.end + 60) return null;
+    const closes = c.indicators.quote[0].close;
+    let index = closes.length - 1;
+    while (index >= 0 && !finite(closes[index])) index--;
+    const observed = c.timestamp[index];
+    if (index < 0 || observed * 1000 > now || observed <= c.meta.regularMarketTime || observed < post.start || observed >= post.end) return null;
+    return { price: closes[index], asOf: new Date(observed * 1000).toISOString() };
+  } catch { return null; }
+}
 export function normalizeQuote(c: any, symbol: string, rich: any = {}, now = Date.now()) {
   const m = c.meta;
   // Keep regular-session price and previous close in the same session. Extended candles are separate.
@@ -60,6 +80,7 @@ export function normalizeQuote(c: any, symbol: string, rich: any = {}, now = Dat
   return {
     symbol, name: text(m.longName) ?? text(m.shortName), assetType: assetType(m),
     price: m.regularMarketPrice, prevClose, ...changeFrom(m.regularMarketPrice, prevClose),
+    afterHours: dailyAfterHours(c, symbol, now),
     open: num(rich.regularMarketOpen), dayHigh, dayLow, volume: nonnegative(m.regularMarketVolume),
     fiftyTwoWeekLow: low, fiftyTwoWeekHigh: high,
     marketCap: cap === null ? null : `${cap.toLocaleString('en-US')} ${text(m.currency) ?? ''}`.trim(),
@@ -74,10 +95,10 @@ export function normalizeQuote(c: any, symbol: string, rich: any = {}, now = Dat
 /** Quote metadata remains usable when a closed session has no chart samples. */
 export function validateQuoteResponse(body: unknown, symbol: string, now = Date.now()) {
   const c = chartResult(body, symbol);
-  let close: number[] = [];
-  try { close = validateChart(body, symbol, now).indicators.quote[0].close.filter(finite); }
+  let chart = { meta: c.meta, timestamp: [], indicators: { quote: [{ close: [] }] } };
+  try { chart = validateChart(body, symbol, now); }
   catch { /* Optional chart data stays unavailable; quote identity/price/time are still required. */ }
-  return normalizeQuote({ meta: c.meta, indicators: { quote: [{ close }] } }, symbol, {}, now);
+  return normalizeQuote(chart, symbol, {}, now);
 }
 export function normalizeCandles(c: any, symbol: string, timeframe: string, now = Date.now()) {
   const q = c.indicators.quote[0];

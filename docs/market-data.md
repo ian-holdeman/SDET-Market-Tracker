@@ -4,9 +4,11 @@ The Board displays external market observations for supported stocks, ETFs, indi
 
 ## Quotes, charts and metrics
 
-Quotes use regular-session price and previous close. Extended-session values are not mixed into a regular-session change calculation. Period changes describe sampled price returns, not total returns or guaranteed execution prices.
+Primary quotes use regular-session price. The expanded card compares that current quote with the previous close for 1D, or the first historical sample for a longer selected period. These are price returns, not total returns or guaranteed execution prices. Extended-session values remain separate.
 
-The Board, expanded asset headline and alert form share the same **Current price**: the latest known validated provider quote. Changing chart periods or selecting a historical point does not change that headline. The expanded card shows the quote observation time and labels chart sample prices separately. Current price is not a streaming or real-time guarantee, and closed markets can retain an older observation.
+The Board, expanded asset headline and alert form share the same **Current price**: the latest known validated provider quote. Changing chart periods or selecting a historical point does not change that headline. The expanded card keeps the quote observation time beneath the headline. Historical price and time appear only while inspecting the chart. Current price is not a streaming or real-time guarantee, and closed markets can retain an older observation.
+
+An optional **After hours** row shows the latest validated five-minute closing sample within the provider’s dated post-market session for stocks and ETFs. It comes from the daily quote response and stays independent of the selected timeline and hover point. Missing or mismatched session data leaves the row absent.
 
 Charts preserve received sample precision and timestamps. A current quote does not overwrite historical samples. Intraday axes follow validated dated session boundaries when available; missing session information falls back to the actual sample range.
 

@@ -35,12 +35,15 @@ test('a one-point chart stays historical; switching to failed history clears it'
   await page.goto('/board?symbol=AAPL');
   const card = board.chart('AAPL').card;
   await expect(card).not.toContainText('Historical samples through');
+  await board.chart('AAPL').hoverLastSample();
   await expect(board.chart('AAPL').samplePrice).toHaveText('$101.00');
   await expect(board.metric('AAPL', 'volume')).toContainText('0');
   await expect(board.metric('AAPL', 'previous-close')).toContainText('$999.00');
   await board.chart('AAPL').timeframe('1Y').click();
   await expect(card).toContainText('Historical data unavailable');
   await expect(board.chart('AAPL').samplePrice).toHaveCount(0);
+  await expect(board.chart('AAPL').periodReturn).toHaveCount(0);
+  await expect(board.chart('AAPL').currentPrice).toHaveText('$999.00');
   expect(errors).toEqual([]);
 });
 
