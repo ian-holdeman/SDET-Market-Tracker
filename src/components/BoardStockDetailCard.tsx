@@ -335,6 +335,10 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
   const periodChangePercent = finite(periodChange) ? periodChange / returnBaseline! * 100 : null;
   const returnIsPositive = finite(periodChange) && periodChange >= 0;
   const afterHours = stock.afterHours && finite(stock.afterHours.price) && Number.isFinite(Date.parse(stock.afterHours.asOf)) ? stock.afterHours : null;
+  const sampleChangePercent = finite(activePrice) && finite(returnBaseline) && returnBaseline > 0 ? (activePrice - returnBaseline) / returnBaseline * 100 : null;
+  const afterHoursChange = afterHours && finite(stock.price) ? afterHours.price - stock.price : null;
+  const afterHoursPercent = finite(afterHoursChange) && finite(stock.price) && stock.price > 0 ? afterHoursChange / stock.price * 100 : null;
+  const changeColor = (change: number | null) => !finite(change) ? 'text-ink-body' : change >= 0 ? 'text-positive-ink-300' : 'text-danger-ink-300';
 
   // Compute Even Y-Axis Ticks with startPrice included for balanced baseline framing
   const yAxisConfig = useMemo(() => {
@@ -713,8 +717,12 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
                 {stock.dataStatus === 'stale' && <span className="text-warning-ink-400"> · Refresh unavailable</span>}
               </> : 'Quote unavailable'}
             </p>
-            {afterHours && <p data-testid="after-hours-quote" title={'After hours · ' + fullPriceLabel(afterHours.price, stock.currency, stock.assetType) + ' · ' + new Date(afterHours.asOf).toLocaleString([], { dateStyle: 'full', timeStyle: 'long' }) + (stock.dataStatus === 'stale' ? ' · Refresh unavailable' : '')} className="mt-0.5 text-[10px] sm:text-xs text-ink-muted">
-              After hours <span className="font-mono">{priceLabel(afterHours.price, stock.currency, stock.assetType)}</span>
+            {afterHours && <p data-testid="after-hours-quote" title={'After hours · ' + fullPriceLabel(afterHours.price, stock.currency, stock.assetType) + ' · ' + new Date(afterHours.asOf).toLocaleString([], { dateStyle: 'full', timeStyle: 'long' }) + (stock.dataStatus === 'stale' ? ' · Refresh unavailable' : '')} className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs sm:text-sm">
+              <span className="text-ink-muted">After hours</span>
+              <span data-testid="after-hours-price" className={`font-mono font-bold ${changeColor(afterHoursChange)}`}>{priceLabel(afterHours.price, stock.currency, stock.assetType)}</span>
+              {finite(afterHoursPercent) && <span data-testid="after-hours-change" title="Change from regular-session close" className={`font-mono font-semibold ${changeColor(afterHoursChange)}`}>
+                {percentage(afterHoursPercent)} ({afterHoursChange! > 0 ? '+' : ''}{priceLabel(afterHoursChange, stock.currency, stock.assetType)})
+              </span>}
             </p>}
           </div>
         </div>
@@ -777,9 +785,10 @@ export const BoardStockDetailCard: React.FC<BoardStockDetailCardProps> = ({ stoc
         <div className="h-5 sm:h-6 relative w-full flex items-center select-none">
           {activeCoord && (
             <div
-              className="absolute top-1/2 left-1/2 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-30 max-w-full px-3 py-0.5 rounded-full bg-surface-800 text-xs sm:text-sm font-mono font-bold text-ink-body shadow-md whitespace-nowrap border border-line-strong/60 flex items-center gap-2"
+              className="absolute top-1/2 left-1/2 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-30 max-w-full px-3 py-0.5 rounded-full bg-surface-800 text-[10px] sm:text-sm font-mono font-bold text-ink-body shadow-md whitespace-nowrap border border-line-strong/60 flex items-center gap-1.5 sm:gap-2"
             >
-              <span data-testid="chart-sample-price" title={fullPriceLabel(activePrice, stock.currency, stock.assetType)}>{priceLabel(activePrice, stock.currency, stock.assetType)}</span>
+              <span data-testid="chart-sample-price" className={changeColor(sampleChangePercent)} title={fullPriceLabel(activePrice, stock.currency, stock.assetType)}>{priceLabel(activePrice, stock.currency, stock.assetType)}</span>
+              {finite(sampleChangePercent) && <span data-testid="chart-sample-return" title={selectedTimeframe === '1D' ? 'Change from previous close' : 'Change from first chart sample'} className={changeColor(sampleChangePercent)}>{percentage(sampleChangePercent)}</span>}
               <time data-testid="chart-sample-time" dateTime={displayedPoint?.timeUnix ? new Date(displayedPoint.timeUnix).toISOString() : undefined} title={displayedPoint?.timeUnix ? new Date(displayedPoint.timeUnix).toLocaleString([], { dateStyle: 'full', timeStyle: 'long' }) : undefined}>
                 {formatFloatingTimestamp(activeCoord.point || displayedPoint!, selectedTimeframe)}
               </time>

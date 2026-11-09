@@ -87,6 +87,8 @@ export class TheBoardPage extends BasePage {
       currentQuote: card.getByTestId("current-quote"),
       currentPrice: card.getByTestId("current-price"),
       samplePrice: card.getByTestId("chart-sample-price"),
+      sampleReturn: card.getByTestId("chart-sample-return"),
+      afterHoursChange: card.getByTestId("after-hours-change"),
       periodReturn: card.getByTestId('period-return'),
       afterHours: card.getByTestId('after-hours-quote'),
       sampleTime: card.getByTestId('chart-sample-time'),

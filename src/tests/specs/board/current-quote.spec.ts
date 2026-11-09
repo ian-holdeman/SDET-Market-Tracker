@@ -25,7 +25,7 @@ for (const theme of ['dark', 'light'] as const)
   const board = new TheBoardPage(page), chart = board.chart('AAPL');
   await expect(board.assetRow('AAPL')).toContainText('$999.00');
   await expect(chart.currentPrice).toHaveText('$999.00');
-  await expect(chart.afterHours).toHaveText('After hours $1,005.00');
+  await expect(chart.afterHours).toContainText('$1,005.00');
   await chart.timeframe('1Y').click();
   await expect(chart.periodReturn).toContainText('+200.90%');
   await expect(chart.samplePrice).toHaveCount(0);
@@ -121,16 +121,19 @@ test('unavailable current quote never borrows a historical sample', async ({ pag
 });
 
 
-test('selected timeline returns use the canonical price while after-hours stays independent of chart hover', async ({ page }) => {
+for (const theme of ['dark', 'light'] as const)
+test(`selected timeline returns and hover/after-hours changes stay independent in ${theme}`, async ({ page }, testInfo) => {
+  await page.emulateMedia({ colorScheme: theme });
+  let postPrice = 121;
   const account = await mockApp(page); account.populated = true; account.curated = ['AAPL'];
   const at = '2026-11-06T21:00:00.000Z', postAt = '2026-11-07T00:55:00.000Z';
   await page.route('**/api/quotes?**', route => route.fulfill({ json: { quotes: [{
     symbol: 'AAPL', price: 120, prevClose: 100, change: 20, changePercent: 20, currency: 'USD', assetType: 'Stock',
-    asOf: at, fetchedAt: new Date().toISOString(), afterHours: { price: 121, asOf: postAt }, sparkline: [],
+    asOf: at, fetchedAt: new Date().toISOString(), afterHours: { price: postPrice, asOf: postAt }, sparkline: [],
   }] } }));
   await page.route('**/api/candles?**', route => {
     const timeframe = new URL(route.request().url()).searchParams.get('timeframe');
-    const baseline = timeframe === '1Y' ? 80 : timeframe === '1M' ? 0 : timeframe === '5Y' ? -10 : 100;
+    const baseline = timeframe === '1Y' ? 80 : timeframe === '1M' ? 0 : timeframe === '5Y' ? -10 : timeframe === '1W' ? 130 : 100;
     return route.fulfill({ json: { symbol: 'AAPL', timeframe, asOf: at, fetchedAt: at,
       points: [{ price: baseline, timestamp: Date.parse(at) - 60000, date: at, label: '' },
         { price: 110, timestamp: Date.parse(at), date: at, label: '' }],
@@ -144,7 +147,8 @@ test('selected timeline returns use the canonical price while after-hours stays 
   await expect(chart.currentQuote).toContainText('+50.00%');
   await expect(chart.absoluteChange).toHaveText('($40.00)');
   await expect(chart.currentPrice).toHaveText('$120.00');
-  await expect(chart.afterHours).toHaveText('After hours $121.00');
+  await expect(chart.afterHours).toContainText('$121.00');
+  await expect(chart.afterHoursChange).toHaveText('+0.83% (+$1.00)');
   await expect(chart.afterHours).toHaveAttribute('title', /After hours.*2026/);
   await expect(chart.currentQuote).toContainText('As of');
   await expect(chart.card.getByText('Current price', { exact: true })).toHaveCount(0);
@@ -152,18 +156,35 @@ test('selected timeline returns use the canonical price while after-hours stays 
   await expect(chart.session).toHaveCount(0);
   await chart.hoverSample();
   await expect(chart.samplePrice).toHaveText('$80.00');
+  await expect(chart.sampleReturn).toHaveText('0.00%');
+  await chart.hoverLastSample();
+  await expect(chart.sampleReturn).toHaveText('+37.50%');
+  await chart.card.screenshot({ path: testInfo.outputPath(`positive-hover-${theme}.png`) });
   await expect(chart.currentQuote).toContainText('+50.00%');
-  await expect(chart.afterHours).toHaveText('After hours $121.00');
+  await expect(chart.afterHours).toContainText('$121.00');
   await chart.clearSample();
   await expect(chart.samplePrice).toHaveCount(0);
   await chart.timeframe('1D').click();
   await expect(chart.currentQuote).toContainText('+20.00%');
   await expect(chart.absoluteChange).toHaveText('($20.00)');
-  await expect(chart.afterHours).toHaveText('After hours $121.00');
+  await expect(chart.afterHoursChange).toHaveText('+0.83% (+$1.00)');
+  await chart.hoverLastSample();
+  await expect(chart.sampleReturn).toHaveText('+10.00%');
+  await chart.timeframe('1W').click();
+  await expect(chart.periodReturn).toContainText('-7.69%');
+  await chart.hoverLastSample();
+  await expect(chart.sampleReturn).toHaveText('-15.38%');
+  postPrice = 119;
+  await new TheBoardPage(page).refreshButton.click();
+  await expect(chart.afterHoursChange).toHaveText('-0.83% (-$1.00)');
+  await chart.hoverLastSample();
+  await chart.card.screenshot({ path: testInfo.outputPath(`negative-hover-${theme}.png`) });
   await chart.timeframe('1M').click();
   await expect(chart.periodReturn).toHaveCount(0);
+  await chart.hoverLastSample();
+  await expect(chart.sampleReturn).toHaveCount(0);
   await chart.timeframe('5Y').click();
   await expect(chart.periodReturn).toHaveCount(0);
   await expect(chart.currentPrice).toHaveText('$120.00');
-  await expect(chart.afterHours).toHaveText('After hours $121.00');
+  await expect(chart.afterHours).toContainText('$119.00');
 });
